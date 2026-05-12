@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres-patient-db
+    environment:
+      POSTGRES_DB: mediqueue_patient
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_patient_data:/var/lib/postgresql/data
+    networks:
+      - mediqueue-network
+
+  patient-service:
+    build: .
+    container_name: mediqueue-patient-service
+    depends_on:
+      - postgres
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_patient
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8081:8081"
+    networks:
+      - mediqueue-network
+
+volumes:
+  postgres_patient_data:
+
+networks:
+  mediqueue-network:
+    driver: bridge

@@ -1,0 +1,305 @@
+{
+  "vhosts": [
+    { "name": "/" }
+  ],
+  "exchanges": [
+    {
+      "name": "appointments.exchange",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "payments.exchange",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "notifications.exchange",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "appointments.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "payments.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "notifications.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "appointment.held.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "appointments.dlx",
+        "x-dead-letter-routing-key": "appointment.held.dlq"
+      }
+    },
+    {
+      "name": "appointment.confirmed.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "appointments.dlx",
+        "x-dead-letter-routing-key": "appointment.confirmed.dlq"
+      }
+    },
+    {
+      "name": "appointment.cancelled.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "appointments.dlx",
+        "x-dead-letter-routing-key": "appointment.cancelled.dlq"
+      }
+    },
+    {
+      "name": "appointment.expired.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "payment.succeeded.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "payments.dlx",
+        "x-dead-letter-routing-key": "payment.succeeded.dlq"
+      }
+    },
+    {
+      "name": "payment.failed.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "payments.dlx",
+        "x-dead-letter-routing-key": "payment.failed.dlq"
+      }
+    },
+    {
+      "name": "notification.appointment.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "notifications.dlx",
+        "x-dead-letter-routing-key": "notification.appointment.dlq"
+      }
+    },
+    {
+      "name": "notification.payment.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "notifications.dlx",
+        "x-dead-letter-routing-key": "notification.payment.dlq"
+      }
+    },
+    {
+      "name": "appointment.held.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "appointment.confirmed.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "appointment.cancelled.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "payment.succeeded.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "payment.failed.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "notification.appointment.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "notification.payment.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "appointments.exchange",
+      "vhost": "/",
+      "destination": "appointment.held.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.held",
+      "arguments": {}
+    },
+    {
+      "source": "appointments.exchange",
+      "vhost": "/",
+      "destination": "appointment.confirmed.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.confirmed",
+      "arguments": {}
+    },
+    {
+      "source": "appointments.exchange",
+      "vhost": "/",
+      "destination": "appointment.cancelled.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.cancelled",
+      "arguments": {}
+    },
+    {
+      "source": "appointments.exchange",
+      "vhost": "/",
+      "destination": "appointment.expired.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.expired",
+      "arguments": {}
+    },
+    {
+      "source": "appointments.exchange",
+      "vhost": "/",
+      "destination": "notification.appointment.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.#",
+      "arguments": {}
+    },
+    {
+      "source": "payments.exchange",
+      "vhost": "/",
+      "destination": "payment.succeeded.queue",
+      "destination_type": "queue",
+      "routing_key": "payment.succeeded",
+      "arguments": {}
+    },
+    {
+      "source": "payments.exchange",
+      "vhost": "/",
+      "destination": "payment.failed.queue",
+      "destination_type": "queue",
+      "routing_key": "payment.failed",
+      "arguments": {}
+    },
+    {
+      "source": "payments.exchange",
+      "vhost": "/",
+      "destination": "notification.payment.queue",
+      "destination_type": "queue",
+      "routing_key": "payment.#",
+      "arguments": {}
+    },
+    {
+      "source": "appointments.dlx",
+      "vhost": "/",
+      "destination": "appointment.held.dlq",
+      "destination_type": "queue",
+      "routing_key": "appointment.held.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "appointments.dlx",
+      "vhost": "/",
+      "destination": "appointment.confirmed.dlq",
+      "destination_type": "queue",
+      "routing_key": "appointment.confirmed.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "appointments.dlx",
+      "vhost": "/",
+      "destination": "appointment.cancelled.dlq",
+      "destination_type": "queue",
+      "routing_key": "appointment.cancelled.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "payments.dlx",
+      "vhost": "/",
+      "destination": "payment.succeeded.dlq",
+      "destination_type": "queue",
+      "routing_key": "payment.succeeded.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "payments.dlx",
+      "vhost": "/",
+      "destination": "payment.failed.dlq",
+      "destination_type": "queue",
+      "routing_key": "payment.failed.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "notifications.dlx",
+      "vhost": "/",
+      "destination": "notification.appointment.dlq",
+      "destination_type": "queue",
+      "routing_key": "notification.appointment.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "notifications.dlx",
+      "vhost": "/",
+      "destination": "notification.payment.dlq",
+      "destination_type": "queue",
+      "routing_key": "notification.payment.dlq",
+      "arguments": {}
+    }
+  ]
+}

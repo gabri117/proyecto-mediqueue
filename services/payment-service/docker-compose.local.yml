@@ -1,0 +1,106 @@
+services:
+  payment-postgres:
+    image: postgres:16
+    container_name: mediqueue-payment-postgres
+    environment:
+      POSTGRES_DB: mediqueue_payment
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mediqueue_payment"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - payment-postgres-data:/var/lib/postgresql/data
+    networks:
+      - mediqueue-payment-net
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: mediqueue-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - mediqueue-payment-net
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mediqueue-payment-service:local
+    container_name: mediqueue-payment-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    depends_on:
+      payment-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://payment-postgres:5432/mediqueue_payment
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+
+      PAYMENT_TIMEOUT_SECONDS: "10"
+      IDEMPOTENCY_KEY_TTL_HOURS: "24"
+
+      # Configuración especial para prueba de carga:
+      # Queremos que los 1500 pagos únicos se aprueben.
+      PAYMENT_SIM_MIN_DELAY_MS: "1"
+      PAYMENT_SIM_MAX_DELAY_MS: "5"
+      PAYMENT_SIM_APPROVAL_RATE: "1.0"
+      
+      OUTBOX_BATCH_SIZE: "500"
+
+      OUTBOX_PUBLISH_INTERVAL_SECONDS: "1"
+      
+
+      # Quita el warning de open-in-view.
+      SPRING_JPA_OPEN_IN_VIEW: "false"
+    networks:
+      - mediqueue-payment-net
+
+  k6:
+    image: grafana/k6:latest
+    container_name: mediqueue-payment-k6
+    profiles:
+      - loadtest
+    depends_on:
+      - payment-service
+    environment:
+      BASE_URL: http://payment-service:8084
+    volumes:
+      - ./tests:/scripts
+    networks:
+      - mediqueue-payment-net
+    entrypoint: ["k6", "run", "/scripts/payment-2000-test.js"]
+
+volumes:
+  payment-postgres-data:
+  rabbitmq-data:
+
+networks:
+  mediqueue-payment-net:
+    name: mediqueue-payment-net

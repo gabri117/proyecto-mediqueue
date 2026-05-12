@@ -1,0 +1,128 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 3000
+            response-timeout: 10s
+          default-filters:
+            - AddResponseHeader=X-Gateway-Name, mediqueue-api-gateway
+          routes:
+            - id: patient-service
+              uri: ${PATIENT_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/patients/**,/api/patients
+              filters:
+                - RewritePath=/api/(?<segment>.*), /$\{segment}
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@clientIpOrHeaderKeyResolver}"
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_PATIENT_REPLENISH:50}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_PATIENT_BURST:100}
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: patient-service
+                    fallbackUri: forward:/fallback/patient
+                    statusCodes: 500,502,503,504
+
+            - id: schedule-service
+              uri: ${SCHEDULE_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/dentists/**,/api/dentists,/api/dentist-slots/**,/api/dentist-slots
+              filters:
+                - RewritePath=/api/(?<segment>.*), /$\{segment}
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@clientIpOrHeaderKeyResolver}"
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_SCHEDULE_REPLENISH:200}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_SCHEDULE_BURST:400}
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: schedule-service
+                    fallbackUri: forward:/fallback/schedule
+                    statusCodes: 500,502,503,504
+
+            - id: appointment-service
+              uri: ${APPOINTMENT_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/appointments/**,/api/appointments
+              filters:
+                - RewritePath=/api/(?<segment>.*), /$\{segment}
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@clientIpOrHeaderKeyResolver}"
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_APPOINTMENT_REPLENISH:50}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_APPOINTMENT_BURST:100}
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: appointment-service
+                    fallbackUri: forward:/fallback/appointment
+                    statusCodes: 500,502,503,504
+
+            - id: payment-service
+              uri: ${PAYMENT_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/payments/**,/api/payments
+              filters:
+                - RewritePath=/api/(?<segment>.*), /$\{segment}
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@clientIpOrHeaderKeyResolver}"
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_PAYMENT_REPLENISH:30}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_PAYMENT_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: payment-service
+                    fallbackUri: forward:/fallback/payment
+                    statusCodes: 500,502,503,504
+
+            - id: notification-service
+              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/notifications/**,/api/notifications
+              filters:
+                - RewritePath=/api/(?<segment>.*), /$\{segment}
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@clientIpOrHeaderKeyResolver}"
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_NOTIFICATION_REPLENISH:50}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_NOTIFICATION_BURST:100}
+                    redis-rate-limiter.requestedTokens: 1
+                - name: CircuitBreaker
+                  args:
+                    name: notification-service
+                    fallbackUri: forward:/fallback/notification
+                    statusCodes: 500,502,503,504
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      access: unrestricted
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    reactor.netty.http.client: INFO
+    com.mediqueue.api.gateway: INFO

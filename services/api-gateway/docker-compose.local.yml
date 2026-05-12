@@ -1,0 +1,72 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: mediqueue-gateway-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - gateway-redis-data:/data
+    networks:
+      - mediqueue-gateway-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mediqueue-api-gateway:local
+    container_name: mediqueue-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8080"
+
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+
+      PATIENT_SERVICE_URL: http://host.docker.internal:8081
+      SCHEDULE_SERVICE_URL: http://host.docker.internal:8082
+      APPOINTMENT_SERVICE_URL: http://host.docker.internal:8083
+      PAYMENT_SERVICE_URL: http://host.docker.internal:8084
+      NOTIFICATION_SERVICE_URL: http://host.docker.internal:8085
+
+      # Rate limits para pruebas normales
+      RATE_LIMIT_PATIENT_REPLENISH: "50"
+      RATE_LIMIT_PATIENT_BURST: "100"
+
+      RATE_LIMIT_SCHEDULE_REPLENISH: "200"
+      RATE_LIMIT_SCHEDULE_BURST: "400"
+
+      RATE_LIMIT_APPOINTMENT_REPLENISH: "50"
+      RATE_LIMIT_APPOINTMENT_BURST: "100"
+
+      # Rate limits altos para prueba masiva de pagos
+      RATE_LIMIT_PAYMENT_REPLENISH: "50000"
+      RATE_LIMIT_PAYMENT_BURST: "100000"
+
+      RATE_LIMIT_NOTIFICATION_REPLENISH: "50"
+      RATE_LIMIT_NOTIFICATION_BURST: "100"
+
+      # Logs más útiles para pruebas
+      LOGGING_LEVEL_COM_MEDIQUEUE_API_GATEWAY: INFO
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY: INFO
+
+    networks:
+      - mediqueue-gateway-net
+
+volumes:
+  gateway-redis-data:
+
+networks:
+  mediqueue-gateway-net:
+    name: mediqueue-gateway-net
+    driver: bridge

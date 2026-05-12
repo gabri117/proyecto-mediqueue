@@ -1,0 +1,238 @@
+networks:
+  mediqueue-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+
+services:
+
+  # ─────────────────────────────────────────────
+  # INFRASTRUCTURE
+  # ─────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16
+    container_name: mediqueue-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-mediqueue}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mediqueue}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/docker/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql:ro
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-mediqueue}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mediqueue-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis123} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # MICROSERVICES
+  # ─────────────────────────────────────────────
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: infra/docker/api-gateway.Dockerfile
+    container_name: mediqueue-api-gateway
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      PATIENT_SERVICE_URL: http://patient-service:8080
+      SCHEDULE_SERVICE_URL: http://schedule-service:8080
+      APPOINTMENT_SERVICE_URL: http://appointment-service:8080
+      PAYMENT_SERVICE_URL: http://payment-service:8080
+      NOTIFICATION_SERVICE_URL: http://notification-service:8080
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  appointment-service:
+    build:
+      context: .
+      dockerfile: infra/docker/appointment-service.Dockerfile
+    container_name: mediqueue-appointment-service
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_appointments
+      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_appointments
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
+      DB_USER: ${DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
+      RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: infra/docker/notification-service.Dockerfile
+    container_name: mediqueue-notification-service
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_notifications
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      DB_USER: ${DB_USERNAME:-mediqueue}
+      DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-mediqueue}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbit123}
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: infra/docker/payment-service.Dockerfile
+    container_name: mediqueue-payment-service
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_payments
+      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_payments
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
+      DB_USER: ${DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
+      RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  patient-service:
+    build:
+      context: .
+      dockerfile: infra/docker/patient-service.Dockerfile
+    container_name: mediqueue-patient-service
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_patients
+      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_patients
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
+      DB_USER: ${DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  schedule-service:
+    build:
+      context: .
+      dockerfile: infra/docker/schedule-service.Dockerfile
+    container_name: mediqueue-schedule-service
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_schedules
+      SCHEDULE_DB_URL: jdbc:postgresql://postgres:5432/mediqueue_schedules
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
+      DB_USER: ${DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8085:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s

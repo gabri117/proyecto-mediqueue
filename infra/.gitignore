@@ -1,0 +1,5 @@
+.env
+load-tests/results/*.json
+!load-tests/results/.gitkeep
+grafana/data/
+prometheus/data/

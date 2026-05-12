@@ -1,0 +1,59 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: payment-service
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/mediqueue_payments}
+    username: ${DB_USER:mediqueue}
+    password: ${DB_PASSWORD:mediqueue}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:mediqueue}
+    password: ${RABBITMQ_PASS:rabbit123}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 10
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
+          multiplier: 2.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+mediqueue:
+  payment:
+    timeout-seconds: ${PAYMENT_TIMEOUT_SECONDS:10}
+    idempotency-ttl-hours: ${IDEMPOTENCY_KEY_TTL_HOURS:24}
+    simulator:
+      min-delay-ms: ${PAYMENT_SIM_MIN_DELAY_MS:1000}
+      max-delay-ms: ${PAYMENT_SIM_MAX_DELAY_MS:8000}
+      approval-rate: ${PAYMENT_SIM_APPROVAL_RATE:0.80}
+  outbox:
+    publish-interval-seconds: ${OUTBOX_PUBLISH_INTERVAL_SECONDS:1}
+    batch-size: ${OUTBOX_BATCH_SIZE:50}

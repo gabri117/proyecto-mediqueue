@@ -1,0 +1,106 @@
+# =============================================================================
+# MediQueue Platform — Global .gitignore
+# =============================================================================
+# Este archivo protege la raíz del Monorepo y evita la filtración de secretos,
+# dependencias locales, binarios y configuraciones específicas de desarrolladores.
+# =============================================================================
+
+# ── 1. SECRETOS Y VARIABLES DE ENTORNO (¡CRÍTICO!) ───────────────────────────
+# Bloquea cualquier archivo de configuración que contenga llaves, contraseñas o tokens.
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.development
+*.pem
+*.key
+*.pub
+*.p12
+*.pfx
+*.keystore
+*.jks
+
+# ── 2. COMPILACIÓN Y COMPONENTES DE MAVEN (JAVA) ─────────────────────────────
+# Evita subir artefactos compilados, binarios o dependencias locales.
+target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Logs de Maven y reportes de ejecución/cobertura
+*.log
+**/log/
+**/*.log
+maven-triggered-error***
+**/surefire-reports/
+**/failsafe-reports/
+**/jacoco.exec
+.pnp/
+.pnp.js
+
+# ── 3. CONFIGURACIONES DE EDITORES E IDEs ────────────────────────────────────
+# Evita conflictos de configuración entre desarrolladores que usan distintos editores.
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+**/out/
+
+# Eclipse
+.settings/
+.project
+.classpath
+.factorypath
+
+# NetBeans
+nbproject/
+private/
+**/nbprivate/
+build/
+**/nbbuild/
+
+# ── 4. SISTEMAS OPERATIVOS ───────────────────────────────────────────────────
+# Basura del sistema operativo que no aporta valor al código.
+.DS_Store
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# ── 5. ENTORNOS DE CONTENEDORES Y DOCKER ─────────────────────────────────────
+# Permite configuraciones locales de Docker que no deben subir al servidor.
+docker-compose.override.yml
+**/postgres-data/
+**/redis-data/
+**/rabbitmq-data/
+**/prometheus-data/
+**/grafana-data/
+
+# ── 6. ARCHIVOS TEMPORALES Y SCRATCHPADS ─────────────────────────────────────
+# Espacio para notas temporales de los desarrolladores.
+*.tmp
+*.temp
+scratch/
+**/scratch/
+temp-*.json
