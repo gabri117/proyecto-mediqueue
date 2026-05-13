@@ -26,6 +26,7 @@ public record AppointmentCancelledEvent(
      * @param appointmentId   the appointment's unique identifier
      * @param patientId       the patient's unique identifier
      * @param dentistId       the dentist's unique identifier
+     * @param slotId          the reserved time slot
      * @param appointmentDate the date of the appointment
      * @param startTime       the start time of the appointment
      */
@@ -33,6 +34,7 @@ public record AppointmentCancelledEvent(
             UUID appointmentId,
             UUID patientId,
             UUID dentistId,
+            UUID slotId,
             LocalDate appointmentDate,
             LocalTime startTime
     ) {

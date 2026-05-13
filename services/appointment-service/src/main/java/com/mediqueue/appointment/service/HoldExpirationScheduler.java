@@ -116,6 +116,7 @@ public class HoldExpirationScheduler {
                             appointment.getAppointmentId(),
                             appointment.getPatientId(),
                             appointment.getDentistId(),
+                            hold.getSlotId(),
                             appointment.getAppointmentDate(),
                             appointment.getStartTime()
                     )

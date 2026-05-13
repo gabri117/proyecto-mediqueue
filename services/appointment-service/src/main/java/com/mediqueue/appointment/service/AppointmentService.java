@@ -238,6 +238,7 @@ public class AppointmentService {
                         appointment.getAppointmentId(),
                         appointment.getPatientId(),
                         appointment.getDentistId(),
+                        appointment.getSlotId(),
                         appointment.getAppointmentDate(),
                         appointment.getStartTime()
                 )
@@ -288,6 +289,7 @@ public class AppointmentService {
                         appointment.getAppointmentId(),
                         appointment.getPatientId(),
                         appointment.getDentistId(),
+                        appointment.getSlotId(),
                         appointment.getAppointmentDate(),
                         appointment.getStartTime()
                 )
