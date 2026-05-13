@@ -1,6 +1,8 @@
 package com.mediqueue.appointment.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mediqueue.appointment.client.PatientClient;
+import com.mediqueue.appointment.client.ScheduleClient;
 import com.mediqueue.appointment.domain.Appointment;
 import com.mediqueue.appointment.domain.AppointmentAudit;
 import com.mediqueue.appointment.domain.AppointmentHold;
@@ -58,6 +60,8 @@ public class AppointmentService {
     private final OutboxEventRepository outboxEventRepository;
     private final AppointmentStateMachine stateMachine;
     private final ObjectMapper objectMapper;
+    private final PatientClient patientClient;
+    private final ScheduleClient scheduleClient;
     private final int holdTtlMinutes;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
@@ -67,6 +71,8 @@ public class AppointmentService {
                               OutboxEventRepository outboxEventRepository,
                               AppointmentStateMachine stateMachine,
                               ObjectMapper objectMapper,
+                              PatientClient patientClient,
+                              ScheduleClient scheduleClient,
                               @Value("${mediqueue.hold.ttl-minutes:5}") int holdTtlMinutes) {
         this.appointmentRepository = appointmentRepository;
         this.holdRepository = holdRepository;
@@ -75,6 +81,8 @@ public class AppointmentService {
         this.outboxEventRepository = outboxEventRepository;
         this.stateMachine = stateMachine;
         this.objectMapper = objectMapper;
+        this.patientClient = patientClient;
+        this.scheduleClient = scheduleClient;
         this.holdTtlMinutes = holdTtlMinutes;
     }
 
@@ -93,6 +101,10 @@ public class AppointmentService {
     @Transactional
     @SuppressWarnings("null")
     public AppointmentResponse createAppointment(AppointmentRequest request, String idempotencyKey) {
+        // (0) Synchronous validation against external services
+        patientClient.validatePatientExists(request.patientId());
+        scheduleClient.validateSlotExists(request.slotId());
+
         // (a) Idempotency check
         var existing = idempotencyKeyRepository
                 .findByOperationTypeAndIdempotencyKey(CREATE_OPERATION, idempotencyKey);

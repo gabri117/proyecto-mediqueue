@@ -30,6 +30,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, "BUSINESS_RULE_VIOLATION", ex.getMessage());
     }
 
+    @ExceptionHandler(ServiceValidationException.class)
+    public ResponseEntity<ErrorResponse> handleServiceValidation(ServiceValidationException ex) {
+        log.warn("service_validation_failed: {}", ex.getMessage());
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, "SERVICE_VALIDATION_FAILED", ex.getMessage());
+    }
+
     @ExceptionHandler(IllegalStateTransitionException.class)
     public ResponseEntity<ErrorResponse> handleIllegalTransition(IllegalStateTransitionException ex) {
         return buildResponse(HttpStatus.CONFLICT, "INVALID_STATE_TRANSITION", ex.getMessage());
