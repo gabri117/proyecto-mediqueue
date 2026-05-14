@@ -17,8 +17,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          - api-gateway-1:8080
-          - api-gateway-2:8080
+          - api-gateway:8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -27,7 +26,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          - patient-service:8081
+          - patient-service:8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -36,7 +35,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          - schedule-service:8082
+          - schedule-service:8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -45,8 +44,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          - appointment-service-1:8083
-          - appointment-service-2:8083
+          - appointment-service:8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -55,8 +53,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          - payment-service-1:8084
-          - payment-service-2:8084
+          - payment-service:8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -65,7 +62,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          - notification-service:8085
+          - notification-service:8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance

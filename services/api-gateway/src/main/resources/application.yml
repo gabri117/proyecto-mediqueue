@@ -41,7 +41,7 @@ spring:
             - id: schedule-service
               uri: ${SCHEDULE_SERVICE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/dentists/**,/api/dentists,/api/dentist-slots/**,/api/dentist-slots
+                - Path=/api/dentists/**,/api/dentists,/api/slots/**,/api/slots
               filters:
                 - RewritePath=/api/(?<segment>.*), /$\{segment}
                 - name: RequestRateLimiter

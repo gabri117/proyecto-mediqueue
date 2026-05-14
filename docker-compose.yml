@@ -5,6 +5,8 @@ networks:
 volumes:
   postgres-data:
   redis-data:
+  prometheus-data:
+  grafana-data:
 
 services:
 
@@ -59,6 +61,11 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "15692:15692"
+    volumes:
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     networks:
       - mediqueue-net
     healthcheck:
@@ -66,6 +73,48 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ─────────────────────────────────────────────
+  # OBSERVABILITY
+  # ─────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: mediqueue-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - mediqueue-net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: mediqueue-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - mediqueue-net
+    depends_on:
+      - prometheus
 
   # ─────────────────────────────────────────────
   # MICROSERVICES
