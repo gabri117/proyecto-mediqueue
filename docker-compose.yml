@@ -49,6 +49,24 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: mediqueue-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-mediqueue}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ─────────────────────────────────────────────
   # MICROSERVICES
   # ─────────────────────────────────────────────
@@ -73,7 +91,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
+      redis:
         condition: service_healthy
     networks:
       - mediqueue-net
@@ -91,6 +109,7 @@ services:
     container_name: mediqueue-appointment-service
     restart: unless-stopped
     environment:
+      SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_appointments
       DB_URL: jdbc:postgresql://postgres:5432/mediqueue_appointments
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
@@ -103,11 +122,17 @@ services:
       RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      PATIENT_SERVICE_URL: http://patient-service:8080
+      SCHEDULE_SERVICE_URL: http://schedule-service:8080
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8081:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - mediqueue-net
@@ -125,20 +150,28 @@ services:
     container_name: mediqueue-notification-service
     restart: unless-stopped
     environment:
+      SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_notifications
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_notifications
       DB_USER: ${DB_USERNAME:-mediqueue}
       DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-mediqueue}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbit123}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
+      RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8082:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - mediqueue-net
@@ -156,6 +189,7 @@ services:
     container_name: mediqueue-payment-service
     restart: unless-stopped
     environment:
+      SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_payments
       DB_URL: jdbc:postgresql://postgres:5432/mediqueue_payments
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
@@ -171,6 +205,8 @@ services:
       - "8083:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - mediqueue-net
@@ -188,6 +224,7 @@ services:
     container_name: mediqueue-patient-service
     restart: unless-stopped
     environment:
+      SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_patients
       DB_URL: jdbc:postgresql://postgres:5432/mediqueue_patients
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
@@ -216,17 +253,24 @@ services:
     container_name: mediqueue-schedule-service
     restart: unless-stopped
     environment:
+      SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_schedules
       SCHEDULE_DB_URL: jdbc:postgresql://postgres:5432/mediqueue_schedules
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
       DB_USER: ${DB_USERNAME:-mediqueue}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
       DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
+      RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8085:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - mediqueue-net
@@ -236,3 +280,4 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
