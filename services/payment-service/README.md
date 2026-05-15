@@ -264,3 +264,134 @@ docker run --rm -p 8084:8084 \
   -e RABBITMQ_HOST=host.docker.internal \
   mediqueue-payment-service
 ```
+
+## Alta disponibilidad local con replicas
+
+`docker-compose.local.yml` es el modo simple para una sola instancia de `payment-service`.
+`docker-compose.ha.yml` levanta varias replicas de `payment-service` detras de HAProxy.
+
+En modo HA, `payment-service` no publica puertos directamente. HAProxy expone
+`localhost:8084` y reparte trafico hacia las replicas disponibles usando
+`/actuator/health` como healthcheck. PostgreSQL y RabbitMQ son compartidos por
+todas las replicas.
+
+La seguridad funcional se mantiene en componentes compartidos:
+
+- La idempotencia vive en PostgreSQL, en `payment_idempotency`, y evita duplicados entre replicas.
+- El indice parcial unico `uq_payments_appointment_approved` evita dos pagos `APPROVED` para el mismo `appointmentId`.
+- El Outbox usa `FOR UPDATE SKIP LOCKED` para que varias replicas no publiquen el mismo evento pendiente.
+
+Levantar 3 replicas:
+
+```bash
+docker compose -f docker-compose.ha.yml up -d --build --scale payment-service=3
+```
+
+Ver contenedores:
+
+```bash
+docker compose -f docker-compose.ha.yml ps
+```
+
+Ver logs de las replicas:
+
+```bash
+docker compose -f docker-compose.ha.yml logs -f payment-service
+```
+
+Ver logs de HAProxy:
+
+```bash
+docker logs -f mediqueue-payment-lb
+```
+
+Health por balanceador:
+
+```http
+GET http://localhost:8084/actuator/health
+```
+
+Consultar pagos por balanceador:
+
+```http
+GET http://localhost:8084/payments?page=0&size=20
+```
+
+Crear pago por balanceador:
+
+```text
+POST http://localhost:8084/payments
+```
+
+Headers:
+
+```text
+Content-Type: application/json
+X-Idempotency-Key: ha-payment-001
+```
+
+Body:
+
+```json
+{
+  "appointmentId": "11111111-1111-1111-1111-111111111111",
+  "patientId": "22222222-2222-2222-2222-222222222222",
+  "amount": 150.00,
+  "currency": "GTQ"
+}
+```
+
+Matar una replica:
+
+```bash
+docker ps --filter "name=payment-service"
+docker kill <container_id>
+```
+
+Verificar continuidad:
+
+```http
+GET http://localhost:8084/actuator/health
+GET http://localhost:8084/payments?page=0&size=20
+```
+
+Escalar a 5 replicas:
+
+```bash
+docker compose -f docker-compose.ha.yml up -d --scale payment-service=5
+```
+
+Apagar:
+
+```bash
+docker compose -f docker-compose.ha.yml down
+```
+
+Apagar borrando datos:
+
+```bash
+docker compose -f docker-compose.ha.yml down -v
+```
+
+## Uso desde api-gateway
+
+Si `api-gateway` usa:
+
+```text
+PAYMENT_SERVICE_URL=http://host.docker.internal:8084
+```
+
+no hay que cambiarlo. En modo HA, `localhost:8084` lo atiende HAProxy, no una
+sola instancia de `payment-service`.
+
+## Nota sobre nube o VM
+
+Docker Compose local simula replicas en una sola maquina, pero no es alta
+disponibilidad real entre maquinas. Para replicas en VM o nube se necesita:
+
+- Load balancer externo.
+- PostgreSQL compartido/administrado o cluster.
+- RabbitMQ compartido/administrado o cluster.
+- Red privada, VPC o VPN.
+- Firewall configurado.
+- No exponer publicamente PostgreSQL ni RabbitMQ.
