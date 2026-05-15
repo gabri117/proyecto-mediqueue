@@ -70,7 +70,8 @@ mvn -pl services/appointment-service -am clean package -DskipTests
 
 | Servicio             | Puerto externo | Puerto interno | Descripción                       |
 |----------------------|----------------|----------------|-----------------------------------|
-| api-gateway          | 8080           | 8080           | Punto de entrada principal        |
+| api-gateway-lb       | 8080           | 8080           | Entrada principal balanceada      |
+| api-gateway          | interno        | 8080           | Spring Cloud Gateway replicable   |
 | appointment-service  | 8081           | 8080           | Gestión de citas                  |
 | notification-service | 8082           | 8080           | Notificaciones / eventos          |
 | payment-service      | 8083           | 8080           | Procesamiento de pagos            |
@@ -104,6 +105,161 @@ Grafana se auto-provisiona con:
 Prometheus scrapea `payment-lb:8080` y conserva `payment-service:8080` como
 target directo del servicio para observabilidad durante pruebas locales con
 réplicas.
+
+Prometheus tambien scrapea `api-gateway-lb:8080` para la vista logica del
+gateway y conserva `api-gateway:8080` como target directo local.
+
+## Alta disponibilidad local del API Gateway
+
+En el compose raiz, `api-gateway` ya no publica `localhost:8080` directamente.
+El servicio `api-gateway-lb` usa HAProxy, publica `localhost:8080` y reparte
+trafico hacia las replicas internas de `api-gateway` en el puerto `8080`.
+
+`api-gateway` mantiene Redis compartido para rate limiting mediante
+`REDIS_HOST=redis` y `REDIS_PORT=6379`. Las rutas del gateway siguen siendo
+estaticas desde `application.yml`, por lo que las replicas no dependen de estado
+local critico en memoria. Para pagos, el gateway sigue enviando trafico hacia
+`payment-lb:8080`, y `payment-lb` reparte hacia las replicas de
+`payment-service`.
+
+```text
+Cliente/Postman/k6
+      |
+      v
+api-gateway-lb:8080
+      |
+      +--> api-gateway-1
+      +--> api-gateway-2
+              |
+              v
+          payment-lb:8080
+              |
+              +--> payment-service-1
+              +--> payment-service-2
+              +--> payment-service-3
+```
+
+Levantar monorepo con API Gateway x2 y Payment x3:
+
+```bash
+docker compose up -d --build --scale api-gateway=2 --scale payment-service=3
+```
+
+Ver estado:
+
+```bash
+docker compose ps
+```
+
+Ver replicas del gateway:
+
+```bash
+docker ps --filter "name=api-gateway"
+```
+
+Ver logs del gateway:
+
+```bash
+docker compose logs -f api-gateway
+```
+
+Ver logs del balanceador del gateway:
+
+```bash
+docker logs -f mediqueue-api-gateway-lb
+```
+
+Probar health del gateway por balanceador:
+
+```http
+GET http://localhost:8080/actuator/health
+```
+
+Probar pagos por gateway balanceado:
+
+```http
+GET http://localhost:8080/api/payments?page=0&size=20
+```
+
+Crear pago por gateway balanceado:
+
+```text
+POST http://localhost:8080/api/payments
+```
+
+Headers:
+
+```text
+Content-Type: application/json
+X-Idempotency-Key: gateway-ha-payment-001
+X-Correlation-Id: demo-gateway-ha-001
+```
+
+Body:
+
+```json
+{
+  "appointmentId": "11111111-1111-1111-1111-111111111111",
+  "patientId": "22222222-2222-2222-2222-222222222222",
+  "amount": 150.00,
+  "currency": "GTQ"
+}
+```
+
+Probar idempotencia repitiendo el mismo `POST` con la misma
+`X-Idempotency-Key`; no debe crear un pago duplicado.
+
+Matar una replica del API Gateway:
+
+```bash
+docker ps --filter "name=api-gateway"
+docker kill <container_id>
+```
+
+Verificar continuidad:
+
+```http
+GET http://localhost:8080/actuator/health
+GET http://localhost:8080/api/payments?page=0&size=20
+```
+
+Matar una replica de payment-service:
+
+```bash
+docker ps --filter "name=payment-service"
+docker kill <container_id>
+```
+
+Verificar continuidad:
+
+```http
+GET http://localhost:8080/api/payments?page=0&size=20
+```
+
+Apagar todo:
+
+```bash
+docker compose down
+```
+
+Apagar borrando datos:
+
+```bash
+docker compose down -v
+```
+
+Si quedo un contenedor viejo de la version anterior con nombre fijo, puede
+chocar con el nuevo balanceador o con el escalado del gateway. Primero intenta:
+
+```bash
+docker compose down
+```
+
+Si quedo huerfano, elimina solo ese contenedor:
+
+```bash
+docker rm -f mediqueue-api-gateway
+```
 
 ## Alta disponibilidad local de payment-service dentro del monorepo
 
