@@ -2,6 +2,14 @@
   "vhosts": [
     { "name": "/" }
   ],
+  "users": [
+    {
+      "name": "mediqueue",
+      "password_hash": "TSABuE+I+a2ky/oXf2APXw2C14pL6scYVgWzzRCtOs52GwkM",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
   "permissions": [
     {
       "user": "mediqueue",
@@ -85,10 +93,7 @@
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {
-        "x-dead-letter-exchange": "appointments.dlx",
-        "x-dead-letter-routing-key": "appointment.held.dlq"
-      }
+      "arguments": {}
     },
     {
       "name": "appointment.confirmed.queue",
