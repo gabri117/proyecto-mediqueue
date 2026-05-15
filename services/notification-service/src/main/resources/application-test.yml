@@ -1,15 +1,18 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE DOMAIN IF NOT EXISTS notification_channel AS VARCHAR\;CREATE DOMAIN IF NOT EXISTS notification_status AS VARCHAR
     driver-class-name: org.h2.Driver
     username: sa
     password:
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     database-platform: org.hibernate.dialect.H2Dialect
   flyway:
     enabled: false
   rabbitmq:
     host: localhost
     port: 5672
+    listener:
+      simple:
+        auto-startup: false

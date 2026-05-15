@@ -44,6 +44,18 @@ spring:
         retry:
           enabled: false
 
+notification:
+  rabbitmq:
+    appointments-exchange: ${NOTIFICATION_APPOINTMENTS_EXCHANGE:appointments-exchange}
+    payments-exchange: ${NOTIFICATION_PAYMENTS_EXCHANGE:payments-exchange}
+    appointment-queue: ${NOTIFICATION_APPOINTMENT_QUEUE:notification.appointment.queue}
+    payment-queue: ${NOTIFICATION_PAYMENT_QUEUE:notification.payment.queue}
+    appointment-routing-keys: ${NOTIFICATION_APPOINTMENT_ROUTING_KEYS:appointment.confirmed,appointment.cancelled,appointment.expired}
+    payment-routing-keys: ${NOTIFICATION_PAYMENT_ROUTING_KEYS:payment.succeeded,payment.failed}
+    dead-letter-exchange: ${NOTIFICATION_DLX:notifications.dlx}
+    appointment-dead-letter-routing-key: ${NOTIFICATION_APPOINTMENT_DLQ_ROUTING_KEY:notification.appointment.dlq}
+    payment-dead-letter-routing-key: ${NOTIFICATION_PAYMENT_DLQ_ROUTING_KEY:notification.payment.dlq}
+
 management:
   endpoints:
     web:

@@ -45,6 +45,14 @@
       "arguments": {}
     },
     {
+      "name": "payments-exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
       "name": "notifications.exchange",
       "vhost": "/",
       "type": "topic",
@@ -254,11 +262,27 @@
       "arguments": {}
     },
     {
-      "source": "appointments.exchange",
+      "source": "appointments-exchange",
       "vhost": "/",
       "destination": "notification.appointment.queue",
       "destination_type": "queue",
-      "routing_key": "appointment.#",
+      "routing_key": "appointment.confirmed",
+      "arguments": {}
+    },
+    {
+      "source": "appointments-exchange",
+      "vhost": "/",
+      "destination": "notification.appointment.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.cancelled",
+      "arguments": {}
+    },
+    {
+      "source": "appointments-exchange",
+      "vhost": "/",
+      "destination": "notification.appointment.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.expired",
       "arguments": {}
     },
     {
@@ -278,11 +302,19 @@
       "arguments": {}
     },
     {
-      "source": "payments.exchange",
+      "source": "payments-exchange",
       "vhost": "/",
       "destination": "notification.payment.queue",
       "destination_type": "queue",
-      "routing_key": "payment.#",
+      "routing_key": "payment.succeeded",
+      "arguments": {}
+    },
+    {
+      "source": "payments-exchange",
+      "vhost": "/",
+      "destination": "notification.payment.queue",
+      "destination_type": "queue",
+      "routing_key": "payment.failed",
       "arguments": {}
     },
     {
