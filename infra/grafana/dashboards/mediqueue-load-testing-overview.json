@@ -1,0 +1,156 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (application)", "legendFormat": "{{application}}", "refId": "A" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{application=\"\"}[1m])) by (job)", "legendFormat": "{{job}}", "refId": "B" }
+      ],
+      "title": "Requests por segundo por application",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (application, uri, method, status)", "legendFormat": "{{application}} {{method}} {{uri}} {{status}}", "refId": "A" }
+      ],
+      "title": "Requests por endpoint application/uri/method/status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
+      "id": 3,
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application))", "legendFormat": "p95 {{application}}", "refId": "A" }
+      ],
+      "title": "Latencia p95 por application",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
+      "id": 4,
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application))", "legendFormat": "p99 {{application}}", "refId": "A" }
+      ],
+      "title": "Latencia p99 por application",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+      "id": 5,
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[1m])) by (application)", "legendFormat": "{{application}} 5xx", "refId": "A" }
+      ],
+      "title": "Errores 5xx por application",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+      "id": 6,
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"4..\"}[1m])) by (application)", "legendFormat": "{{application}} 4xx", "refId": "A" }
+      ],
+      "title": "Errores 4xx por application",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 21 },
+      "id": 7,
+      "targets": [
+        { "expr": "hikaricp_connections_active", "legendFormat": "{{application}} {{pool}}", "refId": "A" }
+      ],
+      "title": "Hikari conexiones activas",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 21 },
+      "id": 8,
+      "targets": [
+        { "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) by (application)", "legendFormat": "{{application}} heap", "refId": "A" }
+      ],
+      "title": "JVM memoria usada",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 21 },
+      "id": 9,
+      "targets": [
+        { "expr": "jvm_threads_live_threads", "legendFormat": "{{application}}", "refId": "A" }
+      ],
+      "title": "JVM threads",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 28 },
+      "id": 10,
+      "targets": [
+        { "expr": "sum(rate(k6_http_reqs_total[1m])) by (testid, scenario)", "legendFormat": "{{testid}} {{scenario}}", "refId": "A" }
+      ],
+      "title": "k6_http_reqs_total",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 28 },
+      "id": 11,
+      "targets": [
+        { "expr": "k6_http_req_failed_rate", "legendFormat": "{{testid}} {{scenario}}", "refId": "A" }
+      ],
+      "title": "k6_http_req_failed_rate",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["mediqueue", "load-testing", "k6"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-30m", "to": "now" },
+  "timezone": "browser",
+  "title": "MediQueue - Load Testing Overview",
+  "uid": "mediqueue-load-testing-overview",
+  "version": 1
+}

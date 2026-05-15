@@ -1,0 +1,10 @@
+script=02-schedule-load
+base_url=http://api-gateway-lb:8080
+http_reqs=11959
+http_req_failed=0.00008361903169161301
+http_req_duration_p95=13.659048100000003
+http_req_duration_p99=n/a
+
+Notas:
+- k6 puede escribir archivos desde handleSummary cuando el directorio existe.
+- Si el runtime no permite escritura, redirige stdout o usa --summary-export.

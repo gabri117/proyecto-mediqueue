@@ -412,6 +412,32 @@ Ejecutar las peticiones **en orden** (usar "Run Collection"):
 
 ## Pruebas de carga (K6)
 
+### Suite secuencial por microservicio
+
+La suite nueva esta en `infra/load-tests` y ejecuta fases ordenadas por el
+`api-gateway-lb`:
+
+```bash
+docker compose up -d --build --scale api-gateway=2 --scale payment-service=3
+k6 run infra/load-tests/scripts/00-smoke.js
+./infra/load-tests/run-sequential.sh
+```
+
+En Windows PowerShell:
+
+```powershell
+.\infra\load-tests\run-sequential.ps1
+```
+
+Con Docker k6:
+
+```bash
+docker compose --profile loadtest run --rm k6 run /scripts/scripts/00-smoke.js
+```
+
+Las fases hostil y E2E estan deshabilitadas por defecto. Consulta
+`infra/load-tests/README.md` antes de usar `-IncludeHostile` o `-IncludeE2E`.
+
 ### Test principal (raíz)
 
 ```bash

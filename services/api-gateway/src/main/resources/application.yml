@@ -120,6 +120,9 @@ management:
       show-details: always
     gateway:
       access: unrestricted
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:

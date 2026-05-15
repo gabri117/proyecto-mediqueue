@@ -13,12 +13,22 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: api-gateway
+  - job_name: api-gateway-lb
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
           - api-gateway-lb:8080
-          - api-gateway:8080
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  - job_name: api-gateway
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names:
+          - api-gateway
+        type: A
+        port: 8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -50,12 +60,22 @@ scrape_configs:
       - source_labels: [__address__]
         target_label: instance
 
-  - job_name: payment-service
+  - job_name: payment-lb
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
           - payment-lb:8080
-          - payment-service:8080
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  - job_name: payment-service
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names:
+          - payment-service
+        type: A
+        port: 8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
