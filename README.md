@@ -101,6 +101,134 @@ Grafana se auto-provisiona con:
   - Réplicas activas por servicio
   - Conexiones JDBC (HikariCP)
 
+Prometheus scrapea `payment-lb:8080` y conserva `payment-service:8080` como
+target directo del servicio para observabilidad durante pruebas locales con
+réplicas.
+
+## Alta disponibilidad local de payment-service dentro del monorepo
+
+En el compose raíz, `payment-service` ya no publica el puerto directamente.
+El servicio `payment-lb` usa HAProxy, publica `localhost:8083` y balancea
+tráfico hacia las réplicas internas de `payment-service` en el puerto `8080`.
+`api-gateway` llama a `payment-lb:8080`, por lo que el flujo queda:
+
+```text
+api-gateway -> payment-lb -> payment-service réplica 1
+                         -> payment-service réplica 2
+                         -> payment-service réplica 3
+```
+
+PostgreSQL y RabbitMQ siguen siendo compartidos. La idempotencia en PostgreSQL
+evita duplicados entre réplicas, el índice único parcial evita dos pagos
+`APPROVED` para el mismo `appointmentId`, y el Outbox usa
+`FOR UPDATE SKIP LOCKED` para evitar doble publicación entre réplicas.
+
+Levantar todo con 3 réplicas de payment:
+
+```bash
+docker compose up -d --build --scale payment-service=3
+```
+
+Ver estado:
+
+```bash
+docker compose ps
+```
+
+Ver réplicas de payment:
+
+```bash
+docker ps --filter "name=payment-service"
+```
+
+Ver logs de todas las réplicas:
+
+```bash
+docker compose logs -f payment-service
+```
+
+Ver logs de HAProxy:
+
+```bash
+docker logs -f mediqueue-payment-lb
+```
+
+Probar payment directo por balanceador:
+
+```http
+GET http://localhost:8083/actuator/health
+GET http://localhost:8083/payments?page=0&size=20
+```
+
+Probar por gateway:
+
+```http
+GET http://localhost:8080/api/payments?page=0&size=20
+```
+
+Crear pago por gateway:
+
+```text
+POST http://localhost:8080/api/payments
+```
+
+Headers:
+
+```text
+Content-Type: application/json
+X-Idempotency-Key: monorepo-ha-payment-001
+```
+
+Body:
+
+```json
+{
+  "appointmentId": "11111111-1111-1111-1111-111111111111",
+  "patientId": "22222222-2222-2222-2222-222222222222",
+  "amount": 150.00,
+  "currency": "GTQ"
+}
+```
+
+Matar una réplica:
+
+```bash
+docker ps --filter "name=payment-service"
+docker kill <container_id>
+```
+
+Verificar continuidad:
+
+```http
+GET http://localhost:8080/api/payments?page=0&size=20
+GET http://localhost:8083/actuator/health
+```
+
+Apagar todo:
+
+```bash
+docker compose down
+```
+
+Apagar borrando datos:
+
+```bash
+docker compose down -v
+```
+
+Si quedó un contenedor viejo de la versión anterior con nombre fijo, puede
+chocar al escalar `payment-service`. Primero intenta:
+
+```bash
+docker compose down
+```
+
+Si quedó huérfano, elimina solo ese contenedor:
+
+```bash
+docker rm -f mediqueue-payment-service
+```
+
 ## Colección Postman (Flujo E2E)
 
 La colección se encuentra en `docs/MediQueue.postman_collection.json`.

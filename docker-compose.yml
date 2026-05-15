@@ -134,7 +134,7 @@ services:
       PATIENT_SERVICE_URL: http://patient-service:8080
       SCHEDULE_SERVICE_URL: http://schedule-service:8080
       APPOINTMENT_SERVICE_URL: http://appointment-service:8080
-      PAYMENT_SERVICE_URL: http://payment-service:8080
+      PAYMENT_SERVICE_URL: http://payment-lb:8080
       NOTIFICATION_SERVICE_URL: http://notification-service:8080
       SPRING_PROFILES_ACTIVE: docker
     ports:
@@ -235,7 +235,6 @@ services:
     build:
       context: .
       dockerfile: infra/docker/payment-service.Dockerfile
-    container_name: mediqueue-payment-service
     restart: unless-stopped
     environment:
       SERVER_PORT: 8080
@@ -250,8 +249,8 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
       RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
       SPRING_PROFILES_ACTIVE: docker
-    ports:
-      - "8083:8080"
+    expose:
+      - "8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -265,6 +264,26 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  payment-lb:
+    image: haproxy:alpine
+    container_name: mediqueue-payment-lb
+    restart: unless-stopped
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./infra/haproxy/payment/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      payment-service:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   patient-service:
     build:

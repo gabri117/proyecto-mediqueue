@@ -21,6 +21,14 @@
       "arguments": {}
     },
     {
+      "name": "appointments-exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
       "name": "payments.exchange",
       "vhost": "/",
       "type": "topic",
@@ -64,6 +72,16 @@
   "queues": [
     {
       "name": "appointment.held.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "appointments.dlx",
+        "x-dead-letter-routing-key": "appointment.held.dlq"
+      }
+    },
+    {
+      "name": "payment.appointment-held.queue",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
@@ -194,6 +212,14 @@
       "source": "appointments.exchange",
       "vhost": "/",
       "destination": "appointment.held.queue",
+      "destination_type": "queue",
+      "routing_key": "appointment.held",
+      "arguments": {}
+    },
+    {
+      "source": "appointments-exchange",
+      "vhost": "/",
+      "destination": "payment.appointment-held.queue",
       "destination_type": "queue",
       "routing_key": "appointment.held",
       "arguments": {}
