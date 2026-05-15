@@ -17,6 +17,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
+          - api-gateway-lb:8080
           - api-gateway:8080
     relabel_configs:
       - source_labels: [__address__]
