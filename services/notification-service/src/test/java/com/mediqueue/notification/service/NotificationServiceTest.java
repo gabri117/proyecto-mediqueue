@@ -98,8 +98,8 @@ class NotificationServiceTest {
         UUID appointmentId = UUID.randomUUID();
         UUID patientId = UUID.randomUUID();
 
-        String first = service.buildEventKey(null, "APPOINTMENT_CONFIRMED", appointmentId, null, patientId, NotificationChannel.EMAIL);
-        String second = service.buildEventKey(null, "APPOINTMENT_CONFIRMED", appointmentId, null, patientId, NotificationChannel.EMAIL);
+        String first = service.buildEventKey(null, "APPOINTMENT_CONFIRMED", appointmentId, null, patientId, "appointment.confirmed");
+        String second = service.buildEventKey(null, "APPOINTMENT_CONFIRMED", appointmentId, null, patientId, "appointment.confirmed");
 
         assertThat(first).isEqualTo(second);
     }

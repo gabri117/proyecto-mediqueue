@@ -62,7 +62,7 @@ public class NotificationService {
             throw new NonRetryableNotificationException("destination is required to create notification");
         }
 
-        String eventKey = buildEventKey(sourceEventId, eventType, appointmentId, paymentId, patientId, channel);
+        String eventKey = buildEventKey(sourceEventId, eventType, appointmentId, paymentId, patientId, routingKey);
         if (notificationRepository.existsByEventKey(eventKey)) {
             duplicateCounter.increment();
             log.info("notification_duplicate eventType={} eventKey={} patientId={} appointmentId={} paymentId={} routingKey={}",
@@ -168,7 +168,7 @@ public class NotificationService {
                                 UUID appointmentId,
                                 UUID paymentId,
                                 UUID patientId,
-                                NotificationChannel channel) {
+                                String routingKey) {
         if (StringUtils.hasText(sourceEventId)) {
             return sourceEventId.trim();
         }
@@ -177,7 +177,7 @@ public class NotificationService {
                 nullSafe(appointmentId),
                 nullSafe(paymentId),
                 nullSafe(patientId),
-                nullSafe(channel));
+                nullSafe(routingKey));
         return UUID.nameUUIDFromBytes(rawKey.getBytes(StandardCharsets.UTF_8)).toString();
     }
 
