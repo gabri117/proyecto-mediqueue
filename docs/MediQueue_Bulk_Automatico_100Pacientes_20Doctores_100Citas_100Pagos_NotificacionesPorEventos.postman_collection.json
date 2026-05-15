@@ -1,0 +1,883 @@
+{
+  "info": {
+    "_postman_id": "mediqueue-bulk-auto-100p-20d-100a-100pay-notif-events",
+    "name": "MediQueue — Bulk Automático 100 Pacientes, 20 Doctores, 100 Citas, 100 Pagos y Notificaciones por Eventos",
+    "description": "Colección automática para Postman. Crea 100 pacientes, 20 doctores, 100 slots de 1 hora, 100 citas, 100 pagos y valida notificaciones generadas por eventos RabbitMQ. No usa POST /api/notifications porque notification-service debe ser consumidor puro. Ejecutar con Collection Runner desde el primer request. Iterations=1. Recomendado Delay=500 ms o más. Base URL: http://localhost:8080 por API Gateway / api-gateway-lb.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "bulkPatientsCount",
+      "value": "100",
+      "type": "string"
+    },
+    {
+      "key": "bulkDentistsCount",
+      "value": "20",
+      "type": "string"
+    },
+    {
+      "key": "bulkAppointmentsCount",
+      "value": "100",
+      "type": "string"
+    },
+    {
+      "key": "bulkSlotDate",
+      "value": "2026-06-15",
+      "type": "string"
+    },
+    {
+      "key": "waitNotificationCycles",
+      "value": "15",
+      "type": "string"
+    },
+    {
+      "key": "strictNotificationChecks",
+      "value": "true",
+      "type": "string"
+    },
+    {
+      "key": "bulkRunId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patientIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "patientEmails",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "dentistIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "slotIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "slotDetails",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "appointmentIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "paymentIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "paymentResults",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "paymentQueryResults",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "notificationAppointmentQueryResults",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "notificationPatientQueryResults",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "bulkPatientIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "bulkDentistIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "bulkSlotIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "bulkAppointmentIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "bulkPaymentIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "bulkPaymentQueryIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "waitNotificationIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "bulkNotificationAppointmentQueryIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "bulkNotificationPatientQueryIndex",
+      "value": "0",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health Check — API Gateway / LB",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "actuator",
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "pm.test('API Gateway / LB está healthy', function () { pm.response.to.have.status(200); pm.expect(bodyJson().status).to.eql('UP'); });",
+              "go('1. Inicializar Datos Bulk 100/20/100');"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "1. Inicializar Datos Bulk 100/20/100",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "actuator",
+            "health"
+          ]
+        },
+        "description": "Inicializa datos y contadores."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "pm.test('Inicialización responde 200', function () { pm.response.to.have.status(200); });",
+              "const runId = Date.now().toString(); pm.collectionVariables.set('bulkRunId', runId);",
+              "const patientCount = nvar('bulkPatientsCount', 100); const dentistCount = nvar('bulkDentistsCount', 20); const appointmentCount = nvar('bulkAppointmentsCount', 100);",
+              "const firstNames = ['Ana','Luis','María','Carlos','Sofía','Jorge','Valeria','Diego','Camila','Mateo','Lucía','Andrés','Paola','Fernando','Isabella','Daniel','Gabriela','Ricardo','Elena','Samuel','Alejandra','Emilio','Natalia','Hugo','Fernanda','Sebastián','Mónica','Rodrigo','Claudia','Pablo'];",
+              "const lastNames = ['López García','Pérez Morales','González Pérez','Ramírez Díaz','Hernández Ruiz','Castillo Méndez','Molina Santos','Fuentes López','Reyes Ortiz','Vásquez Castro','Morales Pérez','Gómez Rivera','Navarro Cruz','Mendoza León','Ramos Aguilar','Pineda Flores','Soto Herrera','Cabrera Luna','Mejía Salazar','Torres Vega','Aguilar Morales','Salazar Prado','Vega Castillo','Ortiz Lemus','Rivera Estrada'];",
+              "const doctorNames = ['Carlos','Patricia','Roberto','Andrea','Miguel','Karla','Héctor','Lucía','Javier','Marcela','Raúl','Diana','Oscar','Verónica','Esteban','Silvia','Manuel','Rosa','Álvaro','Carmen']; const specialties = ['Ortodoncia','Endodoncia','Odontología General','Periodoncia','Cirugía Oral','Odontopediatría','Implantología','Estética Dental','Rehabilitación Oral','Radiología Dental'];",
+              "const patients = Array.from({ length: patientCount }, (_, i) => ({ firstName: firstNames[i % firstNames.length], lastName: `${lastNames[i % lastNames.length]} ${Math.floor(i / lastNames.length) + 1}`, email: `patient${String(i + 1).padStart(3, '0')}.${runId}@mediqueue.test`, phone: `+50255${String(100000 + i)}`, documentNumber: `PAT-${runId}-${String(i + 1).padStart(3, '0')}` }));",
+              "const dentists = Array.from({ length: dentistCount }, (_, i) => ({ firstName: doctorNames[i % doctorNames.length], lastName: `Doctor ${String(i + 1).padStart(2, '0')}`, specialty: specialties[i % specialties.length], email: `dentist${String(i + 1).padStart(2, '0')}.${runId}@mediqueue.test`, licenseNumber: `LIC-${runId}-${String(i + 1).padStart(2, '0')}` }));",
+              "pm.collectionVariables.set('bulkPatients', JSON.stringify(patients)); pm.collectionVariables.set('bulkDentists', JSON.stringify(dentists));",
+              "['patientIds','patientEmails','dentistIds','slotIds','slotDetails','appointmentIds','paymentIds','paymentResults','paymentQueryResults','notificationAppointmentQueryResults','notificationPatientQueryResults'].forEach(k => setArr(k, []));",
+              "['bulkPatientIndex','bulkDentistIndex','bulkSlotIndex','bulkAppointmentIndex','bulkPaymentIndex','bulkPaymentQueryIndex','waitNotificationIndex','bulkNotificationAppointmentQueryIndex','bulkNotificationPatientQueryIndex'].forEach(k => pm.collectionVariables.set(k, '0'));",
+              "console.log('🚀 Bulk Run ID:', runId); console.log(`Preparado: ${patientCount} pacientes, ${dentistCount} doctores, ${appointmentCount} citas/pagos/notificaciones por eventos.`); console.log('Esta colección NO usa POST /api/notifications.');",
+              "go('2. Crear Paciente [AUTO x100]');"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "2. Crear Paciente [AUTO x100]",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/patients",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "patients"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"{{currentPatientFirstName}}\",\n  \"lastName\": \"{{currentPatientLastName}}\",\n  \"email\": \"{{currentPatientEmail}}\",\n  \"phone\": \"{{currentPatientPhone}}\",\n  \"documentNumber\": \"{{currentPatientDocumentNumber}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i = Number(pm.collectionVariables.get('bulkPatientIndex') || 0); const patients = JSON.parse(pm.collectionVariables.get('bulkPatients') || '[]'); const p = patients[i];",
+              "pm.collectionVariables.set('currentPatientFirstName', p.firstName); pm.collectionVariables.set('currentPatientLastName', p.lastName); pm.collectionVariables.set('currentPatientEmail', p.email); pm.collectionVariables.set('currentPatientPhone', p.phone); pm.collectionVariables.set('currentPatientDocumentNumber', p.documentNumber);",
+              "console.log(`👤 Creando paciente ${i + 1}/${patients.length}: ${p.firstName} ${p.lastName}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkPatientIndex'); const count=nvar('bulkPatientsCount',100);",
+              "pm.test(`Paciente ${i+1} creado`, function(){pm.response.to.have.status(201);});",
+              "const body=bodyJson(); const id=body.id||body.patientId; pm.expect(id,'patient id').to.not.be.undefined;",
+              "const ids=arr('patientIds'); const emails=arr('patientEmails'); ids[i]=id; emails[i]=body.email||pm.collectionVariables.get('currentPatientEmail'); setArr('patientIds',ids); setArr('patientEmails',emails);",
+              "if(i+1<count){pm.collectionVariables.set('bulkPatientIndex',String(i+1)); go('2. Crear Paciente [AUTO x100]');} else {pm.collectionVariables.set('bulkPatientIndex','0'); console.log(`✅ ${count} pacientes creados`); go('3. Crear Doctor/Dentista [AUTO x20]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "3. Crear Doctor/Dentista [AUTO x20]",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/dentists",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "dentists"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"{{currentDentistFirstName}}\",\n  \"lastName\": \"{{currentDentistLastName}}\",\n  \"specialty\": \"{{currentDentistSpecialty}}\",\n  \"email\": \"{{currentDentistEmail}}\",\n  \"licenseNumber\": \"{{currentDentistLicenseNumber}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i=Number(pm.collectionVariables.get('bulkDentistIndex')||0); const dentists=JSON.parse(pm.collectionVariables.get('bulkDentists')||'[]'); const d=dentists[i];",
+              "pm.collectionVariables.set('currentDentistFirstName',d.firstName); pm.collectionVariables.set('currentDentistLastName',d.lastName); pm.collectionVariables.set('currentDentistSpecialty',d.specialty); pm.collectionVariables.set('currentDentistEmail',d.email); pm.collectionVariables.set('currentDentistLicenseNumber',d.licenseNumber);",
+              "console.log(`🦷 Creando doctor ${i+1}/${dentists.length}: ${d.firstName} ${d.lastName}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkDentistIndex'); const count=nvar('bulkDentistsCount',20);",
+              "pm.test(`Doctor/Dentista ${i+1} creado`, function(){pm.response.to.have.status(201);});",
+              "const body=bodyJson(); const id=body.id||body.dentistId; pm.expect(id,'dentist id').to.not.be.undefined; const ids=arr('dentistIds'); ids[i]=id; setArr('dentistIds',ids);",
+              "if(i+1<count){pm.collectionVariables.set('bulkDentistIndex',String(i+1)); go('3. Crear Doctor/Dentista [AUTO x20]');} else {pm.collectionVariables.set('bulkDentistIndex','0'); console.log(`✅ ${count} doctores creados`); go('4. Crear Slot de Cita [AUTO x100]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "4. Crear Slot de Cita [AUTO x100]",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/slots",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "slots"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dentistId\": \"{{currentSlotDentistId}}\",\n  \"slotDate\": \"{{currentSlotDate}}\",\n  \"startTime\": \"{{currentSlotStartTime}}\",\n  \"endTime\": \"{{currentSlotEndTime}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i=Number(pm.collectionVariables.get('bulkSlotIndex')||0); const appointmentCount=Number(pm.collectionVariables.get('bulkAppointmentsCount')||100); const dentistCount=Number(pm.collectionVariables.get('bulkDentistsCount')||20);",
+              "const dentistIds=JSON.parse(pm.collectionVariables.get('dentistIds')||'[]'); const date=pm.collectionVariables.get('bulkSlotDate')||'2026-06-15'; const dentistIndex=i%dentistCount; const blockForDentist=Math.floor(i/dentistCount);",
+              "const startHour=8+blockForDentist; const endHour=startHour+1; const pad=n=>String(n).padStart(2,'0');",
+              "pm.collectionVariables.set('currentSlotDentistId',dentistIds[dentistIndex]); pm.collectionVariables.set('currentSlotDate',date); pm.collectionVariables.set('currentSlotStartTime',`${pad(startHour)}:00`); pm.collectionVariables.set('currentSlotEndTime',`${pad(endHour)}:00`); pm.collectionVariables.set('currentSlotDentistIndex',String(dentistIndex));",
+              "console.log(`📅 Creando slot ${i+1}/${appointmentCount} doctor ${dentistIndex+1}: ${pad(startHour)}:00-${pad(endHour)}:00`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkSlotIndex'); const count=nvar('bulkAppointmentsCount',100);",
+              "pm.test(`Slot ${i+1} creado`, function(){pm.response.to.have.status(201);});",
+              "const body=bodyJson(); const id=body.id||body.slotId; pm.expect(id,'slot id').to.not.be.undefined; const slotIds=arr('slotIds'); const slotDetails=arr('slotDetails');",
+              "slotIds[i]=id; slotDetails[i]={slotId:id,dentistId:pm.collectionVariables.get('currentSlotDentistId'),dentistIndex:Number(pm.collectionVariables.get('currentSlotDentistIndex')),slotDate:body.slotDate||pm.collectionVariables.get('currentSlotDate'),startTime:body.startTime||pm.collectionVariables.get('currentSlotStartTime'),endTime:body.endTime||pm.collectionVariables.get('currentSlotEndTime')};",
+              "setArr('slotIds',slotIds); setArr('slotDetails',slotDetails);",
+              "if(i+1<count){pm.collectionVariables.set('bulkSlotIndex',String(i+1)); go('4. Crear Slot de Cita [AUTO x100]');} else {pm.collectionVariables.set('bulkSlotIndex','0'); console.log(`✅ ${count} slots creados`); go('5. Crear Cita [AUTO x100]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "5. Crear Cita [AUTO x100]",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "{{currentAppointmentIdempotencyKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/appointments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "appointments"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patientId\": \"{{currentAppointmentPatientId}}\",\n  \"dentistId\": \"{{currentAppointmentDentistId}}\",\n  \"slotId\": \"{{currentAppointmentSlotId}}\",\n  \"appointmentDate\": \"{{currentAppointmentDate}}\",\n  \"startTime\": \"{{currentAppointmentStartTime}}\",\n  \"endTime\": \"{{currentAppointmentEndTime}}\",\n  \"notes\": \"Cita bulk automática {{currentAppointmentNumber}}/100 — run {{bulkRunId}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i=Number(pm.collectionVariables.get('bulkAppointmentIndex')||0); const runId=pm.collectionVariables.get('bulkRunId'); const patientIds=JSON.parse(pm.collectionVariables.get('patientIds')||'[]'); const slotIds=JSON.parse(pm.collectionVariables.get('slotIds')||'[]'); const slotDetails=JSON.parse(pm.collectionVariables.get('slotDetails')||'[]'); const slot=slotDetails[i];",
+              "pm.collectionVariables.set('currentAppointmentNumber',String(i+1)); pm.collectionVariables.set('currentAppointmentPatientId',patientIds[i]); pm.collectionVariables.set('currentAppointmentDentistId',slot.dentistId); pm.collectionVariables.set('currentAppointmentSlotId',slotIds[i]); pm.collectionVariables.set('currentAppointmentDate',slot.slotDate); pm.collectionVariables.set('currentAppointmentStartTime',slot.startTime); pm.collectionVariables.set('currentAppointmentEndTime',slot.endTime); pm.collectionVariables.set('currentAppointmentIdempotencyKey',`bulk-appointment-${runId}-${i+1}`);",
+              "console.log(`📝 Creando cita ${i+1}/100 paciente=${patientIds[i]} doctor=${slot.dentistId}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkAppointmentIndex'); const count=nvar('bulkAppointmentsCount',100);",
+              "pm.test(`Cita ${i+1} creada`, function(){pm.expect(pm.response.code).to.be.oneOf([200,201,202]);});",
+              "const body=bodyJson(); const id=body.id||body.appointmentId; pm.expect(id,'appointment id').to.not.be.undefined; const ids=arr('appointmentIds'); ids[i]=id; setArr('appointmentIds',ids);",
+              "if(i+1<count){pm.collectionVariables.set('bulkAppointmentIndex',String(i+1)); go('5. Crear Cita [AUTO x100]');} else {pm.collectionVariables.set('bulkAppointmentIndex','0'); console.log(`✅ ${count} citas creadas`); go('6. Crear Pago Manual [AUTO x100]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "6. Crear Pago Manual [AUTO x100]",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "{{currentPaymentIdempotencyKey}}"
+          },
+          {
+            "key": "X-Client-Id",
+            "value": "postman-bulk-payment-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"appointmentId\": \"{{currentPaymentAppointmentId}}\",\n  \"patientId\": \"{{currentPaymentPatientId}}\",\n  \"amount\": {{currentPaymentAmount}},\n  \"currency\": \"GTQ\"\n}"
+        },
+        "description": "Crea 100 pagos manuales. Si ya existe pago por evento, puede devolver 409."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i=Number(pm.collectionVariables.get('bulkPaymentIndex')||0); const runId=pm.collectionVariables.get('bulkRunId'); const appointmentIds=JSON.parse(pm.collectionVariables.get('appointmentIds')||'[]'); const patientIds=JSON.parse(pm.collectionVariables.get('patientIds')||'[]'); const amount=150+(i%20)*5;",
+              "pm.collectionVariables.set('currentPaymentAppointmentId',appointmentIds[i]); pm.collectionVariables.set('currentPaymentPatientId',patientIds[i]); pm.collectionVariables.set('currentPaymentAmount',amount.toFixed(2)); pm.collectionVariables.set('currentPaymentIdempotencyKey',`bulk-payment-${runId}-${i+1}`);",
+              "console.log(`💳 Creando pago ${i+1}/100 cita=${appointmentIds[i]} monto=${amount.toFixed(2)}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkPaymentIndex'); const count=nvar('bulkAppointmentsCount',100);",
+              "pm.test(`Pago manual ${i+1} retorna estado controlado`, function(){pm.expect(pm.response.code).to.be.oneOf([200,201,202,409]);});",
+              "const results=arr('paymentResults'); const paymentIds=arr('paymentIds'); let result={index:i,appointmentId:pm.collectionVariables.get('currentPaymentAppointmentId'),httpStatus:pm.response.code,createdOrAccepted:[200,201,202].includes(pm.response.code)};",
+              "if([200,201,202].includes(pm.response.code)){const body=bodyJson(); const id=body.paymentId||body.id; if(id)paymentIds[i]=id; result.paymentId=id||null; result.paymentStatus=body.paymentStatus||body.status||null; console.log(`✅ Pago ${i+1}:`,JSON.stringify(body));} else {result.conflict=true; result.response=pm.response.text(); console.log(`⚠️ Pago ${i+1} no creado manualmente:`,pm.response.text());}",
+              "results[i]=result; setArr('paymentResults',results); setArr('paymentIds',paymentIds);",
+              "if(i+1<count){pm.collectionVariables.set('bulkPaymentIndex',String(i+1)); go('6. Crear Pago Manual [AUTO x100]');} else {pm.collectionVariables.set('bulkPaymentIndex','0'); console.log(`✅ Intento de creación de ${count} pagos finalizado`); go('7. Consultar Pago por Cita [AUTO x100]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "7. Consultar Pago por Cita [AUTO x100]",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-bulk-payment-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments?appointmentId={{currentPaymentQueryAppointmentId}}&page=0&size=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ],
+          "query": [
+            {
+              "key": "appointmentId",
+              "value": "{{currentPaymentQueryAppointmentId}}"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "20"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i=Number(pm.collectionVariables.get('bulkPaymentQueryIndex')||0); const appointmentIds=JSON.parse(pm.collectionVariables.get('appointmentIds')||'[]'); pm.collectionVariables.set('currentPaymentQueryAppointmentId',appointmentIds[i]); console.log(`🔎 Consultando pago ${i+1}/100 por appointmentId=${appointmentIds[i]}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkPaymentQueryIndex'); const count=nvar('bulkAppointmentsCount',100);",
+              "pm.test(`Consulta de pago ${i+1} responde 200`, function(){pm.response.to.have.status(200);});",
+              "const body=bodyJson(); const content=Array.isArray(body)?body:(body.content||[]); const queryResults=arr('paymentQueryResults'); const paymentIds=arr('paymentIds');",
+              "if(content.length>0){const payment=content[0]; const id=payment.paymentId||payment.id; if(id)paymentIds[i]=id; queryResults[i]={index:i,appointmentId:pm.collectionVariables.get('currentPaymentQueryAppointmentId'),found:true,count:content.length,paymentId:id||null,paymentStatus:payment.paymentStatus||payment.status||null}; console.log(`✅ Pago encontrado para cita ${i+1}`);} else {queryResults[i]={index:i,appointmentId:pm.collectionVariables.get('currentPaymentQueryAppointmentId'),found:false,count:0}; console.log(`⚠️ No se encontró pago para cita ${i+1}`);}",
+              "setArr('paymentQueryResults',queryResults); setArr('paymentIds',paymentIds);",
+              "if(i+1<count){pm.collectionVariables.set('bulkPaymentQueryIndex',String(i+1)); go('7. Consultar Pago por Cita [AUTO x100]');} else {pm.collectionVariables.set('bulkPaymentQueryIndex','0'); console.log(`✅ Consulta de ${count} pagos finalizada`); go('8. Esperar procesamiento de eventos de notificación [AUTO]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "8. Esperar procesamiento de eventos de notificación [AUTO]",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "actuator",
+            "health"
+          ]
+        },
+        "description": "Repite health checks para dar tiempo a RabbitMQ y notification-service a procesar eventos. El tiempo real depende del Delay configurado en Runner."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('waitNotificationIndex'); const cycles=nvar('waitNotificationCycles',15);",
+              "pm.test(`Espera de eventos ${i+1}/${cycles}`, function(){pm.response.to.have.status(200);});",
+              "console.log(`⏳ Esperando procesamiento de eventos de notificación ${i+1}/${cycles}. Usa Delay del Runner para controlar la espera real.`);",
+              "if(i+1<cycles){pm.collectionVariables.set('waitNotificationIndex',String(i+1)); go('8. Esperar procesamiento de eventos de notificación [AUTO]');} else {pm.collectionVariables.set('waitNotificationIndex','0'); go('9. Consultar Notificaciones por Cita [AUTO x100]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "9. Consultar Notificaciones por Cita [AUTO x100]",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-bulk-notification-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications?appointmentId={{currentNotificationQueryAppointmentId}}&page=0&size=50",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "appointmentId",
+              "value": "{{currentNotificationQueryAppointmentId}}"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "50"
+            }
+          ]
+        },
+        "description": "Consulta notificaciones generadas por eventos para cada cita. No usa POST manual de notificaciones."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i=Number(pm.collectionVariables.get('bulkNotificationAppointmentQueryIndex')||0); const appointmentIds=JSON.parse(pm.collectionVariables.get('appointmentIds')||'[]'); pm.collectionVariables.set('currentNotificationQueryAppointmentId',appointmentIds[i]); console.log(`🔔 Consultando notificaciones por cita ${i+1}/100 appointmentId=${appointmentIds[i]}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkNotificationAppointmentQueryIndex'); const count=nvar('bulkAppointmentsCount',100);",
+              "pm.test(`Consulta notificaciones por cita ${i+1} responde 200`, function(){pm.response.to.have.status(200);});",
+              "const body=bodyJson(); const content=Array.isArray(body)?body:(body.content||body.notifications||[]); const results=arr('notificationAppointmentQueryResults');",
+              "results[i]={index:i,appointmentId:pm.collectionVariables.get('currentNotificationQueryAppointmentId'),found:content.length>0,count:content.length,statuses:content.map(n=>n.notificationStatus||n.status),eventTypes:content.map(n=>n.eventType),routingKeys:content.map(n=>n.routingKey).filter(Boolean)}; setArr('notificationAppointmentQueryResults',results); console.log(`🔔 Notificaciones por cita ${i+1}: count=${content.length}`);",
+              "if(i+1<count){pm.collectionVariables.set('bulkNotificationAppointmentQueryIndex',String(i+1)); go('9. Consultar Notificaciones por Cita [AUTO x100]');} else {pm.collectionVariables.set('bulkNotificationAppointmentQueryIndex','0'); console.log(`✅ Consulta de notificaciones por ${count} citas finalizada`); go('10. Consultar Notificaciones por Paciente [AUTO x100]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "10. Consultar Notificaciones por Paciente [AUTO x100]",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-bulk-notification-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications?patientId={{currentNotificationQueryPatientId}}&page=0&size=50",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "patientId",
+              "value": "{{currentNotificationQueryPatientId}}"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "50"
+            }
+          ]
+        },
+        "description": "Consulta notificaciones generadas por eventos para cada paciente."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const i=Number(pm.collectionVariables.get('bulkNotificationPatientQueryIndex')||0); const patientIds=JSON.parse(pm.collectionVariables.get('patientIds')||'[]'); pm.collectionVariables.set('currentNotificationQueryPatientId',patientIds[i]); console.log(`🔎 Consultando notificaciones por paciente ${i+1}/100 patientId=${patientIds[i]}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "const i=nvar('bulkNotificationPatientQueryIndex'); const count=nvar('bulkPatientsCount',100);",
+              "pm.test(`Consulta notificaciones por paciente ${i+1} responde 200`, function(){pm.response.to.have.status(200);});",
+              "const body=bodyJson(); const content=Array.isArray(body)?body:(body.content||body.notifications||[]); const results=arr('notificationPatientQueryResults');",
+              "results[i]={index:i,patientId:pm.collectionVariables.get('currentNotificationQueryPatientId'),found:content.length>0,count:content.length,statuses:content.map(n=>n.notificationStatus||n.status),eventTypes:content.map(n=>n.eventType),routingKeys:content.map(n=>n.routingKey).filter(Boolean)}; setArr('notificationPatientQueryResults',results); console.log(`🔔 Notificaciones paciente ${i+1}: count=${content.length}`);",
+              "if(i+1<count){pm.collectionVariables.set('bulkNotificationPatientQueryIndex',String(i+1)); go('10. Consultar Notificaciones por Paciente [AUTO x100]');} else {pm.collectionVariables.set('bulkNotificationPatientQueryIndex','0'); console.log(`✅ Consulta de notificaciones para ${count} pacientes finalizada`); go('11. Consultar Notificaciones Paginadas [size=100]');}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "11. Consultar Notificaciones Paginadas [size=100]",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-bulk-notification-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications?page=0&size=100",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "100"
+            }
+          ]
+        },
+        "description": "Consulta general para confirmar que notification-service expone notificaciones paginadas por gateway."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function go(nextRequestName) { if (pm.execution && pm.execution.setNextRequest) { pm.execution.setNextRequest(nextRequestName); } else { postman.setNextRequest(nextRequestName); } }",
+              "function nvar(name, fallback) { return Number(pm.collectionVariables.get(name) || fallback || 0); }",
+              "function arr(name) { try { return JSON.parse(pm.collectionVariables.get(name) || '[]'); } catch (e) { return []; } }",
+              "function setArr(name, value) { pm.collectionVariables.set(name, JSON.stringify(value)); }",
+              "function bodyJson() { try { return pm.response.json(); } catch (e) { return {}; } }",
+              "pm.test('Consulta general de notificaciones responde 200', function(){pm.response.to.have.status(200);});",
+              "console.log('🔔 Página general de notificaciones:', JSON.stringify(bodyJson()));",
+              "go('12. Resumen Final Bulk 100/20/100');"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "12. Resumen Final Bulk 100/20/100",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-bulk-summary"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments?page=0&size=100",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "100"
+            }
+          ]
+        },
+        "description": "Resumen final."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const patientIds=JSON.parse(pm.collectionVariables.get('patientIds')||'[]'); const dentistIds=JSON.parse(pm.collectionVariables.get('dentistIds')||'[]'); const slotIds=JSON.parse(pm.collectionVariables.get('slotIds')||'[]'); const appointmentIds=JSON.parse(pm.collectionVariables.get('appointmentIds')||'[]');",
+              "const paymentQueryResults=JSON.parse(pm.collectionVariables.get('paymentQueryResults')||'[]'); const notificationAppointmentResults=JSON.parse(pm.collectionVariables.get('notificationAppointmentQueryResults')||'[]'); const notificationPatientResults=JSON.parse(pm.collectionVariables.get('notificationPatientQueryResults')||'[]');",
+              "const patientCount=Number(pm.collectionVariables.get('bulkPatientsCount')||100); const dentistCount=Number(pm.collectionVariables.get('bulkDentistsCount')||20); const appointmentCount=Number(pm.collectionVariables.get('bulkAppointmentsCount')||100);",
+              "const paymentsFound=paymentQueryResults.filter(r=>r&&r.found).length; const notificationsByAppointmentFound=notificationAppointmentResults.filter(r=>r&&r.found).length; const notificationsByPatientFound=notificationPatientResults.filter(r=>r&&r.found).length; const strictNotifications=String(pm.collectionVariables.get('strictNotificationChecks')||'true')==='true';",
+              "pm.test(`Se crearon ${patientCount} pacientes`, function(){pm.expect(patientIds.length).to.eql(patientCount);}); pm.test(`Se crearon ${dentistCount} doctores`, function(){pm.expect(dentistIds.length).to.eql(dentistCount);}); pm.test(`Se crearon ${appointmentCount} slots`, function(){pm.expect(slotIds.length).to.eql(appointmentCount);}); pm.test(`Se crearon ${appointmentCount} citas`, function(){pm.expect(appointmentIds.length).to.eql(appointmentCount);});",
+              "pm.test(`Se encontraron pagos para ${appointmentCount} citas`, function(){pm.expect(paymentsFound).to.eql(appointmentCount);});",
+              "if(strictNotifications){ pm.test(`Se encontraron notificaciones por appointmentId para ${appointmentCount} citas`, function(){pm.expect(notificationsByAppointmentFound).to.eql(appointmentCount);}); pm.test(`Se encontraron notificaciones por patientId para ${patientCount} pacientes`, function(){pm.expect(notificationsByPatientFound).to.eql(patientCount);}); } else { pm.test('Validación no estricta de notificaciones ejecutada', function(){pm.expect(notificationAppointmentResults.length).to.eql(appointmentCount);}); }",
+              "console.log('================ RESUMEN BULK MEDIQUEUE 100/20/100 ================'); console.log('Run ID:',pm.collectionVariables.get('bulkRunId')); console.log('Pacientes:',patientIds.length); console.log('Doctores:',dentistIds.length); console.log('Slots:',slotIds.length); console.log('Citas:',appointmentIds.length); console.log('Pagos encontrados:',paymentsFound,paymentQueryResults); console.log('Citas con notificaciones:',notificationsByAppointmentFound,notificationAppointmentResults); console.log('Pacientes con notificaciones:',notificationsByPatientFound,notificationPatientResults); console.log('===============================================================');",
+              "if(pm.execution&&pm.execution.setNextRequest){pm.execution.setNextRequest(null);}else{postman.setNextRequest(null);}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}

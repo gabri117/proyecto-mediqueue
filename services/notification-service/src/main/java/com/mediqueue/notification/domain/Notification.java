@@ -35,6 +35,21 @@ public class Notification {
     @Column(name = "event_type", nullable = false, length = 80)
     private String eventType;
 
+    @Column(name = "source_event_id")
+    private UUID sourceEventId;
+
+    @Column(name = "source_event_type", length = 100)
+    private String sourceEventType;
+
+    @Column(name = "source_service", length = 80)
+    private String sourceService;
+
+    @Column(name = "event_key", length = 255)
+    private String eventKey;
+
+    @Column(name = "routing_key", length = 120)
+    private String routingKey;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "channel", nullable = false,
@@ -54,6 +69,10 @@ public class Notification {
 
     @Column(name = "error_message", length = 255)
     private String errorMessage;
+
+    @Column(name = "attempt_count", nullable = false)
+    @Builder.Default
+    private Integer attemptCount = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
