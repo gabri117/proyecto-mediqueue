@@ -44,10 +44,9 @@ services:
       context: ../..
       dockerfile: services/payment-service/Dockerfile
     image: mediqueue-payment-service:local
-    container_name: mediqueue-payment-service
     restart: unless-stopped
-    ports:
-      - "8084:8084"
+    expose:
+      - "8084"
     depends_on:
       payment-postgres:
         condition: service_healthy
@@ -58,28 +57,24 @@ services:
       DB_URL: jdbc:postgresql://payment-postgres:5432/mediqueue_payment
       DB_USER: postgres
       DB_PASSWORD: postgres
-
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: "5672"
       RABBITMQ_USER: guest
       RABBITMQ_PASS: guest
-
       PAYMENT_TIMEOUT_SECONDS: "10"
       IDEMPOTENCY_KEY_TTL_HOURS: "24"
-
-      # Configuración especial para prueba de carga:
-      # Queremos que los 1500 pagos únicos se aprueben.
-      PAYMENT_SIM_MIN_DELAY_MS: "1"
-      PAYMENT_SIM_MAX_DELAY_MS: "5"
+      PAYMENT_SIM_MIN_DELAY_MS: "10"
+      PAYMENT_SIM_MAX_DELAY_MS: "50"
       PAYMENT_SIM_APPROVAL_RATE: "1.0"
-      
-      OUTBOX_BATCH_SIZE: "500"
-
       OUTBOX_PUBLISH_INTERVAL_SECONDS: "1"
-      
-
-      # Quita el warning de open-in-view.
+      OUTBOX_BATCH_SIZE: "100"
+      HIKARI_MAX_POOL_SIZE: "20"
+      HIKARI_MIN_IDLE: "5"
+      RABBITMQ_PREFETCH: "10"
+      RABBITMQ_LISTENER_CONCURRENCY: "2"
+      RABBITMQ_LISTENER_MAX_CONCURRENCY: "5"
       SPRING_JPA_OPEN_IN_VIEW: "false"
+      INSTANCE_ID: ${HOSTNAME:-payment-service}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1"]
       interval: 10s
@@ -89,20 +84,17 @@ services:
     networks:
       - mediqueue-payment-net
 
-  k6:
-    image: grafana/k6:latest
-    container_name: mediqueue-payment-k6
-    profiles:
-      - loadtest
+  payment-lb:
+    image: haproxy:alpine
+    container_name: mediqueue-payment-lb
     depends_on:
       - payment-service
-    environment:
-      BASE_URL: http://payment-service:8084
+    ports:
+      - "8084:8084"
     volumes:
-      - ./tests:/scripts
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     networks:
       - mediqueue-payment-net
-    entrypoint: ["k6", "run", "/scripts/payment-2000-test.js"]
 
 volumes:
   payment-postgres-data:

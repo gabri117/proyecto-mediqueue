@@ -12,6 +12,11 @@
 	<artifactId>payment.service</artifactId>
 	<name>payment-service</name>
 	<description>Payment Service for MediQueue</description>
+	<properties>
+		<java.version>17</java.version>
+		<maven.compiler.release>17</maven.compiler.release>
+		<postgresql.version>42.7.11</postgresql.version>
+	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -49,6 +54,7 @@
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
+			<version>${postgresql.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
@@ -84,6 +90,7 @@
 							<goal>compile</goal>
 						</goals>
 						<configuration>
+							<release>17</release>
 							<annotationProcessorPaths>
 								<path>
 									<groupId>org.projectlombok</groupId>
@@ -99,6 +106,7 @@
 							<goal>testCompile</goal>
 						</goals>
 						<configuration>
+							<release>17</release>
 							<annotationProcessorPaths>
 								<path>
 									<groupId>org.projectlombok</groupId>

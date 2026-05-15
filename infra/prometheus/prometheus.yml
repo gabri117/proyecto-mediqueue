@@ -53,6 +53,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
+          - payment-lb:8080
           - payment-service:8080
     relabel_configs:
       - source_labels: [__address__]

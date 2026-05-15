@@ -1,0 +1,740 @@
+{
+  "info": {
+    "_postman_id": "mediqueue-e2e-collection",
+    "name": "MediQueue — Flujo E2E Completo con POST Payment y Notification",
+    "description": "Colección para demostrar el flujo completo de la plataforma MediQueue.\n\nOrden de ejecución:\n1. Crear paciente\n2. Crear dentista\n3. Crear slot de cita\n4. Crear cita (con idempotencia)\n5. Consultar pago generado\n6. Consultar cita confirmada\n7. Consultar notificaciones del paciente\n\n**Prerequisitos:** Levantar todos los servicios con `docker compose up -d` y esperar ~60s para que los health checks estén verdes.\n\nActualización: incluye POST manual para payment-service y POST manual opcional para notification-service, además de las consultas existentes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "patientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patientEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dentistId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slotId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slotDate",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slotStartTime",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slotEndTime",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "appointmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentIdempotencyKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationChannel",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationDestination",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health Check — API Gateway",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "actuator",
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('API Gateway is healthy', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.status).to.eql('UP');",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "1. Crear Paciente",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"firstName\": \"María\",\n    \"lastName\": \"González Pérez\",\n    \"email\": \"maria.gonzalez.{{$timestamp}}@mediqueue.test\",\n    \"phone\": \"+50688887777\",\n    \"documentNumber\": \"DOC-{{$timestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/patients",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "patients"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Patient created successfully', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.id).to.not.be.undefined;",
+              "    pm.collectionVariables.set('patientId', body.id);",
+              "    pm.collectionVariables.set('patientEmail', body.email);",
+              "    console.log('✅ Patient ID saved: ' + body.id);",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "2. Crear Dentista",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"firstName\": \"Carlos\",\n    \"lastName\": \"Ramírez López\",\n    \"specialty\": \"Ortodoncia\",\n    \"email\": \"dr.ramirez.{{$timestamp}}@mediqueue.test\",\n    \"licenseNumber\": \"LIC-{{$timestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/dentists",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "dentists"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Dentist created successfully', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.id).to.not.be.undefined;",
+              "    pm.collectionVariables.set('dentistId', body.id);",
+              "    console.log('✅ Dentist ID saved: ' + body.id);",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "3. Crear Slot de Cita",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"dentistId\": \"{{dentistId}}\",\n    \"slotDate\": \"2026-06-15\",\n    \"startTime\": \"09:00\",\n    \"endTime\": \"09:30\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/slots",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "slots"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Slot created successfully', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.id).to.not.be.undefined;",
+              "    pm.collectionVariables.set('slotId', body.id);",
+              "    pm.collectionVariables.set('slotDate', body.slotDate || '2026-06-15');",
+              "    pm.collectionVariables.set('slotStartTime', body.startTime || '09:00');",
+              "    pm.collectionVariables.set('slotEndTime', body.endTime || '09:30');",
+              "    console.log('✅ Slot ID saved: ' + body.id);",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "4. Crear Cita (con Idempotencia)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"patientId\": \"{{patientId}}\",\n    \"dentistId\": \"{{dentistId}}\",\n    \"slotId\": \"{{slotId}}\",\n    \"appointmentDate\": \"{{slotDate}}\",\n    \"startTime\": \"{{slotStartTime}}\",\n    \"endTime\": \"{{slotEndTime}}\",\n    \"notes\": \"Consulta de revisión general — demo checkpoint 1\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/appointments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "appointments"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Generate a unique idempotency key for this request",
+              "const key = 'demo-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);",
+              "pm.collectionVariables.set('idempotencyKey', key);",
+              "console.log('🔑 Idempotency Key: ' + key);",
+              ""
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Appointment created successfully', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.id).to.not.be.undefined;",
+              "    pm.collectionVariables.set('appointmentId', body.id);",
+              "    console.log('✅ Appointment ID saved: ' + body.id);",
+              "    console.log('📋 Status: ' + body.status);",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "5. Consultar Pago (por appointmentId)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments?appointmentId={{appointmentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ],
+          "query": [
+            {
+              "key": "appointmentId",
+              "value": "{{appointmentId}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment query returns 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    console.log('💳 Payment response: ' + JSON.stringify(body, null, 2));",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "5A. POST Pago Manual — payment-service",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "{{paymentIdempotencyKey}}"
+          },
+          {
+            "key": "X-Client-Id",
+            "value": "postman-payment-client"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"appointmentId\": \"{{appointmentId}}\",\n    \"patientId\": \"{{patientId}}\",\n    \"amount\": 150.00,\n    \"currency\": \"GTQ\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/payments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ]
+        },
+        "description": "Crea un pago manual pasando por el API Gateway. Requiere X-Idempotency-Key. Útil para probar payment-service sin depender de la saga completa. Si appointmentId ya fue pagado, puede devolver 409 o REJECTED según la implementación."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const key = 'manual-payment-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);",
+              "pm.collectionVariables.set('paymentIdempotencyKey', key);",
+              "console.log('🔑 Payment Idempotency Key: ' + key);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Manual payment returns controlled status', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202, 409]);",
+              "});",
+              "if ([200,201,202].includes(pm.response.code)) {",
+              "    const body = pm.response.json();",
+              "    if (body.paymentId) { pm.collectionVariables.set('paymentId', body.paymentId); }",
+              "    console.log('💳 Manual payment response: ' + JSON.stringify(body, null, 2));",
+              "} else {",
+              "    console.log('⚠️ Payment conflict or controlled rejection: ' + pm.response.text());",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "5B. GET Pagos — todos paginados",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-payment-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments?page=0&size=20",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Lista pagos paginados desde payment-service a través del API Gateway."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payments paginated query returns 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.content).to.not.be.undefined;",
+              "    console.log('💳 Payments page: ' + JSON.stringify(body, null, 2));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "5C. GET Pago por paymentId",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-payment-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments/{{paymentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments",
+            "{{paymentId}}"
+          ]
+        },
+        "description": "Consulta un pago por su paymentId guardado desde el POST manual. Si paymentId está vacío, ejecuta primero POST Pago Manual."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Payment by id returns 200 or controlled 404', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "console.log('💳 Payment by ID response: ' + pm.response.text());"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "8A. POST Notificación Manual — notification-service (si está habilitado)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Client-Id",
+            "value": "postman-notification-client"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"patientId\": \"{{patientId}}\",\n    \"appointmentId\": \"{{appointmentId}}\",\n    \"eventType\": \"MANUAL_TEST\",\n    \"channel\": \"EMAIL\",\n    \"destination\": \"{{patientEmail}}\",\n    \"message\": \"Notificación manual de prueba desde Postman\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ]
+        },
+        "description": "POST manual para notification-service. En la documentación original notification-service es principalmente consumidor de eventos y expone GET /notifications?patientId={id}; por eso este POST solo funcionará si el equipo implementó un endpoint manual de prueba. Si devuelve 404, usar la saga o RabbitMQ para generar notificaciones."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Manual notification endpoint returns controlled status', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202, 404]);",
+              "});",
+              "if ([200,201,202].includes(pm.response.code)) {",
+              "    const body = pm.response.json();",
+              "    if (body.id || body.notificationId) { pm.collectionVariables.set('notificationId', body.id || body.notificationId); }",
+              "    console.log('🔔 Manual notification response: ' + JSON.stringify(body, null, 2));",
+              "} else {",
+              "    console.log('⚠️ POST /api/notifications no está habilitado en este servicio. Respuesta: ' + pm.response.text());",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "8B. GET Notificaciones por patientId — formato documentado",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Client-Id",
+            "value": "postman-notification-client"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications?patientId={{patientId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "patientId",
+              "value": "{{patientId}}"
+            }
+          ]
+        },
+        "description": "Consulta documentada para notification-service: GET /notifications?patientId={id}."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Notifications by patientId query returns 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "    console.log('🔔 Notifications by query: ' + pm.response.text());",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "6. Consultar Cita (estado actualizado)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "appointments",
+            "{{appointmentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Appointment retrieved successfully', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.id).to.eql(pm.collectionVariables.get('appointmentId'));",
+              "    console.log('📋 Appointment status: ' + body.status);",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "7. Consultar Notificaciones del Paciente",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/notifications/patient/{{patientId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "notifications",
+            "patient",
+            "{{patientId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Notifications retrieved for patient', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    console.log('🔔 Notifications: ' + JSON.stringify(body, null, 2));",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "8. Test Idempotencia — Retry misma cita",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Idempotency-Key",
+            "value": "{{idempotencyKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"patientId\": \"{{patientId}}\",\n    \"dentistId\": \"{{dentistId}}\",\n    \"slotId\": \"{{slotId}}\",\n    \"appointmentDate\": \"{{slotDate}}\",\n    \"startTime\": \"{{slotStartTime}}\",\n    \"endTime\": \"{{slotEndTime}}\",\n    \"notes\": \"Retry — debe retornar la misma cita sin duplicar\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/appointments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "appointments"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Idempotency works — same appointment returned or 409', function () {",
+              "    const status = pm.response.code;",
+              "    pm.expect(status).to.be.oneOf([200, 201, 409]);",
+              "    if (status === 200 || status === 201) {",
+              "        const body = pm.response.json();",
+              "        pm.expect(body.id).to.eql(pm.collectionVariables.get('appointmentId'));",
+              "        console.log('✅ Idempotency verified — same appointment ID returned');",
+              "    } else {",
+              "        console.log('✅ Idempotency verified — 409 Conflict (already processed)');",
+              "    }",
+              "});",
+              ""
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}
