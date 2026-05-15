@@ -1,10 +1,11 @@
 param(
     [string]$BaseUrl = "http://localhost:8080",
+    [ValidateSet("realistic", "performance", "smoke")]
+    [string]$Profile = "realistic",
     [switch]$IncludeHostile,
     [switch]$IncludeE2E,
+    [switch]$IncludeRateLimit,
     [switch]$K6OutputPrometheus,
-    [ValidateSet("smoke", "normal", "heavy")]
-    [string]$DurationProfile = "normal",
     [switch]$ContinueOnError,
     [string]$PatientId,
     [string]$DentistId,
@@ -23,21 +24,66 @@ $ResultsDir = Join-Path $PSScriptRoot "results"
 New-Item -ItemType Directory -Force $ResultsDir | Out-Null
 
 function Set-ProfileDefaults {
-    param([string]$Profile)
+    param([string]$SelectedProfile)
 
-    if ($Profile -eq "smoke") {
+    $env:LOAD_PROFILE = $SelectedProfile
+
+    if ($SelectedProfile -eq "smoke") {
         $env:SMOKE_ITERATIONS = "5"
         $env:PATIENT_VUS = "1"; $env:PATIENT_DURATION = "15s"
         $env:SCHEDULE_VUS = "1"; $env:SCHEDULE_DURATION = "15s"
         $env:PAYMENT_VUS = "1"; $env:PAYMENT_DURATION = "15s"
         $env:NOTIFICATION_VUS = "1"; $env:NOTIFICATION_DURATION = "15s"
+        $env:RATE_LIMIT_VUS = "20"; $env:RATE_LIMIT_DURATION = "10s"
+        return
     }
-    elseif ($Profile -eq "heavy") {
-        $env:SMOKE_ITERATIONS = "10"
-        $env:PATIENT_VUS = "50"; $env:PATIENT_DURATION = "3m"
-        $env:SCHEDULE_VUS = "200"; $env:SCHEDULE_DURATION = "5m"
-        $env:PAYMENT_VUS = "100"; $env:PAYMENT_DURATION = "5m"
-        $env:NOTIFICATION_VUS = "100"; $env:NOTIFICATION_DURATION = "5m"
+
+    if ($SelectedProfile -eq "performance") {
+        $env:SMOKE_ITERATIONS = "5"
+        $env:PATIENT_VUS = "20"; $env:PATIENT_DURATION = "1m"
+        $env:SCHEDULE_VUS = "100"; $env:SCHEDULE_DURATION = "2m"
+        $env:PAYMENT_VUS = "50"; $env:PAYMENT_DURATION = "2m"
+        $env:NOTIFICATION_VUS = "50"; $env:NOTIFICATION_DURATION = "2m"
+        $env:RATE_LIMIT_VUS = "40"; $env:RATE_LIMIT_DURATION = "30s"
+        return
+    }
+
+    $env:SMOKE_ITERATIONS = "5"
+    $env:PATIENT_VUS = "20"; $env:PATIENT_DURATION = "1m"
+    $env:SCHEDULE_VUS = "100"; $env:SCHEDULE_DURATION = "2m"
+    $env:PAYMENT_VUS = "50"; $env:PAYMENT_DURATION = "2m"
+    $env:NOTIFICATION_VUS = "50"; $env:NOTIFICATION_DURATION = "2m"
+    $env:RATE_LIMIT_VUS = "40"; $env:RATE_LIMIT_DURATION = "30s"
+}
+
+function Add-DockerEnv {
+    param(
+        [System.Collections.Generic.List[string]]$ArgsList,
+        [hashtable]$EnvMap
+    )
+
+    foreach ($item in $EnvMap.GetEnumerator()) {
+        if ($null -ne $item.Value -and $item.Value -ne "") {
+            $ArgsList.Add("-e")
+            $ArgsList.Add("$($item.Key)=$($item.Value)")
+        }
+    }
+}
+
+function Invoke-External {
+    param([string[]]$CommandArgs, [string]$Executable)
+
+    $oldNativePreference = $PSNativeCommandUseErrorActionPreference
+    $oldErrorPreference = $ErrorActionPreference
+    try {
+        $script:PSNativeCommandUseErrorActionPreference = $false
+        $ErrorActionPreference = "Continue"
+        & $Executable @CommandArgs 2>&1 | ForEach-Object { [Console]::Out.WriteLine($_) }
+        return $LASTEXITCODE
+    }
+    finally {
+        $script:PSNativeCommandUseErrorActionPreference = $oldNativePreference
+        $ErrorActionPreference = $oldErrorPreference
     }
 }
 
@@ -57,24 +103,29 @@ function Invoke-K6Phase {
     if ($Date) { $env:DATE = $Date }
     if ($IncludeE2E) { $env:ALLOW_E2E = "true" }
 
-    $args = @("run")
-    if ($K6OutputPrometheus) {
-        if (-not $env:K6_PROMETHEUS_RW_SERVER_URL) {
-            $env:K6_PROMETHEUS_RW_SERVER_URL = "http://localhost:9090/api/v1/write"
-        }
-        $args += @("-o", "experimental-prometheus-rw")
-    }
-    $args += $Script
+    $commandText = ""
+    $started = Get-Date
 
     Write-Host ""
-    Write-Host "==> $Name"
+    Write-Host "==> $Name [$Profile]"
+
     if ($UseDockerK6) {
         $dockerScript = "/" + ($Script -replace "\\", "/" -replace "^infra/load-tests", "scripts")
-        $dockerArgs = @("compose", "--profile", "loadtest", "run", "--rm")
-        $dockerEnv = @{
-            BASE_URL = if ($BaseUrl -eq "http://localhost:8080") { "http://api-gateway-lb:8080" } else { $BaseUrl }
+        $dockerArgs = [System.Collections.Generic.List[string]]::new()
+        @("compose", "--profile", "loadtest", "run", "--rm") | ForEach-Object { $dockerArgs.Add($_) }
+
+        $dockerBaseUrl = if ($BaseUrl -eq "http://localhost:8080") { "http://api-gateway-lb:8080" } else { $BaseUrl }
+        $dockerPrometheusUrl = if ($K6OutputPrometheus -and -not $env:K6_PROMETHEUS_RW_SERVER_URL) {
+            "http://prometheus:9090/api/v1/write"
+        } else {
+            $env:K6_PROMETHEUS_RW_SERVER_URL
+        }
+
+        Add-DockerEnv -ArgsList $dockerArgs -EnvMap @{
+            BASE_URL = $dockerBaseUrl
             RESULTS_DIR = "/scripts/results"
             K6_SCRIPT_NAME = (Split-Path -Leaf $Script)
+            LOAD_PROFILE = $Profile
             PATIENT_ID = $PatientId
             DENTIST_ID = $DentistId
             SLOT_ID = $SlotId
@@ -90,45 +141,54 @@ function Invoke-K6Phase {
             PAYMENT_DURATION = $env:PAYMENT_DURATION
             NOTIFICATION_VUS = $env:NOTIFICATION_VUS
             NOTIFICATION_DURATION = $env:NOTIFICATION_DURATION
-            K6_PROMETHEUS_RW_SERVER_URL = $(if ($K6OutputPrometheus -and -not $env:K6_PROMETHEUS_RW_SERVER_URL) { "http://prometheus:9090/api/v1/write" } else { $env:K6_PROMETHEUS_RW_SERVER_URL })
+            RATE_LIMIT_VUS = $env:RATE_LIMIT_VUS
+            RATE_LIMIT_DURATION = $env:RATE_LIMIT_DURATION
+            K6_PROMETHEUS_RW_SERVER_URL = $dockerPrometheusUrl
         }
-        foreach ($item in $dockerEnv.GetEnumerator()) {
-            if ($item.Value) {
-                $dockerArgs += @("-e", "$($item.Key)=$($item.Value)")
-            }
-        }
-        $dockerArgs += @("k6")
-        $dockerK6Args = @("run")
+
+        $dockerArgs.Add("k6")
+        $dockerArgs.Add("run")
         if ($K6OutputPrometheus) {
-            $dockerK6Args += @("-o", "experimental-prometheus-rw")
+            $dockerArgs.Add("-o")
+            $dockerArgs.Add("experimental-prometheus-rw")
         }
-        $dockerK6Args += $dockerScript
-        $dockerArgs += $dockerK6Args
-        Write-Host "Command: docker $($dockerArgs -join ' ')"
+        $dockerArgs.Add($dockerScript)
+
+        $commandText = "docker $($dockerArgs -join ' ')"
+        Write-Host "Command: $commandText"
+        $exitCode = Invoke-External -Executable "docker" -CommandArgs $dockerArgs.ToArray()
     }
     else {
-        Write-Host "Command: $K6Binary $($args -join ' ')"
+        $k6Args = [System.Collections.Generic.List[string]]::new()
+        $k6Args.Add("run")
+        if ($K6OutputPrometheus) {
+            if (-not $env:K6_PROMETHEUS_RW_SERVER_URL) {
+                $env:K6_PROMETHEUS_RW_SERVER_URL = "http://localhost:9090/api/v1/write"
+            }
+            $k6Args.Add("-o")
+            $k6Args.Add("experimental-prometheus-rw")
+        }
+        $k6Args.Add($Script)
+
+        $commandText = "$K6Binary $($k6Args -join ' ')"
+        Write-Host "Command: $commandText"
+        $exitCode = Invoke-External -Executable $K6Binary -CommandArgs $k6Args.ToArray()
     }
 
-    $started = Get-Date
-    if ($UseDockerK6) {
-        & docker @dockerArgs
-    }
-    else {
-        & $K6Binary @args
-    }
-    $exitCode = $LASTEXITCODE
     $elapsed = (Get-Date) - $started
+    $result = if ($exitCode -eq 0) { "PASS" } else { "FAIL" }
 
     [pscustomobject]@{
         Phase = $Name
-        Script = $Script
+        Profile = $Profile
+        Command = $commandText
         ExitCode = $exitCode
         Duration = $elapsed.ToString("hh\:mm\:ss")
+        Result = $result
     }
 }
 
-Set-ProfileDefaults -Profile $DurationProfile
+Set-ProfileDefaults -SelectedProfile $Profile
 
 $phases = @(
     @{ Name = "00 Smoke"; Script = "infra/load-tests/scripts/00-smoke.js" },
@@ -137,6 +197,10 @@ $phases = @(
     @{ Name = "03 Payment Load"; Script = "infra/load-tests/scripts/03-payment-load.js" },
     @{ Name = "04 Notification Load"; Script = "infra/load-tests/scripts/04-notification-load.js" }
 )
+
+if ($IncludeRateLimit) {
+    $phases += @{ Name = "07 Gateway Rate Limit"; Script = "infra/load-tests/scripts/07-gateway-rate-limit.js" }
+}
 
 if ($IncludeHostile) {
     $phases += @{ Name = "05 Appointment Hostile"; Script = "infra/load-tests/scripts/05-appointment-hostile.js" }
@@ -170,7 +234,7 @@ finally {
 
 Write-Host ""
 Write-Host "Resumen de ejecucion"
-$results | Format-Table -AutoSize
+$results | Select-Object Phase, Profile, ExitCode, Duration, Result, Command | Format-Table -AutoSize
 
 $failed = @($results | Where-Object { $_.ExitCode -ne 0 })
 if ($failed.Count -gt 0) {

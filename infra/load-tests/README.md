@@ -41,6 +41,25 @@ No existe endpoint de listado general para pacientes ni citas. No se debe crear 
 - `scripts/04-notification-load.js`: solo consultas.
 - `scripts/05-appointment-hostile.js`: opcional, muchos VUs contra el mismo slot.
 - `scripts/06-e2e-flow.js`: opcional y deshabilitado por defecto hasta corregir `AppointmentHeld.amount`.
+- `scripts/07-gateway-rate-limit.js`: opcional, valida rate limiting del gateway; `429` es esperado.
+
+## Perfiles de Carga
+
+La suite separa tres perfiles para evitar mezclar comportamiento de negocio con rendimiento tecnico:
+
+- `realistic`: usa el simulador real de payment. Con `PAYMENT_SIM_MAX_DELAY_MS=8000`, el threshold de payment es `p95<9000ms` y `p99<11000ms`.
+- `performance`: pensado para medir rendimiento tecnico con latencias artificiales bajas. Debe ejecutarse con `PAYMENT_SIM_MIN_DELAY_MS=50` y `PAYMENT_SIM_MAX_DELAY_MS=500`.
+- `smoke`: ejecucion corta, pocos VUs y thresholds estrictos pero razonables.
+
+`03-payment-load.js` falla si se exige `p95<2000ms` mientras `PAYMENT_SIM_MAX_DELAY_MS=8000`, porque el propio negocio simula pagos que pueden tardar hasta 8 segundos. Eso no implica necesariamente error de backend; significa que ese threshold pertenece al perfil `performance`, no al perfil `realistic`.
+
+Thresholds de payment:
+
+| Perfil | http_req_failed | p95 | p99 |
+|--------|-----------------|-----|-----|
+| `realistic` | `< 5%` | `< 9000ms` | `< 11000ms` |
+| `performance` | `< 5%` | `< 2000ms` | `< 4000ms` |
+| `smoke` | `< 1%` | `< 3000ms` | `< 5000ms` |
 
 ## Ejecucion Local
 
@@ -53,13 +72,13 @@ k6 run infra/load-tests/scripts/00-smoke.js
 Runner secuencial normal:
 
 ```powershell
-.\infra\load-tests\run-sequential.ps1
+.\infra\load-tests\run-sequential.ps1 -Profile realistic
 ```
 
 Con profile corto:
 
 ```powershell
-.\infra\load-tests\run-sequential.ps1 -DurationProfile smoke
+.\infra\load-tests\run-sequential.ps1 -Profile smoke
 ```
 
 Con prueba hostil:
@@ -88,7 +107,19 @@ docker compose --profile loadtest run --rm k6 run /scripts/scripts/00-smoke.js
 Runner PowerShell usando Docker k6:
 
 ```powershell
-.\infra\load-tests\run-sequential.ps1 -UseDockerK6
+.\infra\load-tests\run-sequential.ps1 -UseDockerK6 -Profile realistic
+```
+
+Runner PowerShell usando Docker k6 con perfil performance:
+
+```powershell
+.\infra\load-tests\run-sequential.ps1 -UseDockerK6 -Profile performance
+```
+
+Prueba opcional de rate limiting:
+
+```powershell
+.\infra\load-tests\run-sequential.ps1 -UseDockerK6 -Profile realistic -IncludeRateLimit
 ```
 
 Para ejecutar contra el gateway dentro de la red Docker:
@@ -100,12 +131,44 @@ docker compose --profile loadtest run --rm -e BASE_URL=http://api-gateway-lb:808
 ## Variables
 
 - `BASE_URL`: default `http://localhost:8080`; en Docker usa `http://api-gateway-lb:8080`.
+- `LOAD_PROFILE`: `realistic`, `performance` o `smoke`; default `realistic`.
 - `DENTIST_ID`, `DATE`: schedule load.
 - `PATIENT_ID`, `APPOINTMENT_ID`: filtros e integraciones.
 - `SLOT_ID`, `START_TIME`, `END_TIME`: appointment hostile.
 - `INCLUDE_PAYMENT_IDEMPOTENCY=true`: subescenario controlado de idempotencia de pagos.
 - `ALLOW_E2E=true`: requerido por `06-e2e-flow.js`.
 - `RESULTS_DIR`: default `infra/load-tests/results`; en Docker `/scripts/results`.
+
+## Stack Performance
+
+Stack normal:
+
+```powershell
+docker compose up -d --build --scale api-gateway=2 --scale payment-service=3
+```
+
+Stack performance con override no invasivo:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.loadtest-performance.yml up -d --build --scale api-gateway=2 --scale payment-service=3
+```
+
+El override baja latencias artificiales de payment:
+
+- `PAYMENT_SIM_MIN_DELAY_MS=50`
+- `PAYMENT_SIM_MAX_DELAY_MS=500`
+- `PAYMENT_TIMEOUT_SECONDS=5`
+
+Tambien sube los limites configurables de payment en el gateway con `RATE_LIMIT_PAYMENT_REPLENISH` y `RATE_LIMIT_PAYMENT_BURST` para que una prueba tecnica de payment no mida principalmente rate limiting.
+
+## Interpretacion
+
+- `2xx`: respuesta exitosa.
+- `409`: conflicto controlado, esperado en idempotencia o doble pago/cita segun escenario.
+- `422`: validacion de negocio, usado solo en pruebas hostiles de citas.
+- `429`: rate limiting del gateway. No es error de backend, pero debe reportarse y analizarse.
+- `5xx`: error de backend/gateway; no debe aceptarse como exito.
+- `p95/p99`: percentiles de latencia. En payment realistic incluyen la demora artificial del simulador.
 
 ## Prometheus y Grafana
 

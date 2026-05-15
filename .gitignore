@@ -104,3 +104,7 @@ docker-compose.override.yml
 scratch/
 **/scratch/
 temp-*.json
+
+# k6 generated load-test outputs
+infra/load-tests/results/*
+!infra/load-tests/results/.gitkeep
