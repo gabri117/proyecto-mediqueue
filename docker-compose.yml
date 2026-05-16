@@ -21,15 +21,35 @@ services:
     environment:
       POSTGRES_USER: ${DB_USERNAME:-mediqueue}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-mediqueue}
-    ports:
-      - "55432:5432"
+      POSTGRES_DB: ${DB_NAME:-mediqueue}
+    expose:
+      - "5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infra/docker/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql:ro
     networks:
       - mediqueue-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-mediqueue}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-mediqueue} -d ${DB_NAME:-mediqueue}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-lb:
+    image: haproxy:alpine
+    container_name: mediqueue-postgres-lb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:55461:5432"
+    volumes:
+      - ./infra/haproxy/postgres/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 5432"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -189,12 +209,16 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_appointments
-      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_appointments
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=appointment,public
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=appointment,public
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
       DB_USER: ${DB_USERNAME:-mediqueue}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
       DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_FLYWAY_SCHEMAS: appointment
+      SPRING_FLYWAY_DEFAULT_SCHEMA: appointment
+      SPRING_FLYWAY_CREATE_SCHEMAS: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: appointment
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
@@ -207,7 +231,7 @@ services:
     ports:
       - "8081:8080"
     depends_on:
-      postgres:
+      postgres-lb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -230,12 +254,16 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_notifications
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=notification,public
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
-      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_notifications
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=notification,public
       DB_USER: ${DB_USERNAME:-mediqueue}
       DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_FLYWAY_SCHEMAS: notification
+      SPRING_FLYWAY_DEFAULT_SCHEMA: notification
+      SPRING_FLYWAY_CREATE_SCHEMAS: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: notification
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-mediqueue}
@@ -248,7 +276,7 @@ services:
     ports:
       - "8082:8080"
     depends_on:
-      postgres:
+      postgres-lb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -268,12 +296,16 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_payments
-      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_payments
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=payment,public
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=payment,public
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
       DB_USER: ${DB_USERNAME:-mediqueue}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
       DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_FLYWAY_SCHEMAS: payment
+      SPRING_FLYWAY_DEFAULT_SCHEMA: payment
+      SPRING_FLYWAY_CREATE_SCHEMAS: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: payment
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
@@ -282,7 +314,7 @@ services:
     expose:
       - "8080"
     depends_on:
-      postgres:
+      postgres-lb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -305,7 +337,7 @@ services:
       - ./infra/haproxy/payment/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       payment-service:
-        condition: service_healthy
+        condition: service_started
     networks:
       - mediqueue-net
     healthcheck:
@@ -323,17 +355,21 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_patients
-      DB_URL: jdbc:postgresql://postgres:5432/mediqueue_patients
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=patient,public
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=patient,public
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
       DB_USER: ${DB_USERNAME:-mediqueue}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
       DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_FLYWAY_SCHEMAS: patient
+      SPRING_FLYWAY_DEFAULT_SCHEMA: patient
+      SPRING_FLYWAY_CREATE_SCHEMAS: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: patient
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8084:8080"
     depends_on:
-      postgres:
+      postgres-lb:
         condition: service_healthy
     networks:
       - mediqueue-net
@@ -352,12 +388,16 @@ services:
     restart: unless-stopped
     environment:
       SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mediqueue_schedules
-      SCHEDULE_DB_URL: jdbc:postgresql://postgres:5432/mediqueue_schedules
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=schedule,public
+      SCHEDULE_DB_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=schedule,public
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-mediqueue}
       DB_USER: ${DB_USERNAME:-mediqueue}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-mediqueue}
       DB_PASSWORD: ${DB_PASSWORD:-mediqueue}
+      SPRING_FLYWAY_SCHEMAS: schedule
+      SPRING_FLYWAY_DEFAULT_SCHEMA: schedule
+      SPRING_FLYWAY_CREATE_SCHEMAS: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: schedule
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
@@ -366,7 +406,7 @@ services:
     ports:
       - "8085:8080"
     depends_on:
-      postgres:
+      postgres-lb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
