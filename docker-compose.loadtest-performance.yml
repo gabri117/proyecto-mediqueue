@@ -1,0 +1,11 @@
+services:
+  payment-service:
+    environment:
+      PAYMENT_SIM_MIN_DELAY_MS: 50
+      PAYMENT_SIM_MAX_DELAY_MS: 500
+      PAYMENT_TIMEOUT_SECONDS: 5
+
+  api-gateway:
+    environment:
+      RATE_LIMIT_PAYMENT_REPLENISH: 300
+      RATE_LIMIT_PAYMENT_BURST: 600
