@@ -1,6 +1,6 @@
 -- Validate MediQueue Phase 1 database unification.
 -- Run with:
--- psql -h localhost -p 55432 -U mediqueue -d mediqueue -f infra/docker/validate-mediqueue-schemas.sql
+-- psql -h localhost -p 55461 -U mediqueue -d mediqueue -f infra/docker/validate-mediqueue-schemas.sql
 
 SELECT current_database() AS database_name;
 

@@ -20,7 +20,7 @@ CREATE TYPE outbox_publication_status AS ENUM (
 );
 
 CREATE TABLE payments (
-    payment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payment_id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     appointment_id UUID NOT NULL,
     patient_id UUID NOT NULL,
     amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),

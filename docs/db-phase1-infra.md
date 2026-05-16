@@ -20,7 +20,7 @@ incluye Patroni, etcd ni Consul.
 Usar una conexion PostgreSQL con estos valores:
 
 - Host: `localhost`
-- Port: `55432`
+- Port: `55461`
 - Database: `mediqueue`
 - User: `mediqueue`
 - Password: `mediqueue`

@@ -63,12 +63,6 @@ LANGUAGE sql
 STABLE
 AS $$ SELECT public.uuid_generate_v4(); $$;
 
-CREATE OR REPLACE FUNCTION payment.uuid_generate_v4()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$ SELECT public.uuid_generate_v4(); $$;
-
 CREATE OR REPLACE FUNCTION notification.uuid_generate_v4()
 RETURNS uuid
 LANGUAGE sql
