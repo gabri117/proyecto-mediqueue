@@ -41,30 +41,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE mediqueue IN SCHEMA payment
     GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO mediqueue;
 ALTER DEFAULT PRIVILEGES FOR ROLE mediqueue IN SCHEMA notification
     GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO mediqueue;
-
--- Service migrations call uuid_generate_v4() without a schema qualifier.
--- Keep the extension in public and expose a same-name wrapper inside each
--- service schema so unqualified DDL resolves locally.
-CREATE OR REPLACE FUNCTION patient.uuid_generate_v4()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$ SELECT public.uuid_generate_v4(); $$;
-
-CREATE OR REPLACE FUNCTION schedule.uuid_generate_v4()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$ SELECT public.uuid_generate_v4(); $$;
-
-CREATE OR REPLACE FUNCTION appointment.uuid_generate_v4()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$ SELECT public.uuid_generate_v4(); $$;
-
-CREATE OR REPLACE FUNCTION notification.uuid_generate_v4()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$ SELECT public.uuid_generate_v4(); $$;

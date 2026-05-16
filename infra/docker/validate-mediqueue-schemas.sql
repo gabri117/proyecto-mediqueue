@@ -29,3 +29,18 @@ SELECT table_schema, table_name
 FROM information_schema.tables
 WHERE table_schema = 'public'
 ORDER BY table_name;
+
+SELECT n.nspname AS schema_name,
+       c.relname AS object_name,
+       c.relkind AS object_type
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname IN ('patient', 'schedule', 'appointment', 'payment', 'notification')
+ORDER BY n.nspname, c.relname;
+
+SELECT n.nspname AS schema_name,
+       p.proname AS function_name
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname IN ('patient', 'schedule', 'appointment', 'payment', 'notification')
+ORDER BY n.nspname, p.proname;

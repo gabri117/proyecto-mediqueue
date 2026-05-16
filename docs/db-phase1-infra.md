@@ -28,7 +28,7 @@ Usar una conexion PostgreSQL con estos valores:
 En Docker, los microservicios usan el endpoint interno:
 
 ```text
-jdbc:postgresql://postgres-lb:5432/mediqueue?currentSchema=<schema>
+jdbc:postgresql://postgres-lb:5432/mediqueue?currentSchema=<schema>,public
 ```
 
 ## Validacion
