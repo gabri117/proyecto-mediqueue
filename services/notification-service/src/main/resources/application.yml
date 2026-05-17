@@ -6,8 +6,8 @@ spring:
     name: notification-service
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/mediqueue_notifications}
-    username: ${DB_USER:mediqueue}
+    url: ${DB_URL:jdbc:postgresql://postgres-lb:5432/mediqueue?currentSchema=notification,public}
+    username: ${DB_USERNAME:${DB_USER:mediqueue}}
     password: ${DB_PASSWORD:mediqueue}
     hikari:
       maximum-pool-size: 10
@@ -24,18 +24,22 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
+        default_schema: notification
 
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: false
     validate-on-migrate: true
+    schemas: notification
+    default-schema: notification
+    create-schemas: false
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:mediqueue}
-    password: ${RABBITMQ_PASS:rabbit123}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
     virtual-host: /
     listener:
       simple:
@@ -90,12 +94,12 @@ spring:
       on-profile: docker
 
   datasource:
-    url: jdbc:postgresql://postgres:5432/mediqueue_notifications
-    username: ${DB_USER:mediqueue}
+    url: ${DB_URL:jdbc:postgresql://postgres-lb:5432/mediqueue?currentSchema=notification,public}
+    username: ${DB_USERNAME:${DB_USER:mediqueue}}
     password: ${DB_PASSWORD:mediqueue}
 
   rabbitmq:
-    host: rabbitmq
-    port: 5672
-    username: ${RABBITMQ_USER:mediqueue}
-    password: ${RABBITMQ_PASS:rabbit123}
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}

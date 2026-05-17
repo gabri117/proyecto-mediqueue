@@ -11,7 +11,7 @@
 -- - Auditoría inmutable (historial intocable)
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 
 
 
@@ -20,7 +20,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- patient_id y dentist_id son FKs lógicas (otros servicios).
 -- =============================================================================
 CREATE TABLE appointments (
-    appointment_id      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    appointment_id      UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     patient_id          UUID NOT NULL,
     dentist_id          UUID NOT NULL,
     slot_id             UUID NOT NULL,
@@ -49,7 +49,7 @@ CREATE UNIQUE INDEX uq_appointment_slot_active
 -- Reserva temporal con TTL. Protege contra reservas zombi por pago colgado.
 -- =============================================================================
 CREATE TABLE appointment_holds (
-    hold_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hold_id         UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     appointment_id  UUID NOT NULL,
     slot_id         UUID NOT NULL,
     hold_status     VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
@@ -73,7 +73,7 @@ CREATE INDEX idx_holds_expiration
 -- Cumple "historial intocable". Solo INSERT, jamás UPDATE ni DELETE.
 -- =============================================================================
 CREATE TABLE appointment_audit (
-    audit_id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    audit_id          UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     appointment_id    UUID NOT NULL,
     previous_status   VARCHAR(30),
     new_status        VARCHAR(30) NOT NULL,
@@ -103,7 +103,7 @@ CREATE TRIGGER trg_audit_no_delete BEFORE DELETE ON appointment_audit
 -- Cliente envía X-Idempotency-Key. Si ya está SUCCEEDED, devolver respuesta cacheada.
 -- =============================================================================
 CREATE TABLE idempotency_keys (
-    idempotency_id      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    idempotency_id      UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     operation_type      VARCHAR(50)  NOT NULL,
     idempotency_key     VARCHAR(120) NOT NULL,
     request_hash        VARCHAR(128) NOT NULL,
@@ -122,7 +122,7 @@ CREATE INDEX idx_idempotency_expires ON idempotency_keys(expires_at);
 -- Publisher background los envía a RabbitMQ y los marca PUBLISHED.
 -- =============================================================================
 CREATE TABLE outbox_events (
-    event_id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id            UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     aggregate_type      VARCHAR(50)  NOT NULL,
     aggregate_id        UUID         NOT NULL,
     event_type          VARCHAR(80)  NOT NULL,

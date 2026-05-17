@@ -8,7 +8,6 @@
 -- queda con notification_status='FAILED' y se loguea).
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =============================================================================
 -- ENUMS
@@ -20,7 +19,7 @@ CREATE TYPE notification_channel AS ENUM ('EMAIL', 'SMS');
 -- TABLA: notifications
 -- =============================================================================
 CREATE TABLE notifications (
-    notification_id      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    notification_id      UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     patient_id           UUID NOT NULL,
     appointment_id       UUID,
     event_type           VARCHAR(80) NOT NULL,   -- APPOINTMENT_CONFIRMED, APPOINTMENT_CANCELLED, etc.

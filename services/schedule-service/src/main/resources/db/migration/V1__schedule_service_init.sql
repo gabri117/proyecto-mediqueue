@@ -4,7 +4,6 @@
 -- Migración Flyway: V1__schedule_service_init.sql
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =============================================================================
 -- ENUMS
@@ -18,7 +17,7 @@ CREATE TYPE slot_display_status AS ENUM ('AVAILABLE', 'HELD', 'BOOKED', 'BLOCKED
 -- y la sub-especialidad va como campo simple).
 -- =============================================================================
 CREATE TABLE dentists (
-    dentist_id      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    dentist_id      UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     first_name      VARCHAR(100) NOT NULL,
     last_name       VARCHAR(100) NOT NULL,
     license_number  VARCHAR(50)  NOT NULL,
@@ -39,7 +38,7 @@ CREATE INDEX idx_dentists_specialty ON dentists(specialty);
 -- Horario semanal del odontólogo. day_of_week: 0=Domingo .. 6=Sábado
 -- =============================================================================
 CREATE TABLE dentist_working_hours (
-    working_hour_id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    working_hour_id        UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     dentist_id             UUID NOT NULL,
     day_of_week            INT  NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
     start_time             TIME NOT NULL,
@@ -61,7 +60,7 @@ CREATE INDEX idx_working_hours_dentist ON dentist_working_hours(dentist_id, day_
 -- appointment-service vía sus holds e índices parciales.
 -- =============================================================================
 CREATE TABLE dentist_slots (
-    slot_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slot_id         UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     dentist_id      UUID NOT NULL,
     slot_date       DATE NOT NULL,
     start_time      TIME NOT NULL,

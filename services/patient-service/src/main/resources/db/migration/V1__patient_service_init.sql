@@ -4,7 +4,6 @@
 -- Migración Flyway: V1__patient_service_init.sql
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =============================================================================
 -- ENUMS
@@ -16,7 +15,7 @@ CREATE TYPE patient_status AS ENUM ('ACTIVE', 'INACTIVE');
 -- Una sola tabla con lo indispensable para identificar a un paciente.
 -- =============================================================================
 CREATE TABLE patients (
-    patient_id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id        UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     first_name        VARCHAR(100)  NOT NULL,
     last_name         VARCHAR(100)  NOT NULL,
     email             VARCHAR(150)  NOT NULL,
