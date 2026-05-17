@@ -57,6 +57,17 @@ class PaymentControllerTest {
     }
 
     @Test
+    void postPaymentWithMalformedJsonReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/payments")
+                        .header("X-Idempotency-Key", "manual-key")
+                        .contentType("application/json")
+                        .content("{appointmentId:\"bad-json\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PAYMENT_BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Malformed request body"));
+    }
+
+    @Test
     void getPaymentsWithoutParametersReturnsPagedResponse() throws Exception {
         when(paymentService.getPayments(null, null, 0, 20)).thenReturn(pagedResponse(0, 20));
 
