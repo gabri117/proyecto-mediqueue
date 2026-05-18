@@ -23,7 +23,7 @@ public class PaymentSimulator {
         this.approvalRate = Math.max(0.0, Math.min(1.0, approvalRate));
     }
 
-    public PaymentStatus simulate() {
+    public PaymentStatus simulate(java.math.BigDecimal amount) {
         long delay = minDelayMs == maxDelayMs
                 ? minDelayMs
                 : ThreadLocalRandom.current().nextLong(minDelayMs, maxDelayMs + 1);
@@ -34,7 +34,7 @@ public class PaymentSimulator {
             log.warn("Payment simulation interrupted");
             return PaymentStatus.TIMEOUT;
         }
-        return ThreadLocalRandom.current().nextDouble() <= approvalRate
+        return amount != null && amount.compareTo(new java.math.BigDecimal("500.00")) < 0
                 ? PaymentStatus.APPROVED
                 : PaymentStatus.REJECTED;
     }

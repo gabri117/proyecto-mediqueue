@@ -205,8 +205,9 @@ services:
     build:
       context: .
       dockerfile: infra/docker/appointment-service.Dockerfile
-    container_name: mediqueue-appointment-service
-    restart: unless-stopped
+    restart: always
+    deploy:
+      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=appointment,public
@@ -228,8 +229,6 @@ services:
       PATIENT_SERVICE_URL: http://patient-service:8080
       SCHEDULE_SERVICE_URL: http://schedule-service:8080
       SPRING_PROFILES_ACTIVE: docker
-    ports:
-      - "8081:8080"
     depends_on:
       postgres-lb:
         condition: service_healthy
@@ -243,15 +242,16 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 60s
 
   notification-service:
     build:
       context: .
       dockerfile: infra/docker/notification-service.Dockerfile
-    container_name: mediqueue-notification-service
-    restart: unless-stopped
+    restart: always
+    deploy:
+      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=notification,public
@@ -273,8 +273,6 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
       RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
       SPRING_PROFILES_ACTIVE: docker
-    ports:
-      - "8082:8080"
     depends_on:
       postgres-lb:
         condition: service_healthy
@@ -286,7 +284,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 60s
 
   payment-service:
@@ -351,8 +349,9 @@ services:
     build:
       context: .
       dockerfile: infra/docker/patient-service.Dockerfile
-    container_name: mediqueue-patient-service
-    restart: unless-stopped
+    restart: always
+    deploy:
+      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=patient,public
@@ -366,8 +365,6 @@ services:
       SPRING_FLYWAY_CREATE_SCHEMAS: "false"
       SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: patient
       SPRING_PROFILES_ACTIVE: docker
-    ports:
-      - "8084:8080"
     depends_on:
       postgres-lb:
         condition: service_healthy
@@ -377,15 +374,16 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 60s
 
   schedule-service:
     build:
       context: .
       dockerfile: infra/docker/schedule-service.Dockerfile
-    container_name: mediqueue-schedule-service
-    restart: unless-stopped
+    restart: always
+    deploy:
+      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=schedule,public
@@ -403,8 +401,6 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-mediqueue}
       RABBITMQ_PASS: ${RABBITMQ_PASSWORD:-rabbit123}
       SPRING_PROFILES_ACTIVE: docker
-    ports:
-      - "8085:8080"
     depends_on:
       postgres-lb:
         condition: service_healthy
@@ -416,7 +412,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 60s
 
   k6:

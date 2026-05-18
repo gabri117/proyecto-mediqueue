@@ -132,7 +132,7 @@ class PaymentServiceTest {
 
     @Test
     void sameIdempotencyKeyAndBodyDoesNotCreateTwoPayments() {
-        when(simulator.simulate()).thenReturn(PaymentStatus.APPROVED);
+        when(simulator.simulate(any())).thenReturn(PaymentStatus.APPROVED);
         PaymentRequest request = request(UUID.randomUUID(), BigDecimal.TEN);
 
         assertThat(paymentService.processManualPayment("same-key", request).httpStatus()).isEqualTo(HttpStatus.CREATED);
@@ -143,7 +143,7 @@ class PaymentServiceTest {
 
     @Test
     void sameIdempotencyKeyWithDifferentBodyReturnsConflict() {
-        when(simulator.simulate()).thenReturn(PaymentStatus.REJECTED);
+        when(simulator.simulate(any())).thenReturn(PaymentStatus.REJECTED);
         UUID appointmentId = UUID.randomUUID();
 
         paymentService.processManualPayment("same-key", request(appointmentId, BigDecimal.TEN));
@@ -155,7 +155,7 @@ class PaymentServiceTest {
     @Test
     void parallelRequestsForSameAppointmentDoNotLeaveTwoApprovedPayments() throws Exception {
         UUID appointmentId = UUID.randomUUID();
-        when(simulator.simulate()).thenReturn(PaymentStatus.APPROVED);
+        when(simulator.simulate(any())).thenReturn(PaymentStatus.APPROVED);
         CountDownLatch start = new CountDownLatch(1);
         var executor = Executors.newFixedThreadPool(2);
 
@@ -184,7 +184,7 @@ class PaymentServiceTest {
 
     @Test
     void timeoutMarksPaymentTimeoutAndCreatesPaymentFailedOutbox() {
-        when(simulator.simulate()).thenAnswer(invocation -> {
+        when(simulator.simulate(any())).thenAnswer(invocation -> {
             Thread.sleep(1500);
             return PaymentStatus.APPROVED;
         });
@@ -197,7 +197,7 @@ class PaymentServiceTest {
 
     @Test
     void rejectedPaymentCreatesPaymentFailedOutbox() {
-        when(simulator.simulate()).thenReturn(PaymentStatus.REJECTED);
+        when(simulator.simulate(any())).thenReturn(PaymentStatus.REJECTED);
 
         var result = paymentService.processManualPayment("rejected-key", request(UUID.randomUUID(), BigDecimal.TEN));
 
@@ -207,7 +207,7 @@ class PaymentServiceTest {
 
     @Test
     void approvedPaymentCreatesPaymentSucceededOutbox() {
-        when(simulator.simulate()).thenReturn(PaymentStatus.APPROVED);
+        when(simulator.simulate(any())).thenReturn(PaymentStatus.APPROVED);
 
         var result = paymentService.processManualPayment("approved-key", request(UUID.randomUUID(), BigDecimal.TEN));
 
@@ -217,7 +217,7 @@ class PaymentServiceTest {
 
     @Test
     void consumingSameAppointmentHeldEventTwiceCreatesOnlyOnePayment() {
-        when(simulator.simulate()).thenReturn(PaymentStatus.APPROVED);
+        when(simulator.simulate(any())).thenReturn(PaymentStatus.APPROVED);
         AppointmentHeldEvent event = appointmentHeldEvent(UUID.randomUUID());
 
         paymentService.processAppointmentHeld(event);

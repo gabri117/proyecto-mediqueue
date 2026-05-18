@@ -24,12 +24,14 @@ public record PaymentFailedEvent(
      *
      * @param paymentId     the payment's unique identifier
      * @param appointmentId the associated appointment
+     * @param patientId     the patient who owns the appointment
      * @param reason        human-readable failure reason
      * @param resolvedAt    the instant the payment was resolved
      */
     public record PaymentFailedPayload(
             UUID paymentId,
             UUID appointmentId,
+            UUID patientId,
             String reason,
             Instant resolvedAt
     ) {

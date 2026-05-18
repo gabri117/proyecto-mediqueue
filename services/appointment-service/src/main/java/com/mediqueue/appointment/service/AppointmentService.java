@@ -31,6 +31,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -181,7 +182,7 @@ public class AppointmentService {
                         appointment.getStartTime(),
                         appointment.getEndTime(),
                         holdExpiry,
-                        null
+                        request.amount()
                 )
         );
         saveOutboxEvent("appointments-exchange", appointment.getAppointmentId(),

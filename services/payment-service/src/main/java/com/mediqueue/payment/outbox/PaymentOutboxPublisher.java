@@ -1,5 +1,6 @@
 package com.mediqueue.payment.outbox;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mediqueue.payment.config.RabbitMQConfig;
 import com.mediqueue.payment.domain.PaymentEventsOutbox;
 import com.mediqueue.payment.domain.enums.OutboxPublicationStatus;
@@ -22,6 +23,7 @@ public class PaymentOutboxPublisher {
 
     private final PaymentEventsOutboxRepository outboxRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final ObjectMapper objectMapper;
     private final int batchSize;
     private final Counter publishedCounter;
     private final Counter failedCounter;
@@ -29,10 +31,12 @@ public class PaymentOutboxPublisher {
     public PaymentOutboxPublisher(
             PaymentEventsOutboxRepository outboxRepository,
             RabbitTemplate rabbitTemplate,
+            ObjectMapper objectMapper,
             MeterRegistry meterRegistry,
             @Value("${mediqueue.outbox.batch-size:50}") int batchSize) {
         this.outboxRepository = outboxRepository;
         this.rabbitTemplate = rabbitTemplate;
+        this.objectMapper = objectMapper;
         this.batchSize = batchSize;
         this.publishedCounter = meterRegistry.counter("payment.outbox.published.total");
         this.failedCounter = meterRegistry.counter("payment.outbox.failed.total");
@@ -44,10 +48,11 @@ public class PaymentOutboxPublisher {
         List<PaymentEventsOutbox> events = outboxRepository.findPendingForUpdateSkipLocked(batchSize);
         for (PaymentEventsOutbox event : events) {
             try {
+                Object payloadObject = objectMapper.readValue(event.getPayload(), Object.class);
                 rabbitTemplate.convertAndSend(
                         RabbitMQConfig.PAYMENTS_EXCHANGE,
                         routingKey(event.getEventType()),
-                        event.getPayload());
+                        payloadObject);
                 event.setPublicationStatus(OutboxPublicationStatus.PUBLISHED);
                 event.setPublishedAt(LocalDateTime.now(ZoneOffset.UTC));
                 outboxRepository.save(event);
