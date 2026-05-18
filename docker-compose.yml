@@ -5,6 +5,7 @@ networks:
 volumes:
   postgres-data:
   redis-data:
+  redis-insight-data:
   prometheus-data:
   grafana-data:
 
@@ -70,6 +71,35 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: mediqueue-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - mediqueue-net
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: mediqueue-redis-insight
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis-insight-data:/data
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - mediqueue-net
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
