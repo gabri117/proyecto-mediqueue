@@ -1,13 +1,16 @@
 package com.mediqueue.payment.exception;
 
 import com.mediqueue.payment.dto.ErrorResponse;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.connector.ClientAbortException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -62,6 +65,22 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.CONFLICT, "PAYMENT_CONFLICT", "Payment request conflicts with current state");
     }
 
+    @ExceptionHandler({AsyncRequestNotUsableException.class, ClientAbortException.class})
+    ResponseEntity<Void> handleClientAbort(Exception ex) {
+        log.warn("Client aborted payment-service response: {}", shortMessage(ex));
+        return ResponseEntity.status(499).build();
+    }
+
+    @ExceptionHandler(IOException.class)
+    ResponseEntity<?> handleIoException(IOException ex) {
+        if (isClientAbort(ex)) {
+            log.warn("Client aborted payment-service response: {}", shortMessage(ex));
+            return ResponseEntity.status(499).build();
+        }
+        log.error("Unexpected payment-service IO error", ex);
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "PAYMENT_INTERNAL_ERROR", "Unexpected payment-service error");
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
         log.error("Unexpected payment-service error", ex);
@@ -70,5 +89,33 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ErrorResponse> error(HttpStatus status, String code, String message) {
         return ResponseEntity.status(status).body(new ErrorResponse(code, message, Instant.now()));
+    }
+
+    private boolean isClientAbort(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof ClientAbortException || current instanceof AsyncRequestNotUsableException) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase();
+                if (normalized.contains("connection reset by peer")
+                        || normalized.contains("connection reset")
+                        || normalized.contains("broken pipe")
+                        || normalized.contains("client abort")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private String shortMessage(Throwable ex) {
+        String message = ex.getMessage();
+        return message == null || message.isBlank()
+                ? ex.getClass().getSimpleName()
+                : message;
     }
 }
