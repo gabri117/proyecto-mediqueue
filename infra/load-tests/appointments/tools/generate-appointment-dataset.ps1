@@ -2,11 +2,14 @@ param(
     [string]$BaseUrl = "http://localhost:8080",
     [Alias("TotalAppointments")]
     [int]$Total = 10,
+    [int[]]$Totals = @(),
     [Alias("OutputPath")]
     [string]$OutputFile,
+    [string]$OutputDir = ".\infra\load-tests\appointments\data",
     [decimal]$Amount = 150.00,
     [string[]]$PatientIds = @(),
     [string]$PatientIdsFile,
+    [string]$AvailableSlotsFile,
     [string]$ClientId = "dataset-generator-block2"
 )
 
@@ -15,10 +18,11 @@ $ErrorActionPreference = "Stop"
 if ($Total -lt 1) {
     throw "Total debe ser mayor que cero."
 }
-
-if (-not $OutputFile -or $OutputFile.Trim().Length -eq 0) {
-    $fileName = if ($Total -eq 10) { "appointments.sample.json" } else { "appointments-$Total.json" }
-    $OutputFile = Join-Path "infra\load-tests\appointments\data" $fileName
+if ($Totals.Count -eq 0) {
+    $Totals = @($Total)
+}
+if ($Amount -le 0) {
+    throw "amount debe existir y ser mayor que cero."
 }
 
 function New-Headers {
@@ -43,9 +47,7 @@ function Read-PatientIds {
             throw "Archivo de pacientes no encontrado: $PatientIdsFile"
         }
 
-        $raw = Get-Content -Raw -Path $PatientIdsFile
-        $json = $raw | ConvertFrom-Json
-
+        $json = Get-Content -Raw -Path $PatientIdsFile | ConvertFrom-Json
         if ($json -is [array]) {
             foreach ($item in $json) {
                 if ($item -is [string]) {
@@ -76,6 +78,31 @@ function Read-PatientIds {
     return @($ids | Select-Object -Unique)
 }
 
+function Read-AvailableSlots {
+    if ($AvailableSlotsFile -and $AvailableSlotsFile.Trim().Length -gt 0) {
+        if (-not (Test-Path -Path $AvailableSlotsFile)) {
+            throw "Archivo de slots no encontrado: $AvailableSlotsFile"
+        }
+
+        Write-Host "Reading available slots from $AvailableSlotsFile ..."
+        $json = Get-Content -Raw -Path $AvailableSlotsFile | ConvertFrom-Json
+        if ($json -is [array]) {
+            return @($json)
+        }
+        if ($null -ne $json.slots) {
+            return @($json.slots)
+        }
+        throw "El archivo de slots debe ser un arreglo o un objeto con propiedad slots."
+    }
+
+    Write-Host "Checking gateway health at $BaseUrl ..."
+    $health = Invoke-RestMethod -Method Get -Uri "$BaseUrl/actuator/health" -Headers (New-Headers)
+    Write-Host "Gateway health: $($health.status)"
+
+    Write-Host "Fetching available slots from $BaseUrl/api/slots/available ..."
+    return @(Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/slots/available" -Headers (New-Headers))
+}
+
 function Assert-Guid {
     param(
         [string]$Value,
@@ -102,22 +129,66 @@ function Normalize-Time {
     return $text
 }
 
-Write-Host "Checking gateway health at $BaseUrl ..."
-$health = Invoke-RestMethod -Method Get -Uri "$BaseUrl/actuator/health" -Headers (New-Headers)
-Write-Host "Gateway health: $($health.status)"
+function New-AppointmentDataset {
+    param(
+        [object[]]$Slots,
+        [string[]]$PatientPool,
+        [int]$DatasetTotal
+    )
+
+    $appointments = New-Object System.Collections.Generic.List[object]
+    $usedSlotIds = New-Object "System.Collections.Generic.HashSet[string]"
+
+    for ($i = 0; $i -lt $DatasetTotal; $i++) {
+        $slot = $Slots[$i]
+        $slotId = [string]$slot.slotId
+        $dentistId = [string]$slot.dentistId
+        $patientId = [string]$PatientPool[$i % $PatientPool.Count]
+
+        Assert-Guid -Value $patientId -Name "patientId"
+        Assert-Guid -Value $slotId -Name "slotId"
+        Assert-Guid -Value $dentistId -Name "dentistId"
+
+        if (-not $usedSlotIds.Add($slotId)) {
+            throw "slotId repetido detectado: $slotId"
+        }
+
+        $appointmentDate = if ($null -ne $slot.appointmentDate) { [string]$slot.appointmentDate } else { [string]$slot.slotDate }
+
+        $appointments.Add([ordered]@{
+            patientId = $patientId
+            dentistId = $dentistId
+            slotId = $slotId
+            appointmentDate = $appointmentDate
+            startTime = Normalize-Time $slot.startTime
+            endTime = Normalize-Time $slot.endTime
+            amount = [decimal]$Amount
+            notes = "Block 2 generated appointment $($i + 1)"
+        })
+    }
+
+    return [ordered]@{
+        metadata = [ordered]@{
+            name = if ($DatasetTotal -eq 10) { "appointments.sample" } else { "appointments-$DatasetTotal" }
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            baseUrl = $BaseUrl
+            total = $DatasetTotal
+            amount = [decimal]$Amount
+            source = if ($AvailableSlotsFile) { $AvailableSlotsFile } else { "GET /api/slots/available" }
+            slotRule = "slotId is unique per appointment row"
+            patientRule = "patientId values may be reused"
+        }
+        appointments = $appointments
+    }
+}
 
 $patientPool = Read-PatientIds
-if ($patientPool.Count -lt $Total) {
-    throw "No hay suficientes pacientes reales para generar $Total citas. Se recibieron $($patientPool.Count). Ejecuta primero el seed y vuelve a pasar los patientId con -PatientIdsFile o -PatientIds."
+if ($patientPool.Count -lt 1) {
+    throw "No hay pacientes reales para generar citas. Ejecuta primero el seed y vuelve a pasar patientId con -PatientIdsFile o -PatientIds."
 }
 
-foreach ($patientId in $patientPool) {
-    Assert-Guid -Value $patientId -Name "patientId"
-}
-
-Write-Host "Fetching available slots from $BaseUrl/api/slots/available ..."
-$slotsResponse = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/slots/available" -Headers (New-Headers)
-$slots = @($slotsResponse | Where-Object {
+$rawSlots = Read-AvailableSlots
+$slots = @($rawSlots | Where-Object {
     $null -ne $_.slotId -and
     $null -ne $_.dentistId -and
     $null -ne $_.slotDate -and
@@ -126,56 +197,34 @@ $slots = @($slotsResponse | Where-Object {
     ($null -eq $_.status -or [string]$_.status -eq "AVAILABLE")
 } | Sort-Object slotId -Unique)
 
-if ($slots.Count -lt $Total) {
-    throw "No hay suficientes slots únicos para generar $Total citas. Ejecuta primero el seed."
+$maxTotal = ($Totals | Measure-Object -Maximum).Maximum
+if ($slots.Count -lt $maxTotal) {
+    throw "No hay suficientes slots unicos para generar $maxTotal citas. Ejecuta primero el seed."
 }
 
-$appointments = New-Object System.Collections.Generic.List[object]
-$usedSlotIds = New-Object "System.Collections.Generic.HashSet[string]"
-
-for ($i = 0; $i -lt $Total; $i++) {
-    $slot = $slots[$i]
-    $slotId = [string]$slot.slotId
-    $dentistId = [string]$slot.dentistId
-    $patientId = [string]$patientPool[$i]
-
-    Assert-Guid -Value $slotId -Name "slotId"
-    Assert-Guid -Value $dentistId -Name "dentistId"
-
-    if (-not $usedSlotIds.Add($slotId)) {
-        throw "slotId repetido detectado desde backend: $slotId"
+foreach ($datasetTotal in $Totals) {
+    if ($datasetTotal -lt 1) {
+        throw "Todos los valores en Totals deben ser mayores que cero."
     }
 
-    $appointments.Add([ordered]@{
-        patientId = $patientId
-        dentistId = $dentistId
-        slotId = $slotId
-        appointmentDate = [string]$slot.slotDate
-        startTime = Normalize-Time $slot.startTime
-        endTime = Normalize-Time $slot.endTime
-        amount = [decimal]$Amount
-        notes = "Block 2 generated appointment $($i + 1)"
-    })
-}
-
-$output = [ordered]@{
-    metadata = [ordered]@{
-        name = if ($Total -eq 10) { "appointments.sample" } else { "appointments-$Total" }
-        generatedAt = (Get-Date).ToUniversalTime().ToString("o")
-        baseUrl = $BaseUrl
-        total = $Total
-        amount = [decimal]$Amount
-        source = "GET /api/slots/available plus caller-provided real patient IDs"
-        slotRule = "slotId is unique per appointment row"
+    $targetFile = if ($Totals.Count -eq 1 -and $OutputFile) {
+        $OutputFile
+    } else {
+        $name = if ($datasetTotal -eq 10) { "appointments.sample.json" } else { "appointments-$datasetTotal.json" }
+        Join-Path $OutputDir $name
     }
-    appointments = $appointments
-}
 
-$parent = Split-Path -Parent $OutputFile
-if ($parent -and -not (Test-Path -Path $parent)) {
-    New-Item -ItemType Directory -Force -Path $parent | Out-Null
-}
+    $parent = Split-Path -Parent $targetFile
+    if ($parent -and -not (Test-Path -Path $parent)) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
 
-$output | ConvertTo-Json -Depth 8 | Set-Content -Path $OutputFile -Encoding UTF8
-Write-Host "Dataset written to $OutputFile"
-Write-Host "Rows: $($appointments.Count)"
+    $dataset = New-AppointmentDataset -Slots $slots -PatientPool $patientPool -DatasetTotal $datasetTotal
+    if ($dataset.appointments.Count -lt $datasetTotal) {
+        throw "dataset.length menor que total solicitado para $targetFile"
+    }
+
+    $dataset | ConvertTo-Json -Depth 8 | Set-Content -Path $targetFile -Encoding UTF8
+    Write-Host "Dataset written to $targetFile"
+    Write-Host "Rows: $($dataset.appointments.Count)"
+}
