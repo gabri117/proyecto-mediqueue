@@ -1,5 +1,6 @@
 package com.mediqueue.payment.outbox;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mediqueue.payment.domain.PaymentEventsOutbox;
 import com.mediqueue.payment.domain.enums.OutboxPublicationStatus;
 import com.mediqueue.payment.repository.PaymentEventsOutboxRepository;
@@ -32,7 +33,7 @@ class PaymentOutboxPublisherTest {
                 .when(rabbitTemplate)
                 .convertAndSend(any(String.class), any(String.class), any(Object.class));
 
-        PaymentOutboxPublisher publisher = new PaymentOutboxPublisher(repository, rabbitTemplate, new SimpleMeterRegistry(), 50);
+        PaymentOutboxPublisher publisher = new PaymentOutboxPublisher(repository, rabbitTemplate, new ObjectMapper(), new SimpleMeterRegistry(), 50);
         publisher.publishPendingEvents();
 
         assertThat(event.getPublicationStatus()).isEqualTo(OutboxPublicationStatus.PENDING);

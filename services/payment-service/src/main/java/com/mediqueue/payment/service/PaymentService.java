@@ -99,7 +99,7 @@ public class PaymentService {
         if (!creation.shouldProcess()) {
             return creation.result();
         }
-        PaymentResponse response = simulateAndFinalize(creation.payment().getPaymentId(), idempotencyKey.trim(), true);
+        PaymentResponse response = simulateAndFinalize(creation.payment().getPaymentId(), creation.payment().getAmount(), idempotencyKey.trim(), true);
         return new PaymentProcessResult(response, HttpStatus.CREATED);
     }
 
@@ -122,7 +122,7 @@ public class PaymentService {
                 log.info("AppointmentHeld event is idempotent or already processing");
                 return;
             }
-            simulateAndFinalize(creation.payment().getPaymentId(), key, false);
+            simulateAndFinalize(creation.payment().getPaymentId(), creation.payment().getAmount(), key, false);
         }
     }
 
@@ -230,8 +230,8 @@ public class PaymentService {
         return PaymentCreation.existing(payment, status);
     }
 
-    private PaymentResponse simulateAndFinalize(UUID paymentId, String idempotencyKey, boolean throwConflictOnApprovedRace) {
-        PaymentStatus simulatedStatus = simulateWithTimeout();
+    private PaymentResponse simulateAndFinalize(UUID paymentId, java.math.BigDecimal amount, String idempotencyKey, boolean throwConflictOnApprovedRace) {
+        PaymentStatus simulatedStatus = simulateWithTimeout(amount);
         try (MDC.MDCCloseable paymentMdc = MDC.putCloseable("paymentId", paymentId.toString())) {
             try {
                 return finalizePayment(paymentId, idempotencyKey, simulatedStatus);
@@ -246,9 +246,9 @@ public class PaymentService {
         }
     }
 
-    private PaymentStatus simulateWithTimeout() {
+    private PaymentStatus simulateWithTimeout(java.math.BigDecimal amount) {
         try {
-            return CompletableFuture.supplyAsync(simulator::simulate)
+            return CompletableFuture.supplyAsync(() -> simulator.simulate(amount))
                     .get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException ex) {
             return PaymentStatus.TIMEOUT;
@@ -324,6 +324,7 @@ public class PaymentService {
         outbox.setPayload(toJson(BaseEvent.of(PAYMENT_FAILED, new PaymentFailedEvent(
                 payment.getPaymentId(),
                 payment.getAppointmentId(),
+                payment.getPatientId(),
                 reason,
                 toInstant(payment.getResolvedAt())))));
         return outbox;

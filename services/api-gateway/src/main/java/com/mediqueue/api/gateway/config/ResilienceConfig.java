@@ -17,10 +17,11 @@ public class ResilienceConfig {
 	public org.springframework.cloud.client.circuitbreaker.Customizer<ReactiveResilience4JCircuitBreakerFactory> defaultCustomizer() {
 		return factory -> factory.configureDefault(id -> new Resilience4JConfigBuilder(id)
 				.circuitBreakerConfig(CircuitBreakerConfig.custom()
-						.slidingWindowSize(10)
+						.slidingWindowSize(5)
 						.failureRateThreshold(50)
-						.waitDurationInOpenState(Duration.ofSeconds(20))
+						.waitDurationInOpenState(Duration.ofSeconds(10))
 						.permittedNumberOfCallsInHalfOpenState(3)
+						.automaticTransitionFromOpenToHalfOpenEnabled(true)
 						.build())
 				.timeLimiterConfig(TimeLimiterConfig.custom()
 						.timeoutDuration(Duration.ofSeconds(10))

@@ -41,11 +41,6 @@ public class RabbitMQConfig {
     // =========================================================================
 
     @Bean
-    public Queue appointmentHeldQueue() {
-        return QueueBuilder.durable("appointment.held").build();
-    }
-
-    @Bean
     public Queue appointmentConfirmedQueue() {
         return QueueBuilder.durable("appointment.confirmed").build();
     }
@@ -77,11 +72,6 @@ public class RabbitMQConfig {
     // =========================================================================
     // Bindings — appointments-exchange
     // =========================================================================
-
-    @Bean
-    public Binding bindingHeld(Queue appointmentHeldQueue, DirectExchange appointmentsExchange) {
-        return BindingBuilder.bind(appointmentHeldQueue).to(appointmentsExchange).with("appointment.held");
-    }
 
     @Bean
     public Binding bindingConfirmed(Queue appointmentConfirmedQueue, DirectExchange appointmentsExchange) {

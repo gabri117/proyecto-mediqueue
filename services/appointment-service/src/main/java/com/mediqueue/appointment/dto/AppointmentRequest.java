@@ -1,7 +1,9 @@
 package com.mediqueue.appointment.dto;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
@@ -16,6 +18,7 @@ import java.util.UUID;
  * @param startTime       the start time of the appointment
  * @param endTime         the end time of the appointment
  * @param notes           optional free-text notes
+ * @param amount          the expected payment amount
  * @since 0.0.1
  */
 public record AppointmentRequest(
@@ -25,6 +28,7 @@ public record AppointmentRequest(
         @NotNull LocalDate appointmentDate,
         @NotNull LocalTime startTime,
         @NotNull LocalTime endTime,
-        String notes
+        String notes,
+        @NotNull @DecimalMin("0.01") BigDecimal amount
 ) {
 }
