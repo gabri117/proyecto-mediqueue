@@ -25,6 +25,27 @@ class RateLimiterConfigTest {
 	}
 
 	@Test
+	void keyResolverUsesForwardedForWhenClientIdIsMissing() {
+		var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/payments")
+				.header("X-Forwarded-For", " 203.0.113.10, 10.0.0.5 "));
+
+		StepVerifier.create(config.clientIpOrHeaderKeyResolver().resolve(exchange))
+				.expectNext("203.0.113.10")
+				.verifyComplete();
+	}
+
+	@Test
+	void keyResolverUsesRealIpWhenForwardedForIsBlank() {
+		var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/payments")
+				.header("X-Forwarded-For", " ")
+				.header("X-Real-IP", " 198.51.100.7 "));
+
+		StepVerifier.create(config.clientIpOrHeaderKeyResolver().resolve(exchange))
+				.expectNext("198.51.100.7")
+				.verifyComplete();
+	}
+
+	@Test
 	void keyResolverFallsBackToRemoteAddress() {
 		var request = MockServerHttpRequest.get("/api/payments")
 				.remoteAddress(new InetSocketAddress("127.0.0.1", 54321))
