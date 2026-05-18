@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "appointments.sample",
+    "description": "Generate this file with tools/generate-appointment-dataset.ps1 before running smoke. It intentionally contains no fake UUIDs.",
+    "baseUrl": "http://localhost:8080",
+    "total": 0,
+    "source": "GET /api/slots/available plus caller-provided real patient IDs",
+    "schema": {
+      "patientId": "uuid",
+      "dentistId": "uuid",
+      "slotId": "uuid",
+      "appointmentDate": "2026-07-01",
+      "startTime": "08:00:00",
+      "endTime": "08:30:00",
+      "amount": 150.00,
+      "notes": "text"
+    }
+  },
+  "appointments": []
+}

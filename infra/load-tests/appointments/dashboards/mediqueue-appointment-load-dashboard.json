@@ -1,0 +1,283 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum(rate(k6_appointment_attempts_total[1m])) or vector(0)",
+          "legendFormat": "attempts/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Appointment Attempts/sec",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(rate(k6_appointments_created_total[1m])) or vector(0)",
+          "legendFormat": "created/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Appointments Created/sec",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum(rate(k6_appointments_conflict_total[1m])) or vector(0)",
+          "legendFormat": "conflict/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Appointments Conflict/sec",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 7 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(rate(k6_appointments_validation_error_total[1m])) or vector(0)",
+          "legendFormat": "validation/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Validation Errors/sec",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 7 },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "sum(rate(k6_appointments_rate_limited_total[1m])) or vector(0)",
+          "legendFormat": "rate-limited/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Rate Limited/sec",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 4, "x": 16, "y": 7 },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(k6_appointments_server_error_total[$__range])) or vector(0)",
+          "legendFormat": "server errors",
+          "refId": "A"
+        }
+      ],
+      "title": "Server Errors Total",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 4, "x": 20, "y": 7 },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(k6_appointments_unexpected_total[$__range])) or vector(0)",
+          "legendFormat": "unexpected errors",
+          "refId": "A"
+        }
+      ],
+      "title": "Unexpected Errors Total",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+      "id": 8,
+      "targets": [
+        {
+          "expr": "max(k6_http_req_duration_p95) or vector(0)",
+          "legendFormat": "k6 p95",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Duration p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+      "id": 9,
+      "targets": [
+        {
+          "expr": "sum(rate(k6_http_reqs_total[1m])) or vector(0)",
+          "legendFormat": "k6 http reqs/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Requests/sec",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 21 },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"api-gateway-lb\"}[1m])) by (status)",
+          "legendFormat": "gateway {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Gateway RPS by Status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 21 },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"api-gateway-lb\",status=~\"5..\"}[1m])) or vector(0)",
+          "legendFormat": "gateway 5xx/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Gateway 5xx Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 28 },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"appointment-service\"}[1m])) by (status)",
+          "legendFormat": "appointment {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Appointment Service RPS by Status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 28 },
+      "id": 13,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"appointment-service\"}[5m])) by (le)) or vector(0)",
+          "legendFormat": "appointment p95",
+          "refId": "A"
+        }
+      ],
+      "title": "Appointment Service Latency p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 35 },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "sum(rabbitmq_queue_messages_ready) by (queue) or vector(0)",
+          "legendFormat": "{{queue}} ready",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rabbitmq_queue_messages_unacked) by (queue) or vector(0)",
+          "legendFormat": "{{queue}} unacked",
+          "refId": "B"
+        }
+      ],
+      "title": "RabbitMQ Queue Messages",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 35 },
+      "id": 15,
+      "targets": [
+        {
+          "expr": "sum(rate(redis_commands_processed_total[1m])) or vector(0)",
+          "legendFormat": "redis commands/sec",
+          "refId": "A"
+        }
+      ],
+      "title": "Redis Commands/sec",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["mediqueue", "appointments", "load-testing", "k6"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-30m", "to": "now" },
+  "timezone": "browser",
+  "title": "MediQueue - Appointment Load Testing",
+  "uid": "mediqueue-appointment-load-testing",
+  "version": 1,
+  "weekStart": ""
+}
