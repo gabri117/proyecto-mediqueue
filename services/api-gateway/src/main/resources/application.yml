@@ -9,6 +9,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      connect-timeout: 500ms
+      timeout: 500ms
 
   cloud:
     gateway:
@@ -111,6 +113,9 @@ spring:
                     statusCodes: 500,502,503,504
 
 management:
+  health:
+    redis:
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -121,6 +126,9 @@ management:
     gateway:
       access: unrestricted
   metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
     tags:
       application: ${spring.application.name}
 
@@ -129,3 +137,8 @@ logging:
     org.springframework.cloud.gateway: INFO
     reactor.netty.http.client: INFO
     com.mediqueue.api.gateway: INFO
+    com.mediqueue.api.gateway.config.FailOpenRedisRateLimiter: OFF
+    com.mediqueue.api.gateway.ratelimit.failopen: WARN
+    io.lettuce.core.protocol.ConnectionWatchdog: ERROR
+    io.lettuce.core.RedisChannelHandler: ERROR
+    io.netty.resolver: ERROR
