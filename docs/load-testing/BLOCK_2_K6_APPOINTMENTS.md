@@ -266,6 +266,17 @@ Use the scaled-routing evidence collector after any failed scaled run:
   -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-5000-summary.json
 ```
 
+For timeout investigations, run the collector during the load window:
+
+```powershell
+.\infra\load-tests\appointments\tools\diagnose-scaled-routing.ps1 `
+  -Since 5m `
+  -SampleSeconds 90 `
+  -SampleIntervalSeconds 5
+```
+
+`appointments_timeout` is reserved for k6 `status=0` results. It must remain `0` for an official pass. Raising `HTTP_TIMEOUT` is useful only to measure queue depth and latency collapse; it does not make a timeout-heavy run successful.
+
 Prometheus uses Docker DNS service discovery for replicated Spring services so multiple A records can be scraped.
 
 Run order after scaling:

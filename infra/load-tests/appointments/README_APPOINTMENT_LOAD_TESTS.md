@@ -304,6 +304,22 @@ Known finding: after scaling, fast gateway `503` at `5,000/min` were caused by
 `BulkheadFullException` on the `appointment-service` circuit breaker path. Increasing the
 appointment bulkhead for the load-test profile restored a clean `5,000/min` run.
 
+Timeout diagnosis:
+
+- `appointments_timeout` counts k6 responses with `status=0`.
+- `appointments_timeout > 0` means the client did not receive an HTTP response before `HTTP_TIMEOUT`.
+- Default `HTTP_TIMEOUT=60s` matches the HAProxy client/server timeout and should not be raised to call a run successful.
+- Use `DEBUG_RESPONSE_EVERY=500` to sample errors without flooding Docker Desktop logs.
+
+Run a live sampler in another PowerShell while k6 is running:
+
+```powershell
+.\infra\load-tests\appointments\tools\diagnose-scaled-routing.ps1 `
+  -Since 5m `
+  -SampleSeconds 90 `
+  -SampleIntervalSeconds 5
+```
+
 ### Hikari And PostgreSQL Connection Budget
 
 Current local PostgreSQL `max_connections` is `100`.
