@@ -1,0 +1,6 @@
+ appointment_status | count 
+--------------------+-------
+ CONFIRMED          |  1194
+ EXPIRED            |  7624
+(2 rows)
+
