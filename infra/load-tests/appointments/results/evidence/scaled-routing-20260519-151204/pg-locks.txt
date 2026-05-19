@@ -1,0 +1,9 @@
+   locktype    |       mode       | granted | count 
+---------------+------------------+---------+-------
+ relation      | RowShareLock     | t       |     6
+ relation      | AccessShareLock  | t       |     5
+ virtualxid    | ExclusiveLock    | t       |     4
+ relation      | RowExclusiveLock | t       |     4
+ transactionid | ExclusiveLock    | t       |     2
+(5 rows)
+

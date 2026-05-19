@@ -248,6 +248,24 @@ GATEWAY_CB_HALF_OPEN_CALLS=25
 GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15
 ```
 
+Gateway bulkhead remains enabled and is configured explicitly for the scaled appointment route:
+
+```text
+GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300
+GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000
+GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0
+```
+
+If gateway fallback logs show `BulkheadFullException`, the request was rejected by the gateway concurrency guard before a useful upstream result could be returned. That is different from an open circuit (`CallNotPermittedException`) or a timeout (`TimeoutException`).
+
+Use the scaled-routing evidence collector after any failed scaled run:
+
+```powershell
+.\infra\load-tests\appointments\tools\diagnose-scaled-routing.ps1 `
+  -Since 10m `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-5000-summary.json
+```
+
 Prometheus uses Docker DNS service discovery for replicated Spring services so multiple A records can be scraped.
 
 Run order after scaling:
@@ -435,11 +453,18 @@ This profile is for load testing only. It does not relax appointment state trans
 
 Gateway circuit breaker load-test defaults:
 
-- `GATEWAY_CB_SLIDING_WINDOW_SIZE=100`
-- `GATEWAY_CB_MINIMUM_CALLS=50`
-- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=80`
+- `GATEWAY_CB_SLIDING_WINDOW_SIZE=500`
+- `GATEWAY_CB_MINIMUM_CALLS=100`
+- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=90`
 - `GATEWAY_CB_WAIT_OPEN_SECONDS=5`
-- `GATEWAY_CB_HALF_OPEN_CALLS=10`
+- `GATEWAY_CB_HALF_OPEN_CALLS=25`
+- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15`
+
+Gateway bulkhead load-test defaults:
+
+- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300`
+- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0`
 
 ## Evidence
 

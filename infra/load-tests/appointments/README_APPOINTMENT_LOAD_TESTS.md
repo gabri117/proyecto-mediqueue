@@ -283,6 +283,27 @@ Gateway circuit breaker remains enabled. Load-test defaults are less aggressive:
 - `GATEWAY_CB_HALF_OPEN_CALLS=25`
 - `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15`
 
+Gateway bulkhead remains enabled too. In scaled appointment tests, fast `503` responses with
+`BulkheadFullException` mean the gateway rejected the request before the upstream finished. The load-test defaults are:
+
+- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300`
+- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0`
+
+If `5,000/min` fails with fast `503`, inspect gateway fallback logs before changing service pools.
+
+Scaled-routing diagnosis:
+
+```powershell
+.\infra\load-tests\appointments\tools\diagnose-scaled-routing.ps1 `
+  -Since 10m `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-5000-summary.json
+```
+
+Known finding: after scaling, fast gateway `503` at `5,000/min` were caused by
+`BulkheadFullException` on the `appointment-service` circuit breaker path. Increasing the
+appointment bulkhead for the load-test profile restored a clean `5,000/min` run.
+
 ### Hikari And PostgreSQL Connection Budget
 
 Current local PostgreSQL `max_connections` is `100`.
@@ -582,11 +603,18 @@ These settings are for load testing, not production. They do not allow `EXPIRED 
 
 For load-test stability, the gateway circuit breaker uses a larger sample than the default tiny window:
 
-- `GATEWAY_CB_SLIDING_WINDOW_SIZE=100`
-- `GATEWAY_CB_MINIMUM_CALLS=50`
-- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=80`
+- `GATEWAY_CB_SLIDING_WINDOW_SIZE=500`
+- `GATEWAY_CB_MINIMUM_CALLS=100`
+- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=90`
 - `GATEWAY_CB_WAIT_OPEN_SECONDS=5`
-- `GATEWAY_CB_HALF_OPEN_CALLS=10`
+- `GATEWAY_CB_HALF_OPEN_CALLS=25`
+- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15`
+
+The gateway bulkhead is also explicit for load tests:
+
+- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300`
+- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0`
 
 This keeps genuine upstream failures visible as `503`, but avoids opening the route after only a few transient failures during a controlled load test.
 

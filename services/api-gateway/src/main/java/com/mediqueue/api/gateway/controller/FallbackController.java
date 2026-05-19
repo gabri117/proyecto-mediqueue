@@ -8,7 +8,7 @@ import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -22,27 +22,27 @@ public class FallbackController {
 
 	private static final Logger log = LoggerFactory.getLogger(FallbackController.class);
 
-	@GetMapping("/fallback/patient")
+	@RequestMapping("/fallback/patient")
 	public Mono<ResponseEntity<ErrorResponse>> patientFallback(ServerWebExchange exchange) {
 		return unavailable("patient-service", exchange);
 	}
 
-	@GetMapping("/fallback/schedule")
+	@RequestMapping("/fallback/schedule")
 	public Mono<ResponseEntity<ErrorResponse>> scheduleFallback(ServerWebExchange exchange) {
 		return unavailable("schedule-service", exchange);
 	}
 
-	@GetMapping("/fallback/appointment")
+	@RequestMapping("/fallback/appointment")
 	public Mono<ResponseEntity<ErrorResponse>> appointmentFallback(ServerWebExchange exchange) {
 		return unavailable("appointment-service", exchange);
 	}
 
-	@GetMapping("/fallback/payment")
+	@RequestMapping("/fallback/payment")
 	public Mono<ResponseEntity<ErrorResponse>> paymentFallback(ServerWebExchange exchange) {
 		return unavailable("payment-service", exchange);
 	}
 
-	@GetMapping("/fallback/notification")
+	@RequestMapping("/fallback/notification")
 	public Mono<ResponseEntity<ErrorResponse>> notificationFallback(ServerWebExchange exchange) {
 		return unavailable("notification-service", exchange);
 	}
@@ -50,15 +50,18 @@ public class FallbackController {
 	private Mono<ResponseEntity<ErrorResponse>> unavailable(String serviceName, ServerWebExchange exchange) {
 		Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
 		URI upstream = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
+		Object originalRequestUrls = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ORIGINAL_REQUEST_URL_ATTR);
 		Throwable exception = exchange.getAttribute(ServerWebExchangeUtils.CIRCUITBREAKER_EXECUTION_EXCEPTION_ATTR);
 		String correlationId = exchange.getRequest().getHeaders().getFirst(CorrelationIdGlobalFilter.CORRELATION_ID_HEADER);
 		String exceptionName = exception != null ? exception.getClass().getSimpleName() : "none";
 		String exceptionMessage = exception != null ? exception.getMessage() : "none";
 
-		log.warn("gateway_fallback service={} routeId={} upstream={} correlationId={} status={} exception={} message={}",
+		log.warn("gateway_fallback service={} routeId={} routeUri={} upstream={} originalRequestUrls={} correlationId={} status={} exception={} message={}",
 				serviceName,
 				route != null ? route.getId() : "unknown",
+				route != null ? route.getUri() : "unknown",
 				upstream != null ? upstream : "unknown",
+				originalRequestUrls != null ? originalRequestUrls : "unknown",
 				correlationId,
 				HttpStatus.SERVICE_UNAVAILABLE.value(),
 				exceptionName,

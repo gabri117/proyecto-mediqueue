@@ -142,6 +142,12 @@ mediqueue:
       half-open-calls: ${GATEWAY_CB_HALF_OPEN_CALLS:10}
     timelimiter:
       timeout-seconds: ${GATEWAY_TIMELIMITER_TIMEOUT_SECONDS:10}
+    bulkhead:
+      default:
+        max-concurrent-calls: ${GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS:200}
+      appointment:
+        max-concurrent-calls: ${GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS:1000}
+      max-wait-millis: ${GATEWAY_BULKHEAD_MAX_WAIT_MILLIS:0}
 
 logging:
   level:
