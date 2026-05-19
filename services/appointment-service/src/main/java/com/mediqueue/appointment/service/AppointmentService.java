@@ -23,6 +23,8 @@ import com.mediqueue.appointment.repository.AppointmentRepository;
 import com.mediqueue.appointment.repository.IdempotencyKeyRepository;
 import com.mediqueue.appointment.repository.OutboxEventRepository;
 import jakarta.persistence.EntityNotFoundException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,7 +38,9 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Core service encapsulating all appointment business logic.
@@ -61,6 +65,7 @@ public class AppointmentService {
     private final ObjectMapper objectMapper;
     private final PatientValidationService patientValidationService;
     private final SlotValidationService slotValidationService;
+    private final Map<String, Timer> createStageTimers;
     private final int holdTtlMinutes;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
@@ -72,6 +77,7 @@ public class AppointmentService {
                               ObjectMapper objectMapper,
                               PatientValidationService patientValidationService,
                               SlotValidationService slotValidationService,
+                              MeterRegistry meterRegistry,
                               @Value("${mediqueue.hold.ttl-minutes:5}") int holdTtlMinutes) {
         this.appointmentRepository = appointmentRepository;
         this.holdRepository = holdRepository;
@@ -82,6 +88,7 @@ public class AppointmentService {
         this.objectMapper = objectMapper;
         this.patientValidationService = patientValidationService;
         this.slotValidationService = slotValidationService;
+        this.createStageTimers = buildCreateStageTimers(meterRegistry);
         this.holdTtlMinutes = holdTtlMinutes;
     }
 
@@ -100,13 +107,22 @@ public class AppointmentService {
     @Transactional
     @SuppressWarnings("null")
     public AppointmentResponse createAppointment(AppointmentRequest request, String idempotencyKey) {
+        long requestStart = System.nanoTime();
+
         // (0) Synchronous validation against external services
+        long stageStart = System.nanoTime();
         patientValidationService.validatePatientExists(request.patientId());
+        recordCreateStage("patient_validation", stageStart);
+
+        stageStart = System.nanoTime();
         slotValidationService.validateSlotExists(request.slotId());
+        recordCreateStage("slot_validation", stageStart);
 
         // (a) Idempotency check
+        stageStart = System.nanoTime();
         var existing = idempotencyKeyRepository
                 .findByOperationTypeAndIdempotencyKey(CREATE_OPERATION, idempotencyKey);
+        recordCreateStage("idempotency_lookup", stageStart);
 
         if (existing.isPresent()) {
             IdempotencyKey key = existing.get();
@@ -122,6 +138,7 @@ public class AppointmentService {
         }
 
         // (b) Create idempotency key with PROCESSING
+        stageStart = System.nanoTime();
         IdempotencyKey idemKey = new IdempotencyKey();
         idemKey.setOperationType(CREATE_OPERATION);
         idemKey.setIdempotencyKey(idempotencyKey);
@@ -129,14 +146,18 @@ public class AppointmentService {
         idemKey.setStatus(IdempotencyStatus.PROCESSING);
         idemKey.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
         idempotencyKeyRepository.save(idemKey);
+        recordCreateStage("idempotency_processing_save", stageStart);
 
         // (c) Verify slot availability
+        stageStart = System.nanoTime();
         holdRepository.findBySlotIdAndHoldStatus(request.slotId(), HoldStatus.ACTIVE)
                 .ifPresent(h -> {
                     throw new BusinessException("Slot no disponible: ya tiene una reserva activa");
                 });
+        recordCreateStage("active_hold_check", stageStart);
 
         // (d) Create appointment
+        stageStart = System.nanoTime();
         Appointment appointment = new Appointment();
         appointment.setPatientId(request.patientId());
         appointment.setDentistId(request.dentistId());
@@ -147,8 +168,10 @@ public class AppointmentService {
         appointment.setNotes(request.notes());
         appointment.setAppointmentStatus(AppointmentStatus.PENDING_PAYMENT);
         appointmentRepository.save(appointment);
+        recordCreateStage("appointment_save", stageStart);
 
         // (e) Create hold with TTL
+        stageStart = System.nanoTime();
         Instant holdExpiry = Instant.now().plus(holdTtlMinutes, ChronoUnit.MINUTES);
 
         AppointmentHold hold = new AppointmentHold();
@@ -157,16 +180,20 @@ public class AppointmentService {
         hold.setHoldStatus(HoldStatus.ACTIVE);
         hold.setExpiresAt(holdExpiry);
         holdRepository.save(hold);
+        recordCreateStage("hold_save", stageStart);
 
         // (f) Audit trail
+        stageStart = System.nanoTime();
         AppointmentAudit audit = new AppointmentAudit();
         audit.setAppointmentId(appointment.getAppointmentId());
         audit.setPreviousStatus(null);
         audit.setNewStatus(AppointmentStatus.PENDING_PAYMENT);
         audit.setChangeReason("Cita creada");
         auditRepository.save(audit);
+        recordCreateStage("audit_save", stageStart);
 
         // (g) Outbox event
+        stageStart = System.nanoTime();
         AppointmentHeldEvent event = new AppointmentHeldEvent(
                 UUID.randomUUID().toString(),
                 "APPOINTMENT_HELD",
@@ -185,14 +212,21 @@ public class AppointmentService {
         );
         saveOutboxEvent("appointments-exchange", appointment.getAppointmentId(),
                 "appointment.held", event);
+        recordCreateStage("outbox_save", stageStart);
 
         // (h) Mark idempotency as succeeded
+        stageStart = System.nanoTime();
         idemKey.setStatus(IdempotencyStatus.SUCCEEDED);
         idemKey.setResponseReference(appointment.getAppointmentId().toString());
         idempotencyKeyRepository.save(idemKey);
+        recordCreateStage("idempotency_success_save", stageStart);
 
         // (i) Return response
-        return toResponse(appointment);
+        stageStart = System.nanoTime();
+        AppointmentResponse response = toResponse(appointment);
+        recordCreateStage("response_mapping", stageStart);
+        recordCreateStage("total", requestStart);
+        return response;
     }
 
     // =========================================================================
@@ -374,6 +408,34 @@ public class AppointmentService {
         }
 
         outboxEventRepository.save(outbox);
+    }
+
+    private void recordCreateStage(String stage, long startNanos) {
+        createStageTimers.get(stage).record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
+    }
+
+    private Map<String, Timer> buildCreateStageTimers(MeterRegistry registry) {
+        return Map.ofEntries(
+                createStageTimer(registry, "patient_validation"),
+                createStageTimer(registry, "slot_validation"),
+                createStageTimer(registry, "idempotency_lookup"),
+                createStageTimer(registry, "idempotency_processing_save"),
+                createStageTimer(registry, "active_hold_check"),
+                createStageTimer(registry, "appointment_save"),
+                createStageTimer(registry, "hold_save"),
+                createStageTimer(registry, "audit_save"),
+                createStageTimer(registry, "outbox_save"),
+                createStageTimer(registry, "idempotency_success_save"),
+                createStageTimer(registry, "response_mapping"),
+                createStageTimer(registry, "total")
+        );
+    }
+
+    private Map.Entry<String, Timer> createStageTimer(MeterRegistry registry, String stage) {
+        return Map.entry(stage, Timer.builder("mediqueue.appointment.create.stage.duration")
+                .description("Appointment creation stage duration")
+                .tag("stage", stage)
+                .register(registry));
     }
 
     /**

@@ -33,6 +33,24 @@ Start stack:
 docker compose up -d --build
 ```
 
+## Stronger Machine Checklist
+
+Recommended baseline:
+
+- CPU: 12+ logical cores available to Docker.
+- RAM: 32 GB minimum, 48-64 GB preferred for 25k-50k/min attempts.
+- Docker Desktop/WSL: allocate enough CPU/RAM and keep the project on the Linux/WSL filesystem when possible.
+- Disk: SSD with free space for PostgreSQL WAL, container logs, and k6 summaries.
+- Close unrelated heavy workloads before 15k+ runs.
+
+Preflight:
+
+```powershell
+docker compose config --quiet
+.\infra\load-tests\appointments\tools\inspect-appointment-dataset.ps1 -DataFile .\infra\load-tests\appointments\data\appointments-50000.json -ExpectedCount 50000
+.\infra\load-tests\appointments\tools\validate-appointment-dataset.ps1 -BaseUrl http://localhost:8080 -DataFile .\infra\load-tests\appointments\data\appointments-50000.json -StartIndex 0 -Limit 20 -ExpectedCount 50000
+```
+
 ### A. API Mode
 
 Safest path, but slow. It creates patients, dentists, and slots through the public APIs.
@@ -133,6 +151,18 @@ total_items=50000
 valid_for_k6=True
 ```
 
+Optional prewarm:
+
+```powershell
+.\infra\load-tests\appointments\tools\prewarm-appointment-cache.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -StartIndex 0 `
+  -Limit 50000
+```
+
+This calls `GET /api/patients/{id}` and `GET /api/slots/{id}` for unique IDs from the dataset. It does not remove validation from `POST /api/appointments`.
+
 Alternative dataset regeneration:
 
 ```powershell
@@ -182,7 +212,7 @@ $env:TOTAL_LIMIT="10000"
 $env:DATA_OFFSET="0"
 $env:PRE_ALLOCATED_VUS="300"
 $env:MAX_VUS="1000"
-$env:CLIENT_MODE="per-iteration"
+$env:CLIENT_MODE="per-vu"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
 ```
 
@@ -191,10 +221,10 @@ k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-expo
 Observed results:
 
 - `5,000/min`: clean.
-- `10,000/min`: failed with `503`, no validation errors, no conflicts, no dropped iterations.
-- `25,000/min`: failed with `503`, no validation errors, no conflicts, no dropped iterations.
+- `10,000/min`: clean after increasing the appointment gateway bulkhead.
+- `15,000/min`: failed on the current PC with k6 `status=0` request timeouts and local saturation.
 
-This points to saturation in gateway/upstream capacity, not dataset quality.
+This points to host/Docker/gateway/upstream capacity limits, not dataset quality. Repeat the next stages on the stronger machine before changing business logic.
 
 Scaled local topology:
 
@@ -229,11 +259,46 @@ total max pools              = 90
 
 This is intentionally conservative. Raising pool sizes without raising PostgreSQL capacity can move the bottleneck into the database.
 
+Additional budgets:
+
+```text
+Creation-only, moderate:
+appointment-service 4 * 8  = 32
+schedule-service    3 * 6  = 18
+patient-service     2 * 4  = 8
+payment/notification paused = 0
+total                    58
+
+E2E, larger:
+appointment-service 6 * 8  = 48
+schedule-service    4 * 6  = 24
+patient-service     3 * 4  = 12
+payment-service     3 * 4  = 12
+notification-service2 * 10 = 20
+total                   116
+
+E2E, aggressive:
+appointment-service 8 * 8  = 64
+schedule-service    4 * 6  = 24
+patient-service     3 * 4  = 12
+payment-service     3 * 4  = 12
+notification-service2 * 10 = 20
+total                   132
+```
+
+Check before increasing replicas:
+
+```sql
+show max_connections;
+select state, wait_event_type, wait_event, count(*) from pg_stat_activity group by state, wait_event_type, wait_event;
+select mode, granted, count(*) from pg_locks group by mode, granted;
+```
+
 Gateway appointment rate limit for load testing defaults to:
 
 ```text
-RATE_LIMIT_APPOINTMENT_REPLENISH=300
-RATE_LIMIT_APPOINTMENT_BURST=600
+RATE_LIMIT_APPOINTMENT_REPLENISH=2000
+RATE_LIMIT_APPOINTMENT_BURST=4000
 ```
 
 That supports `10,000/min` with `CLIENT_MODE=per-vu`. Do not use `per-iteration` for backend capacity readings unless the goal is to bypass client-level shaping.
@@ -241,20 +306,37 @@ That supports `10,000/min` with `CLIENT_MODE=per-vu`. Do not use `per-iteration`
 Circuit breaker remains enabled with load-test defaults:
 
 ```text
-GATEWAY_CB_SLIDING_WINDOW_SIZE=500
-GATEWAY_CB_MINIMUM_CALLS=100
-GATEWAY_CB_FAILURE_RATE_THRESHOLD=90
+GATEWAY_CB_SLIDING_WINDOW_SIZE=5000
+GATEWAY_CB_MINIMUM_CALLS=1000
+GATEWAY_CB_FAILURE_RATE_THRESHOLD=95
 GATEWAY_CB_HALF_OPEN_CALLS=25
-GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15
+GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=30
 ```
 
 Gateway bulkhead remains enabled and is configured explicitly for the scaled appointment route:
 
 ```text
-GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300
-GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000
+GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=1000
+GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=3000
 GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0
 ```
+
+Appointment-service exposes low-cardinality Micrometer timing for creation stages:
+
+```text
+mediqueue_appointment_create_stage_duration_seconds{stage="patient_validation|slot_validation|idempotency_lookup|active_hold_check|appointment_save|hold_save|audit_save|outbox_save|idempotency_success_save|response_mapping|total"}
+```
+
+Use it to see whether a higher stage is blocked in validation, database writes, or outbox persistence.
+
+Creation-only load-test switches:
+
+```powershell
+$env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
+$env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="false"
+```
+
+These do not remove appointment creation rules and do not skip outbox inserts. They only pause hold expiration and outbox publishing so the synchronous POST path can be measured separately from async payment/notification work. Set both to `true` for E2E runs.
 
 If gateway fallback logs show `BulkheadFullException`, the request was rejected by the gateway concurrency guard before a useful upstream result could be returned. That is different from an open circuit (`CallNotPermittedException`) or a timeout (`TimeoutException`).
 
@@ -275,6 +357,15 @@ For timeout investigations, run the collector during the load window:
   -SampleIntervalSeconds 5
 ```
 
+For the stronger machine, run the monitor in a second PowerShell:
+
+```powershell
+.\infra\load-tests\appointments\tools\monitor-loadtest.ps1 `
+  -DurationSeconds 90 `
+  -IntervalSeconds 5 `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-15000-summary.json
+```
+
 `appointments_timeout` is reserved for k6 `status=0` results. It must remain `0` for an official pass. Raising `HTTP_TIMEOUT` is useful only to measure queue depth and latency collapse; it does not make a timeout-heavy run successful.
 
 Prometheus uses Docker DNS service discovery for replicated Spring services so multiple A records can be scraped.
@@ -287,6 +378,21 @@ Run order after scaling:
 4. `20,000/min` only if 15k is clean.
 5. `25,000/min` only if 20k is clean.
 6. Do not run 50k automatically.
+
+Preferred runner:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-appointment-load-stage.ps1 `
+  -RatePerMinute 10000 `
+  -TotalLimit 10000 `
+  -DataOffset 0 `
+  -PreAllocatedVus 500 `
+  -MaxVus 1200 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
+```
+
+The runner validates dataset size before k6 and refuses `50,000/min` unless `-Allow50k` is passed explicitly.
 
 Success criteria at each step:
 
@@ -311,8 +417,23 @@ $env:TOTAL_LIMIT="50000"
 $env:DATA_OFFSET="0"
 $env:PRE_ALLOCATED_VUS="1000"
 $env:MAX_VUS="3000"
-$env:CLIENT_MODE="per-iteration"
+$env:CLIENT_MODE="per-vu"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-50000-summary.json
+```
+
+Preferred guarded runner:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-appointment-load-stage.ps1 `
+  -RatePerMinute 50000 `
+  -TotalLimit 50000 `
+  -DataOffset 0 `
+  -PreAllocatedVus 3000 `
+  -MaxVus 6000 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-50000-summary.json `
+  -HttpTimeout 60s `
+  -Allow50k
 ```
 
 Use `TOTAL_LIMIT` to define how many real HTTP requests should be sent. If k6 schedules an extra boundary iteration, the script increments `appointments_skipped_after_limit` and sends no request. Use `DATA_OFFSET` to choose a different dataset range and avoid reusing previously consumed slots.
@@ -344,6 +465,8 @@ There are no DELETE endpoints for this cleanup. Generate SQL by `RunStamp` and r
 Current milestone:
 
 - `5,000 citas/min` has passed cleanly for synchronous `POST /api/appointments` creation.
+- `10,000 citas/min` has passed cleanly after the gateway bulkhead fix.
+- `15,000 citas/min` failed on the current PC with request timeouts, so the next attempt should run on a stronger machine.
 - That result validates creation-path throughput, not complete async draining.
 - `confirm_skipped ... EXPIRED -> CONFIRMED` means payment success arrived after hold expiration. The business rule is correct to reject it; for E2E load tests, tune TTL/payment throughput so success events arrive before expiration.
 
@@ -464,17 +587,17 @@ This profile is for load testing only. It does not relax appointment state trans
 
 Gateway circuit breaker load-test defaults:
 
-- `GATEWAY_CB_SLIDING_WINDOW_SIZE=500`
-- `GATEWAY_CB_MINIMUM_CALLS=100`
-- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=90`
+- `GATEWAY_CB_SLIDING_WINDOW_SIZE=5000`
+- `GATEWAY_CB_MINIMUM_CALLS=1000`
+- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=95`
 - `GATEWAY_CB_WAIT_OPEN_SECONDS=5`
 - `GATEWAY_CB_HALF_OPEN_CALLS=25`
-- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15`
+- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=30`
 
 Gateway bulkhead load-test defaults:
 
-- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300`
-- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=3000`
 - `GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0`
 
 ## Evidence

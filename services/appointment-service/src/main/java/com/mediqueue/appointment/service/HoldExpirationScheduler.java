@@ -48,6 +48,7 @@ public class HoldExpirationScheduler {
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
     private final int maxHoldsPerScan;
+    private final boolean holdExpirationEnabled;
 
     public HoldExpirationScheduler(AppointmentHoldRepository holdRepository,
                                    AppointmentRepository appointmentRepository,
@@ -56,7 +57,8 @@ public class HoldExpirationScheduler {
                                    IdempotencyKeyRepository idempotencyKeyRepository,
                                    ObjectMapper objectMapper,
                                    TransactionTemplate transactionTemplate,
-                                   @Value("${mediqueue.hold.expiration-max-per-scan:1000}") int maxHoldsPerScan) {
+                                   @Value("${mediqueue.hold.expiration-max-per-scan:1000}") int maxHoldsPerScan,
+                                   @Value("${mediqueue.loadtest.hold-expiration-enabled:true}") boolean holdExpirationEnabled) {
         this.holdRepository = holdRepository;
         this.appointmentRepository = appointmentRepository;
         this.auditRepository = auditRepository;
@@ -65,6 +67,7 @@ public class HoldExpirationScheduler {
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
         this.maxHoldsPerScan = maxHoldsPerScan;
+        this.holdExpirationEnabled = holdExpirationEnabled;
     }
 
     /**
@@ -75,6 +78,10 @@ public class HoldExpirationScheduler {
      */
     @Scheduled(fixedDelayString = "${mediqueue.hold.expiration-scan-seconds:30}000")
     public void expireHolds() {
+        if (!holdExpirationEnabled) {
+            log.debug("hold_expiration_skipped reason=disabled_for_loadtest");
+            return;
+        }
         for (int i = 0; i < maxHoldsPerScan; i++) {
             try {
                 Optional<ExpiredHoldResult> result = transactionTemplate.execute(status -> processNextExpiredHold());

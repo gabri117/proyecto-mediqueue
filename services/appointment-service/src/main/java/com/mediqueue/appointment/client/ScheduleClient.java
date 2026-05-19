@@ -6,9 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.UUID;
 
 /**
@@ -29,9 +31,15 @@ public class ScheduleClient {
     private final RestClient restClient;
 
     public ScheduleClient(
-            @Value("${mediqueue.client.schedule-service.url:http://localhost:8082}") String baseUrl) {
+            @Value("${mediqueue.client.schedule-service.url:http://localhost:8082}") String baseUrl,
+            @Value("${mediqueue.client.connect-timeout-ms:1000}") long connectTimeoutMs,
+            @Value("${mediqueue.client.read-timeout-ms:3000}") long readTimeoutMs) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));
+        requestFactory.setReadTimeout(Duration.ofMillis(readTimeoutMs));
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
+                .requestFactory(requestFactory)
                 .build();
     }
 

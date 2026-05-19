@@ -41,6 +41,24 @@ Payload:
 docker compose up -d --build
 ```
 
+## Stronger Machine Checklist
+
+Recommended baseline for the next test machine:
+
+- CPU: 12+ logical cores available to Docker.
+- RAM: 32 GB minimum, 48-64 GB preferred for 25k-50k/min attempts.
+- Docker Desktop/WSL: allocate enough CPU/RAM and keep the project on the Linux/WSL filesystem if possible.
+- Disk: SSD with enough free space for PostgreSQL WAL, container logs, and k6 summaries.
+- Close unrelated heavy workloads before 15k+ runs.
+
+Before each official stage:
+
+```powershell
+docker compose config --quiet
+.\infra\load-tests\appointments\tools\inspect-appointment-dataset.ps1 -DataFile .\infra\load-tests\appointments\data\appointments-50000.json -ExpectedCount 50000
+.\infra\load-tests\appointments\tools\validate-appointment-dataset.ps1 -BaseUrl http://localhost:8080 -DataFile .\infra\load-tests\appointments\data\appointments-50000.json -StartIndex 0 -Limit 20 -ExpectedCount 50000
+```
+
 ## Step 2 - Prepare Data
 
 There are three supported preparation paths.
@@ -158,6 +176,18 @@ total_items=50000
 valid_for_k6=True
 ```
 
+Optional prewarm through gateway endpoints:
+
+```powershell
+.\infra\load-tests\appointments\tools\prewarm-appointment-cache.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -StartIndex 0 `
+  -Limit 50000
+```
+
+This reads the appointment dataset and calls `GET /api/patients/{id}` and `GET /api/slots/{id}` for unique IDs. It does not replace appointment-service validation; it only warms the downstream/gateway path before k6.
+
 ## Generate Datasets From Existing IDs
 
 ```powershell
@@ -229,13 +259,19 @@ $env:TOTAL_LIMIT="10000"
 $env:DATA_OFFSET="0"
 $env:PRE_ALLOCATED_VUS="300"
 $env:MAX_VUS="1000"
-$env:CLIENT_MODE="per-iteration"
+$env:CLIENT_MODE="per-vu"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
 ```
 
 ## Scaled Local Profile For 10k-25k/min
 
-The clean 5,000/min result proves the dataset and appointment contract are valid. Failures at 10,000/min and 25,000/min with only `503` and no validation/conflict errors indicate saturation in the gateway/upstream path.
+Current status:
+
+- `5,000/min`: clean.
+- `10,000/min`: clean after increasing the appointment gateway bulkhead.
+- `15,000/min`: failed on the current PC with k6 `status=0` request timeouts and local saturation.
+
+The dataset and appointment contract are valid. The next runs should be made on a stronger machine to distinguish backend capacity from Docker Desktop/host limits.
 
 The load-test Docker profile now routes hot paths through internal HAProxy services:
 
@@ -272,22 +308,22 @@ Rate limit notes:
 
 - `10,000/min` is about `166.67 req/s`.
 - `50,000/min` is about `833.33 req/s`.
-- Default load-test appointment limit is `RATE_LIMIT_APPOINTMENT_REPLENISH=300` and `RATE_LIMIT_APPOINTMENT_BURST=600`.
+- Default load-test appointment limit is `RATE_LIMIT_APPOINTMENT_REPLENISH=2000` and `RATE_LIMIT_APPOINTMENT_BURST=4000`.
 - Keep `CLIENT_MODE=per-vu` for backend capacity tests. `per-iteration` bypasses client-level rate shaping too aggressively.
 
 Gateway circuit breaker remains enabled. Load-test defaults are less aggressive:
 
-- `GATEWAY_CB_SLIDING_WINDOW_SIZE=500`
-- `GATEWAY_CB_MINIMUM_CALLS=100`
-- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=90`
+- `GATEWAY_CB_SLIDING_WINDOW_SIZE=5000`
+- `GATEWAY_CB_MINIMUM_CALLS=1000`
+- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=95`
 - `GATEWAY_CB_HALF_OPEN_CALLS=25`
-- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15`
+- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=30`
 
 Gateway bulkhead remains enabled too. In scaled appointment tests, fast `503` responses with
 `BulkheadFullException` mean the gateway rejected the request before the upstream finished. The load-test defaults are:
 
-- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300`
-- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=3000`
 - `GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0`
 
 If `5,000/min` fails with fast `503`, inspect gateway fallback logs before changing service pools.
@@ -304,6 +340,23 @@ Known finding: after scaling, fast gateway `503` at `5,000/min` were caused by
 `BulkheadFullException` on the `appointment-service` circuit breaker path. Increasing the
 appointment bulkhead for the load-test profile restored a clean `5,000/min` run.
 
+Appointment-service creation-stage timing is exposed through Micrometer as:
+
+```text
+mediqueue_appointment_create_stage_duration_seconds{stage="patient_validation|slot_validation|idempotency_lookup|active_hold_check|appointment_save|hold_save|audit_save|outbox_save|idempotency_success_save|response_mapping|total"}
+```
+
+Use this to identify whether pressure moves into validation, database writes, or outbox persistence.
+
+Creation-only switches:
+
+```powershell
+$env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
+$env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="false"
+```
+
+These switches are for creation-only load tests. They keep appointment creation and outbox inserts intact, but pause hold expiration and outbox publishing so async work does not compete with the synchronous POST path. For E2E tests, set both back to `true`.
+
 Timeout diagnosis:
 
 - `appointments_timeout` counts k6 responses with `status=0`.
@@ -318,6 +371,15 @@ Run a live sampler in another PowerShell while k6 is running:
   -Since 5m `
   -SampleSeconds 90 `
   -SampleIntervalSeconds 5
+```
+
+For the stronger machine, use the live monitor in a second PowerShell:
+
+```powershell
+.\infra\load-tests\appointments\tools\monitor-loadtest.ps1 `
+  -DurationSeconds 90 `
+  -IntervalSeconds 5 `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-15000-summary.json
 ```
 
 ### Hikari And PostgreSQL Connection Budget
@@ -338,9 +400,53 @@ estimated maximum pool total          = 90
 
 That leaves a small margin for admin sessions and migrations. Do not raise Hikari pools without increasing PostgreSQL capacity or reducing replicas.
 
+Additional budgets to check before running on a stronger laptop:
+
+```text
+Creation-only, moderate:
+appointment-service 4 * 8  = 32
+schedule-service    3 * 6  = 18
+patient-service     2 * 4  = 8
+payment/notification paused = 0
+total                    58
+
+E2E, larger:
+appointment-service 6 * 8  = 48
+schedule-service    4 * 6  = 24
+patient-service     3 * 4  = 12
+payment-service     3 * 4  = 12
+notification-service2 * 10 = 20
+total                   116
+
+E2E, aggressive:
+appointment-service 8 * 8  = 64
+schedule-service    4 * 6  = 24
+patient-service     3 * 4  = 12
+payment-service     3 * 4  = 12
+notification-service2 * 10 = 20
+total                   132
+```
+
+If PostgreSQL remains at `max_connections=100`, keep the moderate profile or reduce pools. For larger profiles, raise local PostgreSQL capacity intentionally and leave headroom for admin sessions.
+
 ### Matrix 5k-25k/min
 
 Use fresh dataset ranges. If a previous run consumed a range, move `DATA_OFFSET`.
+
+Preferred runner:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-appointment-load-stage.ps1 `
+  -RatePerMinute 10000 `
+  -TotalLimit 10000 `
+  -DataOffset 0 `
+  -PreAllocatedVus 500 `
+  -MaxVus 1200 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
+```
+
+The runner validates dataset size before k6 and refuses `50,000/min` unless `-Allow50k` is passed explicitly.
 
 5,000/min:
 
@@ -425,8 +531,23 @@ $env:TOTAL_LIMIT="50000"
 $env:DATA_OFFSET="0"
 $env:PRE_ALLOCATED_VUS="1000"
 $env:MAX_VUS="3000"
-$env:CLIENT_MODE="per-iteration"
+$env:CLIENT_MODE="per-vu"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-50000-summary.json
+```
+
+Preferred guarded runner:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-appointment-load-stage.ps1 `
+  -RatePerMinute 50000 `
+  -TotalLimit 50000 `
+  -DataOffset 0 `
+  -PreAllocatedVus 3000 `
+  -MaxVus 6000 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-50000-summary.json `
+  -HttpTimeout 60s `
+  -Allow50k
 ```
 
 Do not run 50,000/min automatically during setup. Generate data and run smoke first.
@@ -474,6 +595,8 @@ Do not set `K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM` with the current Prometh
 Current milestone:
 
 - `5,000 citas/min` has passed cleanly for `POST /api/appointments` creation.
+- `10,000 citas/min` has passed cleanly after the gateway bulkhead fix.
+- `15,000 citas/min` failed on the current PC with request timeouts, so the next attempt should run on a stronger machine.
 - The creation-path result does not automatically mean the full async E2E path is drained.
 - `confirm_skipped ... EXPIRED -> CONFIRMED` means a `PaymentSucceeded` event arrived after the hold had expired. That warning does not invalidate the POST creation measurement, but it does show the payment/expiration path is lagging for E2E validation.
 
@@ -619,17 +742,17 @@ These settings are for load testing, not production. They do not allow `EXPIRED 
 
 For load-test stability, the gateway circuit breaker uses a larger sample than the default tiny window:
 
-- `GATEWAY_CB_SLIDING_WINDOW_SIZE=500`
-- `GATEWAY_CB_MINIMUM_CALLS=100`
-- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=90`
+- `GATEWAY_CB_SLIDING_WINDOW_SIZE=5000`
+- `GATEWAY_CB_MINIMUM_CALLS=1000`
+- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=95`
 - `GATEWAY_CB_WAIT_OPEN_SECONDS=5`
 - `GATEWAY_CB_HALF_OPEN_CALLS=25`
-- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15`
+- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=30`
 
 The gateway bulkhead is also explicit for load tests:
 
-- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=300`
-- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS=1000`
+- `GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS=3000`
 - `GATEWAY_BULKHEAD_MAX_WAIT_MILLIS=0`
 
 This keeps genuine upstream failures visible as `503`, but avoids opening the route after only a few transient failures during a controlled load test.
