@@ -3,6 +3,7 @@ param(
     [string]$DataFile = ".\infra\load-tests\appointments\data\appointments-50000.json",
     [int]$StartIndex = 0,
     [int]$Limit = 20,
+    [int]$ExpectedCount = 0,
     [string]$ClientId = "block2-dataset-validator"
 )
 
@@ -23,9 +24,21 @@ function Read-JsonNoBom {
 function Get-Appointments {
     param([object]$Json)
 
-    if ($Json -is [array]) { return @($Json) }
-    if ($null -ne $Json.appointments) { return @($Json.appointments) }
-    throw "El dataset debe ser un arreglo o un objeto con propiedad appointments."
+    if ($Json -is [array]) { return ConvertTo-ObjectArray $Json }
+    if ($null -ne $Json.appointments) {
+        throw "El dataset no es un array puro. Se detecto un wrapper con propiedad appointments. Regenera el archivo con generate-appointment-dataset.ps1 o prepare-appointment-load-data.ps1 actualizado."
+    }
+    throw "El dataset debe ser un array puro de payloads de citas."
+}
+
+function ConvertTo-ObjectArray {
+    param([object]$Value)
+
+    $rows = @($Value)
+    if ($rows.Count -eq 1 -and $rows[0] -is [array]) {
+        return @($rows[0])
+    }
+    return $rows
 }
 
 function Invoke-JsonRequest {
@@ -91,6 +104,14 @@ function Test-RequiredText {
 $json = Read-JsonNoBom -Path $DataFile
 $appointments = Get-Appointments -Json $json
 
+if ($appointments.Count -lt 1) {
+    throw "El dataset no contiene items. Regenera $DataFile."
+}
+
+if ($ExpectedCount -gt 0 -and $appointments.Count -ne $ExpectedCount) {
+    throw "Dataset count invalido. Esperado=$ExpectedCount actual=$($appointments.Count)."
+}
+
 if ($StartIndex -ge $appointments.Count) {
     throw "StartIndex $StartIndex esta fuera del dataset. Total=$($appointments.Count)."
 }
@@ -103,6 +124,8 @@ $summary = [ordered]@{
     base_url = $BaseUrl
     start_index = $StartIndex
     limit = $Limit
+    expected_count = $ExpectedCount
+    total_items = $appointments.Count
     inspected_items = 0
     valid_items = 0
     invalid_items = 0
@@ -121,7 +144,17 @@ for ($i = $StartIndex; $i -lt $endExclusive; $i++) {
     $errors = New-Object System.Collections.Generic.List[string]
 
     $slotId = [string]$item.slotId
-    if (-not $seenSlots.Add($slotId)) {
+    if (-not (Test-RequiredText $item.patientId)) {
+        $errors.Add("empty_patientId")
+    }
+    if (-not (Test-RequiredText $item.dentistId)) {
+        $errors.Add("empty_dentistId")
+    }
+    if (-not (Test-RequiredText $item.slotId)) {
+        $errors.Add("empty_slotId")
+    }
+
+    if ((Test-RequiredText $slotId) -and -not $seenSlots.Add($slotId)) {
         $summary.duplicate_slots++
         $errors.Add("duplicate_slot")
     }

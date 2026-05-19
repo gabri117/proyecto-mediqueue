@@ -33,7 +33,9 @@ Start stack:
 docker compose up -d --build
 ```
 
-Prepare real API data:
+### A. API Mode
+
+Safest path, but slow. It creates patients, dentists, and slots through the public APIs.
 
 ```powershell
 .\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
@@ -41,7 +43,63 @@ Prepare real API data:
   -TotalPatients 100 `
   -TotalDentists 20 `
   -TotalSlots 50000 `
-  -Amount 150.00
+  -Amount 1500.00 `
+  -Mode api
+```
+
+### B. SQL Mode
+
+Fast load-test setup. It inserts only base data into PostgreSQL:
+
+- `patient.patients`
+- `schedule.dentists`
+- `schedule.dentist_slots`
+
+It must not insert appointments. The actual appointment load test is still `POST /api/appointments` via k6.
+
+```powershell
+.\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -TotalPatients 100 `
+  -TotalDentists 20 `
+  -TotalSlots 50000 `
+  -Amount 1500.00 `
+  -Mode sql
+```
+
+SQL mode is faster but does not test patient/dentist/slot creation endpoints.
+
+### C. Dump/Restore
+
+After preparing base data once, create a seed dump:
+
+```powershell
+.\infra\load-tests\appointments\tools\create-appointment-seed-dump.ps1 `
+  -OutputFile .\infra\load-tests\appointments\data\appointment-load-seed.dump
+```
+
+Keep the generated `appointments-*.json` files with the dump. The restore puts the same IDs back into PostgreSQL; k6 still reads the JSON files.
+
+Restore it after a fresh volume reset:
+
+```powershell
+docker compose down -v
+docker compose up -d --build
+
+.\infra\load-tests\appointments\tools\restore-appointment-seed-dump.ps1 `
+  -InputFile .\infra\load-tests\appointments\data\appointment-load-seed.dump
+```
+
+To repeat k6 against the same base data without deleting patients/dentists/slots:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1
+```
+
+Use queue purge only between runs when intentionally discarding async messages:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 -PurgeRabbitMqQueues
 ```
 
 Outputs:
@@ -55,6 +113,25 @@ Outputs:
 - `infra/load-tests/appointments/data/appointments-50000.json`
 
 If the preparation run creates fewer than 50,000 slots, `appointments-50000.json` is intentionally not kept. Stale dataset files are removed to prevent running k6 with IDs from a previous volume/database.
+
+The `appointments-*.json` files must be pure JSON arrays of appointment payloads. A wrapper such as `{ "appointments": [...] }` is not valid for the official Block 2 datasets.
+
+Inspect before k6:
+
+```powershell
+.\infra\load-tests\appointments\tools\inspect-appointment-dataset.ps1 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -ExpectedCount 50000
+```
+
+A valid 50,000 dataset reports:
+
+```text
+root_type=array
+is_pure_array=True
+total_items=50000
+valid_for_k6=True
+```
 
 Alternative dataset regeneration:
 
@@ -150,6 +227,12 @@ There are no DELETE endpoints for this cleanup. Generate SQL by `RunStamp` and r
 
 ## Interpretation
 
+Current milestone:
+
+- `5,000 citas/min` has passed cleanly for synchronous `POST /api/appointments` creation.
+- That result validates creation-path throughput, not complete async draining.
+- `confirm_skipped ... EXPIRED -> CONFIRMED` means payment success arrived after hold expiration. The business rule is correct to reject it; for E2E load tests, tune TTL/payment throughput so success events arrive before expiration.
+
 - `201`: successful appointment creation.
 - `409`: slot conflict or dataset reuse. Expected in hostile same-slot only.
 - `400/422`: invalid payload, stale IDs, missing `amount`, or contract mismatch.
@@ -166,8 +249,11 @@ Validate a dataset range before k6:
   -BaseUrl http://localhost:8080 `
   -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
   -StartIndex 5000 `
-  -Limit 20
+  -Limit 20 `
+  -ExpectedCount 50000
 ```
+
+The validator exits non-zero when the dataset is not a pure array, required IDs are empty, `amount` is invalid, slots repeat in the inspected range, or backend entities are missing/unavailable.
 
 Debug one appointment and print the real response:
 
@@ -213,6 +299,7 @@ docker compose exec postgres psql -U mediqueue -d mediqueue -c "select appointme
 docker compose exec postgres psql -U mediqueue -d mediqueue -c "select slot_id, count(*) from appointment.appointments where appointment_status in ('PENDING_PAYMENT','CONFIRMED') group by slot_id having count(*) > 1;"
 docker compose exec postgres psql -U mediqueue -d mediqueue -c "select publication_status, count(*) from appointment.outbox_events group by publication_status order by publication_status;"
 docker compose exec rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
+docker compose exec rabbitmq rabbitmqctl list_bindings
 ```
 
 Appointment-service and schedule-service Hikari defaults for load testing are configurable with:
@@ -234,6 +321,32 @@ Collect evidence after a run:
   -Since 30m `
   -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-1000-offset-2000-summary.json
 ```
+
+## Creation vs Async E2E
+
+`appointment-rpm.js` measures the synchronous creation path: gateway, idempotency, patient validation, slot validation, database write, hold creation, and outbox publication. Payment and notification are asynchronous.
+
+For E2E validation, RabbitMQ must drain after the HTTP test:
+
+- `payment.appointment-held.queue` is consumed by payment-service. Ready/unacked backlog means payment cannot keep up.
+- `payment.succeeded` and `payment.failed` are consumed by appointment-service.
+- `notification.appointment.queue` and `notification.payment.queue` are consumed by notification-service.
+- `appointment.confirmed` and `appointment.expired` are currently event queues with no consumers. Treat backlog there as diagnostic/audit backlog unless a service explicitly starts consuming them or a load-test RabbitMQ profile removes those declarations.
+
+Recommended load-test async profile:
+
+```powershell
+$env:APPOINTMENT_HOLD_TTL_MINUTES="30"
+$env:PAYMENT_SIM_MIN_DELAY_MS="50"
+$env:PAYMENT_SIM_MAX_DELAY_MS="200"
+$env:PAYMENT_TIMEOUT_SECONDS="10"
+$env:PAYMENT_SIM_APPROVAL_RATE="1.0"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="8"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="16"
+docker compose up -d --build appointment-service payment-service
+```
+
+This profile is for load testing only. It does not relax appointment state transitions or permit `EXPIRED -> CONFIRMED`; it gives async payment processing more time and more consumer capacity.
 
 Gateway circuit breaker load-test defaults:
 

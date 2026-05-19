@@ -1,0 +1,18 @@
+{
+  "appointment_attempts": 1000,
+  "appointments_created": 1000,
+  "appointments_conflict": 0,
+  "appointments_validation_error": 0,
+  "appointments_rate_limited": 0,
+  "appointments_server_error": 0,
+  "appointments_503": 0,
+  "appointments_unexpected": 0,
+  "appointments_dataset_exhausted": 0,
+  "appointments_skipped_after_limit": 0,
+  "dropped_iterations": 0,
+  "checks_rate": 1,
+  "http_reqs": 1000,
+  "http_req_failed_rate": 0,
+  "http_req_duration_p95": 55.52485499999998,
+  "http_req_duration_p99": 0
+}

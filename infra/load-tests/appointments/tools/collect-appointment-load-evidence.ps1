@@ -70,6 +70,10 @@ Invoke-Capture -Name "rabbitmq-queues.txt" -Block {
     docker compose exec -T rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
 }
 
+Invoke-Capture -Name "rabbitmq-bindings.txt" -Block {
+    docker compose exec -T rabbitmq rabbitmqctl list_bindings
+}
+
 Invoke-Capture -Name "db-appointments-by-status.txt" -Block {
     docker compose exec -T postgres psql -U mediqueue -d mediqueue -c "select appointment_status, count(*) from appointment.appointments group by appointment_status order by appointment_status;"
 }

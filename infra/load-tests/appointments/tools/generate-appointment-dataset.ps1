@@ -145,6 +145,66 @@ function Write-JsonNoBom {
     [System.IO.File]::WriteAllText($Path, $jsonContent, $utf8NoBom)
 }
 
+function ConvertTo-ObjectArray {
+    param([object]$Value)
+
+    $rows = @($Value)
+    if ($rows.Count -eq 1 -and $rows[0] -is [array]) {
+        return @($rows[0])
+    }
+    return $rows
+}
+
+function Test-AppointmentDatasetShape {
+    param(
+        [object]$Appointments,
+        [int]$ExpectedTotal,
+        [string]$Name
+    )
+
+    $rows = ConvertTo-ObjectArray $Appointments
+
+    if ($rows.Count -ne $ExpectedTotal) {
+        throw "$Name count=$($rows.Count), expected=$ExpectedTotal."
+    }
+
+    $usedSlots = New-Object "System.Collections.Generic.HashSet[string]"
+    $errors = New-Object System.Collections.Generic.List[string]
+
+    for ($i = 0; $i -lt $rows.Count; $i++) {
+        $item = $rows[$i]
+        foreach ($field in @("patientId", "dentistId", "slotId", "appointmentDate", "startTime", "endTime", "amount", "notes")) {
+            if ($null -eq $item.$field -or ([string]$item.$field).Trim().Length -eq 0) {
+                $errors.Add("index=$i field=$field")
+            }
+        }
+
+        if ($null -ne $item.slotId -and -not $usedSlots.Add([string]$item.slotId)) {
+            throw "$Name tiene slotId repetido: $($item.slotId)"
+        }
+
+        if ($null -eq $item.amount -or ([decimal]$item.amount) -le 0) {
+            $errors.Add("index=$i field=amount_invalid")
+        }
+    }
+
+    if ($errors.Count -gt 0) {
+        throw "$Name tiene campos faltantes o invalidos: $($errors[0..([Math]::Min(9, $errors.Count - 1))] -join '; ')"
+    }
+}
+
+function Write-DatasetSummary {
+    param(
+        [string]$Path,
+        [object[]]$Appointments
+    )
+
+    $first = $Appointments[0]
+    $name = Split-Path -Leaf $Path
+    Write-Host "$name count=$($Appointments.Count)"
+    Write-Host "$name first item: patientId=$($first.patientId) dentistId=$($first.dentistId) slotId=$($first.slotId) appointmentDate=$($first.appointmentDate) startTime=$($first.startTime) endTime=$($first.endTime) amount=$($first.amount)"
+}
+
 function New-AppointmentDataset {
     param(
         [object[]]$Slots,
@@ -171,7 +231,7 @@ function New-AppointmentDataset {
 
         $appointmentDate = if ($null -ne $slot.appointmentDate) { [string]$slot.appointmentDate } else { [string]$slot.slotDate }
 
-        $appointments.Add([ordered]@{
+        $appointments.Add([pscustomobject][ordered]@{
             runStamp = $RunStamp
             patientId = $patientId
             dentistId = $dentistId
@@ -184,20 +244,9 @@ function New-AppointmentDataset {
         })
     }
 
-    return [ordered]@{
-        metadata = [ordered]@{
-            name = if ($DatasetTotal -eq 10) { "appointments.sample" } else { "appointments-$DatasetTotal" }
-            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
-            baseUrl = $BaseUrl
-            runStamp = $RunStamp
-            total = $DatasetTotal
-            amount = [decimal]$Amount
-            source = if ($AvailableSlotsFile) { $AvailableSlotsFile } else { "GET /api/slots/available" }
-            slotRule = "slotId is unique per appointment row"
-            patientRule = "patientId values may be reused"
-        }
-        appointments = $appointments
-    }
+    $array = @($appointments.ToArray())
+    Test-AppointmentDatasetShape -Appointments $array -ExpectedTotal $DatasetTotal -Name "appointments-$DatasetTotal"
+    return $array
 }
 
 $patientPool = Read-PatientIds
@@ -237,12 +286,18 @@ foreach ($datasetTotal in $Totals) {
         New-Item -ItemType Directory -Force -Path $parent | Out-Null
     }
 
-    $dataset = New-AppointmentDataset -Slots $slots -PatientPool $patientPool -DatasetTotal $datasetTotal
-    if ($dataset.appointments.Count -lt $datasetTotal) {
+    $dataset = ConvertTo-ObjectArray (New-AppointmentDataset -Slots $slots -PatientPool $patientPool -DatasetTotal $datasetTotal)
+    if ($dataset.Count -lt $datasetTotal) {
         throw "dataset.length menor que total solicitado para $targetFile"
     }
 
     Write-JsonNoBom -Value $dataset -Path $targetFile -Depth 8
+    $written = ConvertTo-ObjectArray (Get-Content -Raw -Path $targetFile | ConvertFrom-Json)
+    Test-AppointmentDatasetShape -Appointments @($written | Select-Object -First ([Math]::Min(20, $written.Count))) -ExpectedTotal ([Math]::Min(20, $written.Count)) -Name "$targetFile first 20"
+    if ($written.Count -ne $datasetTotal) {
+        Remove-Item -LiteralPath $targetFile -Force
+        throw "$targetFile se escribio con $($written.Count) filas, se esperaban $datasetTotal. Archivo eliminado."
+    }
     Write-Host "Dataset written to $targetFile"
-    Write-Host "Rows: $($dataset.appointments.Count)"
+    Write-DatasetSummary -Path $targetFile -Appointments $written
 }

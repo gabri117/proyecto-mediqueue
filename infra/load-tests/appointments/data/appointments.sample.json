@@ -1,113 +1,112 @@
-{
-    "metadata":  {
-                     "name":  "appointments.sample",
-                     "generatedAt":  "2026-05-19T03:02:25.1605941Z",
-                     "runStamp":  "1779159197876",
-                     "baseUrl":  "http://localhost:8080",
-                     "total":  10,
-                     "amount":  350,
-                     "slotRule":  "Each appointment row uses one unique slotId."
-                 },
-    "appointments":  [
-                         {
-                             "patientId":  "9f97980b-4cff-49a0-ab9e-fc00cf307b31",
-                             "dentistId":  "8c31b994-769b-4235-b200-7fa59070c7c3",
-                             "slotId":  "419aab16-e6e0-455b-a7bd-8834cdf887f6",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 1"
-                         },
-                         {
-                             "patientId":  "a23a49aa-a4fa-4c8e-96ba-ebea7656e36c",
-                             "dentistId":  "99366070-a3b2-4085-8130-c6cfc2f57683",
-                             "slotId":  "0bfa0f2d-b38d-4eb8-9c99-203d74ba4b49",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 2"
-                         },
-                         {
-                             "patientId":  "55642d3f-7835-47f3-b4bb-1874849b91e1",
-                             "dentistId":  "817b16d3-1308-4488-ac30-914f55913864",
-                             "slotId":  "5c5648e5-97ac-47ff-9b2d-d5839a205aaa",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 3"
-                         },
-                         {
-                             "patientId":  "27518710-d5ce-407a-a9b8-87a6c95ebdda",
-                             "dentistId":  "89caff15-86bc-41af-a7ce-2fbfcd85d64d",
-                             "slotId":  "6a8b9928-896a-4442-90ed-ec3fbd382950",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 4"
-                         },
-                         {
-                             "patientId":  "d2535d72-703f-4ab1-95b5-dbeca87ee2bc",
-                             "dentistId":  "c4aa0080-6a0f-40c1-a2ff-3ef773809270",
-                             "slotId":  "01516021-54ef-4828-b707-19f0bbb3ed9c",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 5"
-                         },
-                         {
-                             "patientId":  "a6f43f88-b5a9-44ab-a03b-e3cb280a55c4",
-                             "dentistId":  "7134cd80-7be4-4afb-b066-c16421c5d545",
-                             "slotId":  "9056d3ac-ee63-4691-9083-fddac1d78d89",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 6"
-                         },
-                         {
-                             "patientId":  "6262f27c-4542-44ba-b13e-4eb786631823",
-                             "dentistId":  "dbeab3e3-6b05-4eff-a5d6-544614c6d777",
-                             "slotId":  "7303e8af-50e1-46a3-9a12-a3b0ce1a07a7",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 7"
-                         },
-                         {
-                             "patientId":  "5b243651-38f7-48ef-a4f1-0d254f9aa6ab",
-                             "dentistId":  "d3ce8998-4260-48ab-880e-b938db71d575",
-                             "slotId":  "7141f4cd-5014-4cc3-8dca-2eccaf07afb8",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 8"
-                         },
-                         {
-                             "patientId":  "16c2b20e-4bb1-46ce-8aba-233571e02c16",
-                             "dentistId":  "c44510de-22e9-4dbf-9a04-fecaa1ea717c",
-                             "slotId":  "bd31da8d-2386-4d77-a9ee-a0b7bf5eaffd",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 9"
-                         },
-                         {
-                             "patientId":  "cd3e0c05-cf82-4cdc-bb24-5928f0d93b16",
-                             "dentistId":  "7c1c8213-6843-40b9-a33c-cccd149ccc0e",
-                             "slotId":  "0728e6a5-8a31-49b6-acc6-3efd8dc2e9d5",
-                             "appointmentDate":  "2026-08-01",
-                             "startTime":  "08:00:00",
-                             "endTime":  "08:30:00",
-                             "amount":  350,
-                             "notes":  "Block2 load test 1779159197876 appointment 10"
-                         }
-                     ]
-}
+[
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "12146f1a-ffd2-44d0-b1e1-51430efadb5e",
+        "dentistId":  "006d3bf0-c41f-44ad-aed6-67440deee9fc",
+        "slotId":  "67a03225-23c8-42d8-98f6-c2b5a1e67816",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 1"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "406ad76c-fd25-41ea-8dc6-0c251bd0602b",
+        "dentistId":  "28b80ade-9cfe-4a9b-9df7-99427a7b4323",
+        "slotId":  "8e366f6a-41e7-4c66-9906-f3e9046c8f76",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 2"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "17d4fe4b-fc6e-4446-9af0-254003294e00",
+        "dentistId":  "2b3af849-1da1-4d5e-9db2-e01de2f0731f",
+        "slotId":  "e6e432f9-c6a6-40f1-a818-c689ac8470af",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 3"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "3fd994f1-ef3a-4584-a938-f6fd1c65ca42",
+        "dentistId":  "2cb0286e-0428-4e35-ba56-5dffaf2a5490",
+        "slotId":  "0dc32006-9fd6-4f17-873f-8edbe19de194",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 4"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "ae2c73fe-1e05-408d-8be5-3e3fab82d15d",
+        "dentistId":  "3037373c-292e-4a25-98ed-dac96002ba23",
+        "slotId":  "78374bc7-ad95-462f-a858-f34e4ae1f84d",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 5"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "ec720c0d-f2a0-43f5-ae2d-9cd7d41f1dae",
+        "dentistId":  "3b707e88-e3d1-4aa1-a68b-b86d29079975",
+        "slotId":  "c96860c9-5927-46fc-ab2b-8ceae0fdadee",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 6"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "dc946d2a-189d-41ab-9f4b-93446a4e6fb9",
+        "dentistId":  "47067edf-3a78-40f6-b932-7b4dc6f68ea0",
+        "slotId":  "141d9a13-caca-40fc-8034-00f2b6b10b83",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 7"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "bb58f0da-2c20-4a77-a7b8-fbee5cb6bf15",
+        "dentistId":  "471bde6c-962b-4867-9254-ab2412a4a8c2",
+        "slotId":  "bc003434-7485-414d-bd3a-cc46e2b208a6",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 8"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "3ba509c3-cb70-4d68-9a52-e502b8d27a73",
+        "dentistId":  "6c9257b1-61d8-4ade-b4e4-ad5ef8a41ad6",
+        "slotId":  "bbc4a636-8824-407a-9396-fa419fede658",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 9"
+    },
+    {
+        "runStamp":  "1779219066007",
+        "patientId":  "311fdab8-5154-46d7-b89f-58e931e66f93",
+        "dentistId":  "7d0f2a4a-4ac5-46ce-9444-ef5affb60229",
+        "slotId":  "6160eadc-ecb8-4c4b-9343-b623cf8d6210",
+        "appointmentDate":  "2026-08-01",
+        "startTime":  "08:00:00",
+        "endTime":  "08:30:00",
+        "amount":  1500,
+        "notes":  "Block2 load test 1779219066007 appointment 10"
+    }
+]
