@@ -24,7 +24,7 @@ const appointmentsUnexpected = new Counter('appointments_unexpected');
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 599 }));
 
 const appointments = new SharedArray('appointments dataset', () => {
-  const parsed = JSON.parse(open(DATA_FILE));
+  const parsed = readJsonFile(DATA_FILE);
   return Array.isArray(parsed) ? parsed : parsed.appointments;
 });
 
@@ -89,6 +89,10 @@ function normalizeAppointment(row) {
     amount: Number(row.amount),
     notes: row.notes || 'Block 2 appointment smoke',
   };
+}
+
+function readJsonFile(path) {
+  return JSON.parse(open(path).replace(/^\uFEFF/, '').replace(/^\u00EF\u00BB\u00BF/, ''));
 }
 
 function normalizeTime(value) {

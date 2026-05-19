@@ -97,7 +97,9 @@ function Export-Json {
         [string]$Path
     )
 
-    $Value | ConvertTo-Json -Depth 10 | Set-Content -Path $Path -Encoding UTF8
+    $jsonContent = $Value | ConvertTo-Json -Depth 10
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $jsonContent, $utf8NoBom)
 }
 
 function New-Dataset {

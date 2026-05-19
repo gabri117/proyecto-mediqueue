@@ -1,0 +1,173 @@
+{
+    "metrics": {
+        "data_received": {
+            "count": 8351,
+            "rate": 2304.273158821317
+        },
+        "data_sent": {
+            "count": 5511,
+            "rate": 1520.6381724660853
+        },
+        "appointments_created": {
+            "count": 10,
+            "rate": 2.759278120969126
+        },
+        "vus_max": {
+            "min": 5,
+            "max": 5,
+            "value": 5
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 10,
+            "value": 0
+        },
+        "iteration_duration": {
+            "avg": 1809.1311600000001,
+            "min": 65.2788,
+            "med": 1811.0652000000002,
+            "max": 3552.0165,
+            "p(90)": 3552.0165,
+            "p(95)": 3552.0165
+        },
+        "http_req_blocked": {
+            "p(90)": 21.288,
+            "p(95)": 21.288,
+            "avg": 10.644,
+            "min": 0,
+            "med": 10.644,
+            "max": 21.288
+        },
+        "appointments_server_error": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "http_req_connecting": {
+            "avg": 0.78645,
+            "min": 0,
+            "med": 0.78645,
+            "max": 1.5729,
+            "p(90)": 1.5729,
+            "p(95)": 1.5729
+        },
+        "http_req_receiving": {
+            "p(90)": 1.08,
+            "p(95)": 1.08,
+            "avg": 0.47758,
+            "min": 0,
+            "med": 0.5211,
+            "max": 1.08
+        },
+        "http_req_duration": {
+            "max": 3519.6337,
+            "p(90)": 3519.6337,
+            "p(95)": 3519.6337,
+            "avg": 1792.71563,
+            "min": 65.2788,
+            "med": 1794.3017499999999
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 1792.71563,
+            "min": 65.2788,
+            "med": 1794.3017499999999,
+            "max": 3519.6337,
+            "p(90)": 3519.6337,
+            "p(95)": 3519.6337
+        },
+        "http_req_tls_handshaking": {
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0
+        },
+        "vus": {
+            "value": 5,
+            "min": 5,
+            "max": 5
+        },
+        "appointment_attempts": {
+            "count": 10,
+            "rate": 2.759278120969126
+        },
+        "iterations": {
+            "count": 10,
+            "rate": 2.759278120969126
+        },
+        "appointments_unexpected": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "http_reqs": {
+            "count": 10,
+            "rate": 2.759278120969126
+        },
+        "http_req_waiting": {
+            "max": 3518.5537,
+            "p(90)": 3518.5537,
+            "p(95)": 3518.5537,
+            "avg": 1792.17975,
+            "min": 64.768,
+            "med": 1793.74455
+        },
+        "http_req_sending": {
+            "p(95)": 0.3206499999999994,
+            "avg": 0.0583,
+            "min": 0,
+            "med": 0,
+            "max": 0.583,
+            "p(90)": 0.05829999999999979
+        },
+        "checks": {
+            "passes": 40,
+            "fails": 0,
+            "thresholds": {
+                "rate>0.95": false
+            },
+            "value": 1
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "tiene respuesta HTTP valida": {
+                    "path": "::tiene respuesta HTTP valida",
+                    "id": "8ecde52f78e5a4131c9e5841f9effde7",
+                    "passes": 10,
+                    "fails": 0,
+                    "name": "tiene respuesta HTTP valida"
+                },
+                "no 5xx": {
+                    "name": "no 5xx",
+                    "path": "::no 5xx",
+                    "id": "d1ddfa01c9c508d09ccb3a23b0b94c45",
+                    "passes": 10,
+                    "fails": 0
+                },
+                "no RedisConnectionFailureException": {
+                    "name": "no RedisConnectionFailureException",
+                    "path": "::no RedisConnectionFailureException",
+                    "id": "9432fcdffbe099a1b647793c9dc31c06",
+                    "passes": 10,
+                    "fails": 0
+                },
+                "status esperado para smoke limpio": {
+                    "name": "status esperado para smoke limpio",
+                    "path": "::status esperado para smoke limpio",
+                    "id": "f356fd33f858f36c26da6a2448a0ce41",
+                    "passes": 10,
+                    "fails": 0
+                }
+            }
+    }
+}

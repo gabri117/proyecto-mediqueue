@@ -1,0 +1,127 @@
+{
+    "runStamp":  "1779151902515",
+    "dentistIds":  [
+                       "43cac6d4-a75c-49ba-95bb-89d32b863241",
+                       "31961116-252d-4722-8c67-31b82ec3f88a",
+                       "3462fe2a-9fa3-48cc-bde1-53817138ea3d",
+                       "1d62f6ae-6034-4dc2-bcdd-7bc833603596",
+                       "0d854ab7-7a47-4552-b7aa-28d96860ed88",
+                       "c47e8074-479c-4152-942d-02d9cc836fcc",
+                       "9b985cf6-875a-41bb-aa9f-90015bc7d3ed",
+                       "b223664d-18c7-4b04-9ff0-4e0f472ab95b",
+                       "83cf6850-e970-4741-a7db-b2f51972e458",
+                       "6ba0ae5b-0528-4212-86f5-be810833071b",
+                       "3832fafe-f50e-4b1d-a403-134748830a76",
+                       "6d6188fe-5300-4e20-bda1-7529c443ddea",
+                       "29741095-09f6-4fc4-9593-b991cafc3343",
+                       "a6f44eeb-6539-4bde-853e-aeb619f9220c",
+                       "3e99422b-150e-43d7-af16-a503a26a8006",
+                       "66eac988-043a-4c07-8085-bc59e4a088d9",
+                       "1c9eb92f-7ca8-4a8a-9e32-e13f46aa71ba",
+                       "c9ca20f4-ea8c-4642-913e-3831221f2708",
+                       "dcb32a71-dd46-460d-9ed7-cda12b710619",
+                       "f5057bee-e428-4e18-b08d-1ae381cec435"
+                   ],
+    "dentists":  [
+                     {
+                         "dentistId":  "43cac6d4-a75c-49ba-95bb-89d32b863241",
+                         "email":  "block2.dentist.1779151902515.1@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000001"
+                     },
+                     {
+                         "dentistId":  "31961116-252d-4722-8c67-31b82ec3f88a",
+                         "email":  "block2.dentist.1779151902515.2@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000002"
+                     },
+                     {
+                         "dentistId":  "3462fe2a-9fa3-48cc-bde1-53817138ea3d",
+                         "email":  "block2.dentist.1779151902515.3@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000003"
+                     },
+                     {
+                         "dentistId":  "1d62f6ae-6034-4dc2-bcdd-7bc833603596",
+                         "email":  "block2.dentist.1779151902515.4@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000004"
+                     },
+                     {
+                         "dentistId":  "0d854ab7-7a47-4552-b7aa-28d96860ed88",
+                         "email":  "block2.dentist.1779151902515.5@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000005"
+                     },
+                     {
+                         "dentistId":  "c47e8074-479c-4152-942d-02d9cc836fcc",
+                         "email":  "block2.dentist.1779151902515.6@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000006"
+                     },
+                     {
+                         "dentistId":  "9b985cf6-875a-41bb-aa9f-90015bc7d3ed",
+                         "email":  "block2.dentist.1779151902515.7@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000007"
+                     },
+                     {
+                         "dentistId":  "b223664d-18c7-4b04-9ff0-4e0f472ab95b",
+                         "email":  "block2.dentist.1779151902515.8@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000008"
+                     },
+                     {
+                         "dentistId":  "83cf6850-e970-4741-a7db-b2f51972e458",
+                         "email":  "block2.dentist.1779151902515.9@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000009"
+                     },
+                     {
+                         "dentistId":  "6ba0ae5b-0528-4212-86f5-be810833071b",
+                         "email":  "block2.dentist.1779151902515.10@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000010"
+                     },
+                     {
+                         "dentistId":  "3832fafe-f50e-4b1d-a403-134748830a76",
+                         "email":  "block2.dentist.1779151902515.11@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000011"
+                     },
+                     {
+                         "dentistId":  "6d6188fe-5300-4e20-bda1-7529c443ddea",
+                         "email":  "block2.dentist.1779151902515.12@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000012"
+                     },
+                     {
+                         "dentistId":  "29741095-09f6-4fc4-9593-b991cafc3343",
+                         "email":  "block2.dentist.1779151902515.13@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000013"
+                     },
+                     {
+                         "dentistId":  "a6f44eeb-6539-4bde-853e-aeb619f9220c",
+                         "email":  "block2.dentist.1779151902515.14@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000014"
+                     },
+                     {
+                         "dentistId":  "3e99422b-150e-43d7-af16-a503a26a8006",
+                         "email":  "block2.dentist.1779151902515.15@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000015"
+                     },
+                     {
+                         "dentistId":  "66eac988-043a-4c07-8085-bc59e4a088d9",
+                         "email":  "block2.dentist.1779151902515.16@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000016"
+                     },
+                     {
+                         "dentistId":  "1c9eb92f-7ca8-4a8a-9e32-e13f46aa71ba",
+                         "email":  "block2.dentist.1779151902515.17@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000017"
+                     },
+                     {
+                         "dentistId":  "c9ca20f4-ea8c-4642-913e-3831221f2708",
+                         "email":  "block2.dentist.1779151902515.18@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000018"
+                     },
+                     {
+                         "dentistId":  "dcb32a71-dd46-460d-9ed7-cda12b710619",
+                         "email":  "block2.dentist.1779151902515.19@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000019"
+                     },
+                     {
+                         "dentistId":  "f5057bee-e428-4e18-b08d-1ae381cec435",
+                         "email":  "block2.dentist.1779151902515.20@mediqueue.test",
+                         "licenseNumber":  "B2-DEN-1779151902515-000020"
+                     }
+                 ]
+}

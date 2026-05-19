@@ -129,6 +129,18 @@ function Normalize-Time {
     return $text
 }
 
+function Write-JsonNoBom {
+    param(
+        [object]$Value,
+        [string]$Path,
+        [int]$Depth = 8
+    )
+
+    $jsonContent = $Value | ConvertTo-Json -Depth $Depth
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $jsonContent, $utf8NoBom)
+}
+
 function New-AppointmentDataset {
     param(
         [object[]]$Slots,
@@ -224,7 +236,7 @@ foreach ($datasetTotal in $Totals) {
         throw "dataset.length menor que total solicitado para $targetFile"
     }
 
-    $dataset | ConvertTo-Json -Depth 8 | Set-Content -Path $targetFile -Encoding UTF8
+    Write-JsonNoBom -Value $dataset -Path $targetFile -Depth 8
     Write-Host "Dataset written to $targetFile"
     Write-Host "Rows: $($dataset.appointments.Count)"
 }

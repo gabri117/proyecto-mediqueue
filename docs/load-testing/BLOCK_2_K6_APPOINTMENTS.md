@@ -81,13 +81,15 @@ k6 run .\infra\load-tests\appointments\scripts\appointment-smoke.js --summary-ex
 
 ```powershell
 $env:BASE_URL="http://localhost:8080"
-$env:DATA_FILE="./infra/load-tests/appointments/data/appointments-1000.json"
+$env:DATA_FILE="../data/appointments-10000.json"
 $env:RATE_PER_MINUTE="1000"
 $env:DURATION="1m"
+$env:TOTAL_LIMIT="1000"
+$env:DATA_OFFSET="1000"
 $env:PRE_ALLOCATED_VUS="100"
 $env:MAX_VUS="300"
-$env:CLIENT_MODE="per-vu"
-k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-1000-summary.json
+$env:CLIENT_MODE="per-iteration"
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-1000-offset-1000-summary.json
 ```
 
 10,000/min:
@@ -97,6 +99,8 @@ $env:BASE_URL="http://localhost:8080"
 $env:DATA_FILE="./infra/load-tests/appointments/data/appointments-10000.json"
 $env:RATE_PER_MINUTE="10000"
 $env:DURATION="1m"
+$env:TOTAL_LIMIT="10000"
+$env:DATA_OFFSET="0"
 $env:PRE_ALLOCATED_VUS="300"
 $env:MAX_VUS="1000"
 $env:CLIENT_MODE="per-iteration"
@@ -110,11 +114,17 @@ $env:BASE_URL="http://localhost:8080"
 $env:DATA_FILE="./infra/load-tests/appointments/data/appointments-50000.json"
 $env:RATE_PER_MINUTE="50000"
 $env:DURATION="1m"
+$env:TOTAL_LIMIT="50000"
+$env:DATA_OFFSET="0"
 $env:PRE_ALLOCATED_VUS="1000"
 $env:MAX_VUS="3000"
 $env:CLIENT_MODE="per-iteration"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-50000-summary.json
 ```
+
+Use `TOTAL_LIMIT` to define how many real HTTP requests should be sent. If k6 schedules an extra boundary iteration, the script increments `appointments_skipped_after_limit` and sends no request. Use `DATA_OFFSET` to choose a different dataset range and avoid reusing previously consumed slots.
+
+For the official 50,000/min run, use a clean or freshly generated dataset. Reused slots should produce `409 Conflict`.
 
 Prometheus:
 
@@ -144,6 +154,8 @@ There are no DELETE endpoints for this cleanup. Generate SQL by `RunStamp` and r
 - `429`: gateway rate limiting, not backend capacity.
 - `5xx`: backend/gateway failure.
 - `dropped_iterations`: k6 could not sustain the requested rate.
+- `appointments_skipped_after_limit`: planned skip after `TOTAL_LIMIT`, not a failure.
+- `appointments_dataset_exhausted`: real dataset range error.
 
 ## Evidence
 

@@ -1,0 +1,10 @@
+﻿{
+    "runStamp":  "1779147426681",
+    "generatedAt":  "2026-05-19T00:18:18.0320120Z",
+    "baseUrl":  "http://localhost:8080",
+    "totalPatients":  100,
+    "totalDentists":  20,
+    "totalSlots":  50000,
+    "amount":  350,
+    "mode":  "api"
+}

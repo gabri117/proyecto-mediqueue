@@ -24,7 +24,7 @@ const sameSlotUnexpected = new Counter('same_slot_unexpected');
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 599 }));
 
 const appointments = new SharedArray('appointments dataset', () => {
-  const parsed = JSON.parse(open(DATA_FILE));
+  const parsed = readJsonFile(DATA_FILE);
   return Array.isArray(parsed) ? parsed : parsed.appointments;
 });
 
@@ -95,6 +95,10 @@ function sameSlotBody(baseRow, patientRow, index) {
     amount: Number(baseRow.amount),
     notes: `Block 2 hostile same-slot attempt ${index}`,
   };
+}
+
+function readJsonFile(path) {
+  return JSON.parse(open(path).replace(/^\uFEFF/, '').replace(/^\u00EF\u00BB\u00BF/, ''));
 }
 
 function normalizeTime(value) {

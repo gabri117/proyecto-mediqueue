@@ -16,6 +16,7 @@ const MAX_VUS = Number(__ENV.MAX_VUS || 3000);
 const TOTAL_LIMIT = __ENV.TOTAL_LIMIT === undefined || __ENV.TOTAL_LIMIT === ''
   ? null
   : Number(__ENV.TOTAL_LIMIT);
+const DATA_OFFSET = Number(__ENV.DATA_OFFSET || 0);
 const RUN_ID = __ENV.RUN_ID || String(Date.now());
 const CLIENT_MODE = (__ENV.CLIENT_MODE || 'per-vu').toLowerCase();
 
@@ -27,11 +28,12 @@ const appointmentsRateLimited = new Counter('appointments_rate_limited');
 const appointmentsServerError = new Counter('appointments_server_error');
 const appointmentsUnexpected = new Counter('appointments_unexpected');
 const appointmentsDatasetExhausted = new Counter('appointments_dataset_exhausted');
+const appointmentsSkippedAfterLimit = new Counter('appointments_skipped_after_limit');
 
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 599 }));
 
 const appointments = new SharedArray('appointments dataset', () => {
-  const parsed = JSON.parse(open(DATA_FILE));
+  const parsed = readJsonFile(DATA_FILE);
   return Array.isArray(parsed) ? parsed : parsed.appointments;
 });
 
@@ -63,27 +65,36 @@ export function setup() {
     fail(`TOTAL_LIMIT invalido: ${__ENV.TOTAL_LIMIT}. Debe ser un entero positivo.`);
   }
 
+  if (!Number.isFinite(DATA_OFFSET) || DATA_OFFSET < 0) {
+    fail(`DATA_OFFSET invalido: ${__ENV.DATA_OFFSET}. Debe ser un entero mayor o igual a cero.`);
+  }
+
   if (!appointments || appointments.length === 0) {
     fail(`DATA_FILE=${DATA_FILE} no contiene citas.`);
+  }
+
+  const required = DATA_OFFSET + (TOTAL_LIMIT !== null ? TOTAL_LIMIT : estimatedIterations());
+  if (required > appointments.length) {
+    fail(`Dataset insuficiente. Se requieren al menos ${required} registros desde DATA_OFFSET ${DATA_OFFSET}, pero el dataset tiene ${appointments.length}.`);
   }
 }
 
 export default function () {
   const index = exec.scenario.iterationInTest;
+  const datasetIndex = DATA_OFFSET + index;
 
   if (TOTAL_LIMIT !== null && index >= TOTAL_LIMIT) {
+    appointmentsSkippedAfterLimit.add(1);
+    return;
+  }
+
+  if (datasetIndex >= appointments.length) {
     appointmentsDatasetExhausted.add(1);
     check(null, { 'no dataset exhausted': () => false });
     return;
   }
 
-  if (index >= appointments.length) {
-    appointmentsDatasetExhausted.add(1);
-    check(null, { 'no dataset exhausted': () => false });
-    return;
-  }
-
-  const body = normalizeAppointment(appointments[index]);
+  const body = normalizeAppointment(appointments[datasetIndex]);
   const res = http.post(`${BASE_URL}/api/appointments`, JSON.stringify(body), {
     headers: {
       'Content-Type': 'application/json',
@@ -120,6 +131,26 @@ function normalizeAppointment(row) {
     amount: Number(row.amount),
     notes: row.notes || 'Block 2 rpm appointment',
   };
+}
+
+function estimatedIterations() {
+  // constant-arrival-rate can schedule one extra iteration at time boundaries.
+  return Math.ceil(RATE_PER_MINUTE * durationToMinutes(DURATION)) + 1;
+}
+
+function durationToMinutes(value) {
+  const match = String(value).trim().match(/^(\d+(?:\.\d+)?)(ms|s|m|h)$/);
+  if (!match) return 1;
+  const amount = Number(match[1]);
+  const unit = match[2];
+  if (unit === 'ms') return amount / 60000;
+  if (unit === 's') return amount / 60;
+  if (unit === 'm') return amount;
+  return amount * 60;
+}
+
+function readJsonFile(path) {
+  return JSON.parse(open(path).replace(/^\uFEFF/, '').replace(/^\u00EF\u00BB\u00BF/, ''));
 }
 
 function normalizeTime(value) {
