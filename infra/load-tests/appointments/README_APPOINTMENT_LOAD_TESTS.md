@@ -118,7 +118,7 @@ $env:TOTAL_LIMIT="1000"
 $env:DATA_OFFSET="1000"
 $env:PRE_ALLOCATED_VUS="100"
 $env:MAX_VUS="300"
-$env:CLIENT_MODE="per-iteration"
+$env:CLIENT_MODE="per-vu"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-1000-offset-1000-summary.json
 ```
 
@@ -217,6 +217,61 @@ Evidence to deliver:
 - Dashboard screenshot/export.
 - Counts for created, conflict, validation error, rate limited, server error, unexpected error, and dataset exhausted.
 - Notes on `dropped_iterations`.
+
+Read counter values from `--summary-export` with `.metrics.<metric>.values.count`:
+
+```powershell
+$summary = Get-Content .\infra\load-tests\appointments\results\appointment-rpm-1000-offset-1000-summary.json -Raw | ConvertFrom-Json
+$summary.metrics.appointments_server_error.values.count
+$summary.metrics.appointments_created.values.count
+$summary.metrics.dropped_iterations.values.count
+$summary.metrics.http_req_duration.values.'p(95)'
+```
+
+`appointment-rpm.js` also writes a flat JSON next to the regular handleSummary artifact in `infra/load-tests/appointments/results`, with top-level fields such as `appointments_server_error`, `http_reqs`, and `http_req_duration_p95`.
+
+## Diagnostics For 503 And Load-Test Regressions
+
+Count gateway 503 responses:
+
+```powershell
+docker compose logs --since 10m api-gateway |
+  Select-String -Pattern "status=503 method=POST path=/api/appointments"
+```
+
+Check appointment hold expiration failures:
+
+```powershell
+docker compose logs --since 10m appointment-service |
+  Select-String -Pattern "hold_expiration_failed|LazyInitializationException|Hikari|ERROR|WARN"
+```
+
+Check schedule-service Hikari warnings:
+
+```powershell
+docker compose logs --since 10m schedule-service |
+  Select-String -Pattern "HikariPool|connection has been closed|Failed to validate connection"
+```
+
+Database checks:
+
+```powershell
+docker compose exec postgres psql -U mediqueue -d mediqueue -c "select appointment_status, count(*) from appointment.appointments group by appointment_status order by appointment_status;"
+docker compose exec postgres psql -U mediqueue -d mediqueue -c "select slot_id, count(*) from appointment.appointments where appointment_status in ('PENDING_PAYMENT','CONFIRMED') group by slot_id having count(*) > 1;"
+docker compose exec postgres psql -U mediqueue -d mediqueue -c "select publication_status, count(*) from appointment.outbox_events group by publication_status order by publication_status;"
+docker compose exec rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
+```
+
+For load-test stability, appointment-service and schedule-service expose Hikari settings via environment variables:
+
+- `HIKARI_MAX_POOL_SIZE`, default `20`
+- `HIKARI_MIN_IDLE`, default `5`
+- `HIKARI_CONNECTION_TIMEOUT_MS`, default `10000`
+- `HIKARI_VALIDATION_TIMEOUT_MS`, default `3000`
+- `HIKARI_MAX_LIFETIME_MS`, default `600000`
+- `HIKARI_KEEPALIVE_TIME_MS`, default `120000`
+
+Do not raise pool sizes blindly. Verify PostgreSQL `max_connections` and multiply every service pool by its replica count before increasing these values.
 
 ## Cleanup
 

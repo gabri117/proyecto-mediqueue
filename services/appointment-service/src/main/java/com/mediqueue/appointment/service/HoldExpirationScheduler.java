@@ -16,13 +16,14 @@ import com.mediqueue.appointment.repository.IdempotencyKeyRepository;
 import com.mediqueue.appointment.repository.OutboxEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -46,6 +47,7 @@ public class HoldExpirationScheduler {
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final int maxHoldsPerScan;
 
     public HoldExpirationScheduler(AppointmentHoldRepository holdRepository,
                                    AppointmentRepository appointmentRepository,
@@ -53,7 +55,8 @@ public class HoldExpirationScheduler {
                                    OutboxEventRepository outboxEventRepository,
                                    IdempotencyKeyRepository idempotencyKeyRepository,
                                    ObjectMapper objectMapper,
-                                   TransactionTemplate transactionTemplate) {
+                                   TransactionTemplate transactionTemplate,
+                                   @Value("${mediqueue.hold.expiration-max-per-scan:1000}") int maxHoldsPerScan) {
         this.holdRepository = holdRepository;
         this.appointmentRepository = appointmentRepository;
         this.auditRepository = auditRepository;
@@ -61,6 +64,7 @@ public class HoldExpirationScheduler {
         this.idempotencyKeyRepository = idempotencyKeyRepository;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
+        this.maxHoldsPerScan = maxHoldsPerScan;
     }
 
     /**
@@ -71,26 +75,41 @@ public class HoldExpirationScheduler {
      */
     @Scheduled(fixedDelayString = "${mediqueue.hold.expiration-scan-seconds:30}000")
     public void expireHolds() {
-        List<AppointmentHold> expiredHolds = holdRepository
-                .findByHoldStatusAndExpiresAtBefore(HoldStatus.ACTIVE, Instant.now());
-
-        for (AppointmentHold hold : expiredHolds) {
+        for (int i = 0; i < maxHoldsPerScan; i++) {
             try {
-                transactionTemplate.executeWithoutResult(status -> processExpiredHold(hold));
+                Optional<ExpiredHoldResult> result = transactionTemplate.execute(status -> processNextExpiredHold());
+                if (result == null || result.isEmpty()) {
+                    return;
+                }
                 log.info("hold_expired holdId={} appointmentId={}",
-                        hold.getHoldId(), hold.getAppointment().getAppointmentId());
+                        result.get().holdId(), result.get().appointmentId());
             } catch (Exception ex) {
-                log.error("hold_expiration_failed holdId={}", hold.getHoldId(), ex);
+                log.error("hold_expiration_failed", ex);
             }
         }
     }
 
-    private void processExpiredHold(AppointmentHold hold) {
+    private Optional<ExpiredHoldResult> processNextExpiredHold() {
+        Optional<AppointmentHold> holdToExpire = holdRepository.findNextExpiredHoldForUpdateSkipLocked(
+                HoldStatus.ACTIVE.name(), Instant.now());
+        if (holdToExpire.isEmpty()) {
+            return Optional.empty();
+        }
+
+        AppointmentHold hold = holdToExpire.get();
+        if (hold.getHoldStatus() != HoldStatus.ACTIVE || hold.getExpiresAt().isAfter(Instant.now())) {
+            return Optional.empty();
+        }
+
         hold.setHoldStatus(HoldStatus.EXPIRED);
         hold.setReleasedAt(Instant.now());
         holdRepository.save(hold);
 
         Appointment appointment = hold.getAppointment();
+        if (appointment.getAppointmentStatus() != AppointmentStatus.PENDING_PAYMENT) {
+            return Optional.of(new ExpiredHoldResult(hold.getHoldId(), appointment.getAppointmentId()));
+        }
+
         appointment.setAppointmentStatus(AppointmentStatus.EXPIRED);
         appointmentRepository.save(appointment);
 
@@ -128,6 +147,10 @@ public class HoldExpirationScheduler {
         }
 
         outboxEventRepository.save(event);
+        return Optional.of(new ExpiredHoldResult(hold.getHoldId(), appointment.getAppointmentId()));
+    }
+
+    private record ExpiredHoldResult(UUID holdId, UUID appointmentId) {
     }
 
     /**

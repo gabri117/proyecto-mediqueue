@@ -3,9 +3,6 @@ import { check, fail } from 'k6';
 import exec from 'k6/execution';
 import { Counter } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
-import { handleSummary } from '../../lib/summary.js';
-
-export { handleSummary };
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const DATA_FILE = __ENV.DATA_FILE || __ENV.DATASET || '../data/appointments-50000.json';
@@ -181,4 +178,78 @@ function classify(res) {
   } else {
     appointmentsUnexpected.add(1);
   }
+}
+
+export function handleSummary(data) {
+  const flat = buildFlatSummary(data);
+  const text = [
+    'MediQueue appointment-rpm summary',
+    `base_url=${BASE_URL}`,
+    `data_file=${DATA_FILE}`,
+    `rate_per_minute=${RATE_PER_MINUTE}`,
+    `duration=${DURATION}`,
+    `total_limit=${TOTAL_LIMIT === null ? 'none' : TOTAL_LIMIT}`,
+    `data_offset=${DATA_OFFSET}`,
+    `client_mode=${CLIENT_MODE}`,
+    '',
+    `appointment_attempts=${flat.appointment_attempts}`,
+    `appointments_created=${flat.appointments_created}`,
+    `appointments_conflict=${flat.appointments_conflict}`,
+    `appointments_validation_error=${flat.appointments_validation_error}`,
+    `appointments_rate_limited=${flat.appointments_rate_limited}`,
+    `appointments_server_error=${flat.appointments_server_error}`,
+    `appointments_unexpected=${flat.appointments_unexpected}`,
+    `appointments_dataset_exhausted=${flat.appointments_dataset_exhausted}`,
+    `appointments_skipped_after_limit=${flat.appointments_skipped_after_limit}`,
+    `dropped_iterations=${flat.dropped_iterations}`,
+    `checks_rate=${flat.checks_rate}`,
+    `http_reqs=${flat.http_reqs}`,
+    `http_req_failed_rate=${flat.http_req_failed_rate}`,
+    `http_req_duration_p95=${flat.http_req_duration_p95}`,
+    `http_req_duration_p99=${flat.http_req_duration_p99}`,
+    '',
+    'PowerShell tip: en --summary-export los counters viven en metrics.<name>.values.count.',
+  ].join('\n');
+
+  const base = `${resultDir()}/appointment-rpm-${Date.now()}`;
+  return {
+    stdout: `${text}\n`,
+    [`${base}.json`]: JSON.stringify(data, null, 2),
+    [`${base}.flat.json`]: JSON.stringify(flat, null, 2),
+    [`${base}.txt`]: `${text}\n`,
+  };
+}
+
+function buildFlatSummary(data) {
+  return {
+    appointment_attempts: count(data, 'appointment_attempts'),
+    appointments_created: count(data, 'appointments_created'),
+    appointments_conflict: count(data, 'appointments_conflict'),
+    appointments_validation_error: count(data, 'appointments_validation_error'),
+    appointments_rate_limited: count(data, 'appointments_rate_limited'),
+    appointments_server_error: count(data, 'appointments_server_error'),
+    appointments_unexpected: count(data, 'appointments_unexpected'),
+    appointments_dataset_exhausted: count(data, 'appointments_dataset_exhausted'),
+    appointments_skipped_after_limit: count(data, 'appointments_skipped_after_limit'),
+    dropped_iterations: count(data, 'dropped_iterations'),
+    checks_rate: value(data, 'checks', 'rate'),
+    http_reqs: count(data, 'http_reqs'),
+    http_req_failed_rate: value(data, 'http_req_failed', 'rate'),
+    http_req_duration_p95: value(data, 'http_req_duration', 'p(95)'),
+    http_req_duration_p99: value(data, 'http_req_duration', 'p(99)'),
+  };
+}
+
+function count(data, name) {
+  return value(data, name, 'count') || 0;
+}
+
+function value(data, name, key) {
+  const metric = (data.metrics || {})[name] || {};
+  const values = metric.values || {};
+  return typeof values[key] === 'number' ? values[key] : 0;
+}
+
+function resultDir() {
+  return __ENV.RESULTS_DIR || 'infra/load-tests/appointments/results';
 }
