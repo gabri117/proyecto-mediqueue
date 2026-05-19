@@ -40,27 +40,33 @@ scrape_configs:
 
   - job_name: patient-service
     metrics_path: /actuator/prometheus
-    static_configs:
-      - targets:
-          - patient-service:8080
+    dns_sd_configs:
+      - names:
+          - patient-service
+        type: A
+        port: 8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
 
   - job_name: schedule-service
     metrics_path: /actuator/prometheus
-    static_configs:
-      - targets:
-          - schedule-service:8080
+    dns_sd_configs:
+      - names:
+          - schedule-service
+        type: A
+        port: 8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
 
   - job_name: appointment-service
     metrics_path: /actuator/prometheus
-    static_configs:
-      - targets:
-          - appointment-service:8080
+    dns_sd_configs:
+      - names:
+          - appointment-service
+        type: A
+        port: 8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -87,9 +93,11 @@ scrape_configs:
 
   - job_name: notification-service
     metrics_path: /actuator/prometheus
-    static_configs:
-      - targets:
-          - notification-service:8080
+    dns_sd_configs:
+      - names:
+          - notification-service
+        type: A
+        port: 8080
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance

@@ -233,6 +233,150 @@ $env:CLIENT_MODE="per-iteration"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
 ```
 
+## Scaled Local Profile For 10k-25k/min
+
+The clean 5,000/min result proves the dataset and appointment contract are valid. Failures at 10,000/min and 25,000/min with only `503` and no validation/conflict errors indicate saturation in the gateway/upstream path.
+
+The load-test Docker profile now routes hot paths through internal HAProxy services:
+
+- `api-gateway -> appointment-lb -> appointment-service replicas`
+- `appointment-service -> schedule-lb -> schedule-service replicas`
+- `appointment-service -> patient-lb -> patient-service replicas`
+
+Start the scaled profile:
+
+```powershell
+docker compose up -d --build `
+  --scale api-gateway=2 `
+  --scale appointment-service=4 `
+  --scale schedule-service=3 `
+  --scale patient-service=2 `
+  --scale payment-service=3 `
+  --scale notification-service=2
+```
+
+Gateway appointment route target:
+
+```text
+APPOINTMENT_SERVICE_URL=http://appointment-lb:8080
+```
+
+Appointment-service validation targets:
+
+```text
+PATIENT_SERVICE_URL=http://patient-lb:8080
+SCHEDULE_SERVICE_URL=http://schedule-lb:8080
+```
+
+Rate limit notes:
+
+- `10,000/min` is about `166.67 req/s`.
+- `50,000/min` is about `833.33 req/s`.
+- Default load-test appointment limit is `RATE_LIMIT_APPOINTMENT_REPLENISH=300` and `RATE_LIMIT_APPOINTMENT_BURST=600`.
+- Keep `CLIENT_MODE=per-vu` for backend capacity tests. `per-iteration` bypasses client-level rate shaping too aggressively.
+
+Gateway circuit breaker remains enabled. Load-test defaults are less aggressive:
+
+- `GATEWAY_CB_SLIDING_WINDOW_SIZE=500`
+- `GATEWAY_CB_MINIMUM_CALLS=100`
+- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=90`
+- `GATEWAY_CB_HALF_OPEN_CALLS=25`
+- `GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15`
+
+### Hikari And PostgreSQL Connection Budget
+
+Current local PostgreSQL `max_connections` is `100`.
+
+Recommended scaled E2E budget:
+
+```text
+appointment-service: 4 replicas * 8  = 32
+schedule-service:    3 replicas * 6  = 18
+patient-service:     2 replicas * 4  = 8
+payment-service:     3 replicas * 4  = 12
+notification-service:2 replicas * 10 = 20
+-----------------------------------------
+estimated maximum pool total          = 90
+```
+
+That leaves a small margin for admin sessions and migrations. Do not raise Hikari pools without increasing PostgreSQL capacity or reducing replicas.
+
+### Matrix 5k-25k/min
+
+Use fresh dataset ranges. If a previous run consumed a range, move `DATA_OFFSET`.
+
+5,000/min:
+
+```powershell
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="5000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="5000"
+$env:DATA_OFFSET="0"
+$env:PRE_ALLOCATED_VUS="300"
+$env:MAX_VUS="800"
+$env:CLIENT_MODE="per-vu"
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-5000-summary.json
+```
+
+10,000/min:
+
+```powershell
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="10000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="10000"
+$env:DATA_OFFSET="5000"
+$env:PRE_ALLOCATED_VUS="500"
+$env:MAX_VUS="1200"
+$env:CLIENT_MODE="per-vu"
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
+```
+
+15,000/min:
+
+```powershell
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="15000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="15000"
+$env:DATA_OFFSET="15000"
+$env:PRE_ALLOCATED_VUS="800"
+$env:MAX_VUS="1800"
+$env:CLIENT_MODE="per-vu"
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-15000-summary.json
+```
+
+20,000/min:
+
+```powershell
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="20000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="20000"
+$env:DATA_OFFSET="0"
+$env:PRE_ALLOCATED_VUS="1000"
+$env:MAX_VUS="2200"
+$env:CLIENT_MODE="per-vu"
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-20000-summary.json
+```
+
+25,000/min:
+
+```powershell
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="25000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="25000"
+$env:DATA_OFFSET="25000"
+$env:PRE_ALLOCATED_VUS="1200"
+$env:MAX_VUS="2600"
+$env:CLIENT_MODE="per-vu"
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-25000-summary.json
+```
+
+Before each run, inspect and validate the intended range. Do not run 50,000/min until 10k, 15k, 20k, and 25k pass cleanly.
+
 ## Step 6 - Run 50,000/min
 
 ```powershell

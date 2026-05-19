@@ -186,6 +186,91 @@ $env:CLIENT_MODE="per-iteration"
 k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js --summary-export .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
 ```
 
+## Scaled Local Infrastructure
+
+Observed results:
+
+- `5,000/min`: clean.
+- `10,000/min`: failed with `503`, no validation errors, no conflicts, no dropped iterations.
+- `25,000/min`: failed with `503`, no validation errors, no conflicts, no dropped iterations.
+
+This points to saturation in gateway/upstream capacity, not dataset quality.
+
+Scaled local topology:
+
+- `api-gateway-lb` balances `api-gateway` replicas.
+- `appointment-lb` balances `appointment-service` replicas.
+- `schedule-lb` balances `schedule-service` replicas because appointment creation validates slots.
+- `patient-lb` balances `patient-service` replicas because appointment creation validates patients.
+- `payment-lb` already balances payment-service for async payment work.
+
+Start scaled profile:
+
+```powershell
+docker compose up -d --build `
+  --scale api-gateway=2 `
+  --scale appointment-service=4 `
+  --scale schedule-service=3 `
+  --scale patient-service=2 `
+  --scale payment-service=3 `
+  --scale notification-service=2
+```
+
+PostgreSQL connection budget with `max_connections=100`:
+
+```text
+appointment-service: 4 * 8  = 32
+schedule-service:    3 * 6  = 18
+patient-service:     2 * 4  = 8
+payment-service:     3 * 4  = 12
+notification-service:2 * 10 = 20
+total max pools              = 90
+```
+
+This is intentionally conservative. Raising pool sizes without raising PostgreSQL capacity can move the bottleneck into the database.
+
+Gateway appointment rate limit for load testing defaults to:
+
+```text
+RATE_LIMIT_APPOINTMENT_REPLENISH=300
+RATE_LIMIT_APPOINTMENT_BURST=600
+```
+
+That supports `10,000/min` with `CLIENT_MODE=per-vu`. Do not use `per-iteration` for backend capacity readings unless the goal is to bypass client-level shaping.
+
+Circuit breaker remains enabled with load-test defaults:
+
+```text
+GATEWAY_CB_SLIDING_WINDOW_SIZE=500
+GATEWAY_CB_MINIMUM_CALLS=100
+GATEWAY_CB_FAILURE_RATE_THRESHOLD=90
+GATEWAY_CB_HALF_OPEN_CALLS=25
+GATEWAY_TIMELIMITER_TIMEOUT_SECONDS=15
+```
+
+Prometheus uses Docker DNS service discovery for replicated Spring services so multiple A records can be scraped.
+
+Run order after scaling:
+
+1. `5,000/min` baseline.
+2. `10,000/min` first target.
+3. `15,000/min` only if 10k is clean.
+4. `20,000/min` only if 15k is clean.
+5. `25,000/min` only if 20k is clean.
+6. Do not run 50k automatically.
+
+Success criteria at each step:
+
+- `appointments_server_error=0`
+- `appointments_503=0`
+- `appointments_validation_error=0`
+- `appointments_conflict=0`
+- `appointments_dataset_exhausted=0`
+- `dropped_iterations=0`
+- gateway fallback logs `0`
+- no Hikari pending/timeout spike
+- no double reservation rows
+
 50,000/min:
 
 ```powershell
