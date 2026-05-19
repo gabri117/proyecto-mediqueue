@@ -66,6 +66,7 @@ This creates:
 - `load-data-manifest-<RunStamp>.json`
 
 Patients and dentists can be reused. Slots cannot be reused. The preparation script distributes unique 30-minute slots across dentists from `2026-08-01` onward.
+If a requested dataset cannot be generated because the run did not create enough slots, the preparation script removes any stale dataset file with that name so old IDs are not reused accidentally.
 
 ## Generate Datasets From Existing IDs
 
@@ -209,6 +210,32 @@ Interpretation:
 - `appointments_skipped_after_limit`: planned skip after `TOTAL_LIMIT`; useful for harmless extra iterations from `constant-arrival-rate`.
 - `appointments_dataset_exhausted`: real error. The script expected to send a request, but `DATA_OFFSET + iterationInTest` exceeded dataset length.
 
+Before running k6 against a dataset range, validate that the backend can still see those IDs and that the slots are available:
+
+```powershell
+.\infra\load-tests\appointments\tools\validate-appointment-dataset.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -StartIndex 5000 `
+  -Limit 20
+```
+
+To debug one appointment payload and see the real backend response body:
+
+```powershell
+.\infra\load-tests\appointments\tools\debug-single-appointment.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -Index 5000
+```
+
+For k6 response diagnostics, enable the first error responses:
+
+```powershell
+$env:DEBUG_RESPONSES="true"
+$env:DEBUG_RESPONSE_LIMIT="10"
+```
+
 Evidence to deliver:
 
 - Dataset file used.
@@ -268,10 +295,29 @@ For load-test stability, appointment-service and schedule-service expose Hikari 
 - `HIKARI_MIN_IDLE`, default `5`
 - `HIKARI_CONNECTION_TIMEOUT_MS`, default `10000`
 - `HIKARI_VALIDATION_TIMEOUT_MS`, default `3000`
-- `HIKARI_MAX_LIFETIME_MS`, default `600000`
-- `HIKARI_KEEPALIVE_TIME_MS`, default `120000`
+- `HIKARI_MAX_LIFETIME_MS`, default `180000`
+- `HIKARI_KEEPALIVE_TIME_MS`, default `30000`
+- `HIKARI_IDLE_TIMEOUT_MS`, default `60000`
 
 Do not raise pool sizes blindly. Verify PostgreSQL `max_connections` and multiply every service pool by its replica count before increasing these values.
+
+Collect evidence after a failed appointment load run:
+
+```powershell
+.\infra\load-tests\appointments\tools\collect-appointment-load-evidence.ps1 `
+  -Since 30m `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-1000-offset-2000-summary.json
+```
+
+For load-test stability, the gateway circuit breaker uses a larger sample than the default tiny window:
+
+- `GATEWAY_CB_SLIDING_WINDOW_SIZE=100`
+- `GATEWAY_CB_MINIMUM_CALLS=50`
+- `GATEWAY_CB_FAILURE_RATE_THRESHOLD=80`
+- `GATEWAY_CB_WAIT_OPEN_SECONDS=5`
+- `GATEWAY_CB_HALF_OPEN_CALLS=10`
+
+This keeps genuine upstream failures visible as `503`, but avoids opening the route after only a few transient failures during a controlled load test.
 
 ## Cleanup
 

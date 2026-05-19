@@ -16,6 +16,8 @@ const TOTAL_LIMIT = __ENV.TOTAL_LIMIT === undefined || __ENV.TOTAL_LIMIT === ''
 const DATA_OFFSET = Number(__ENV.DATA_OFFSET || 0);
 const RUN_ID = __ENV.RUN_ID || String(Date.now());
 const CLIENT_MODE = (__ENV.CLIENT_MODE || 'per-vu').toLowerCase();
+const DEBUG_RESPONSES = String(__ENV.DEBUG_RESPONSES || 'false').toLowerCase() === 'true';
+const DEBUG_RESPONSE_LIMIT = Number(__ENV.DEBUG_RESPONSE_LIMIT || 10);
 
 const appointmentAttempts = new Counter('appointment_attempts');
 const appointmentsCreated = new Counter('appointments_created');
@@ -23,9 +25,11 @@ const appointmentsConflict = new Counter('appointments_conflict');
 const appointmentsValidationError = new Counter('appointments_validation_error');
 const appointmentsRateLimited = new Counter('appointments_rate_limited');
 const appointmentsServerError = new Counter('appointments_server_error');
+const appointments503 = new Counter('appointments_503');
 const appointmentsUnexpected = new Counter('appointments_unexpected');
 const appointmentsDatasetExhausted = new Counter('appointments_dataset_exhausted');
 const appointmentsSkippedAfterLimit = new Counter('appointments_skipped_after_limit');
+let debugResponsesPrinted = 0;
 
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 599 }));
 
@@ -92,12 +96,13 @@ export default function () {
   }
 
   const body = normalizeAppointment(appointments[datasetIndex]);
+  const idempotencyKey = `appointment-rpm-${RUN_ID}-${index}`;
   const res = http.post(`${BASE_URL}/api/appointments`, JSON.stringify(body), {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       'X-Client-Id': clientId(index),
-      'X-Idempotency-Key': `appointment-rpm-${RUN_ID}-${index}`,
+      'X-Idempotency-Key': idempotencyKey,
     },
     tags: {
       block: '2',
@@ -108,6 +113,7 @@ export default function () {
   });
 
   classify(res);
+  debugErrorResponse(res, body, datasetIndex, idempotencyKey, index);
 
   check(res, {
     'tiene respuesta HTTP valida': (r) => typeof r.status === 'number' && r.status > 0,
@@ -175,9 +181,39 @@ function classify(res) {
     appointmentsRateLimited.add(1);
   } else if (res.status >= 500 && res.status <= 599) {
     appointmentsServerError.add(1);
+    if (res.status === 503) {
+      appointments503.add(1);
+    }
   } else {
     appointmentsUnexpected.add(1);
   }
+}
+
+function debugErrorResponse(res, body, datasetIndex, idempotencyKey, index) {
+  if (!DEBUG_RESPONSES || debugResponsesPrinted >= DEBUG_RESPONSE_LIMIT || [200, 201, 202].includes(res.status)) {
+    return;
+  }
+  debugResponsesPrinted += 1;
+
+  console.error(JSON.stringify({
+    debug: 'appointment-rpm-error-response',
+    status: res.status,
+    body: truncate(String(res.body || ''), 2000),
+    correlationId: headerValue(res, 'X-Correlation-Id'),
+    datasetIndex,
+    patientId: body.patientId,
+    dentistId: body.dentistId,
+    slotId: body.slotId,
+    idempotencyKey,
+  }));
+}
+
+function headerValue(res, name) {
+  return res.headers[name] || res.headers[name.toLowerCase()] || res.headers[name.toUpperCase()] || '';
+}
+
+function truncate(value, maxLength) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 }
 
 export function handleSummary(data) {
@@ -191,6 +227,7 @@ export function handleSummary(data) {
     `total_limit=${TOTAL_LIMIT === null ? 'none' : TOTAL_LIMIT}`,
     `data_offset=${DATA_OFFSET}`,
     `client_mode=${CLIENT_MODE}`,
+    `debug_responses=${DEBUG_RESPONSES}`,
     '',
     `appointment_attempts=${flat.appointment_attempts}`,
     `appointments_created=${flat.appointments_created}`,
@@ -198,6 +235,7 @@ export function handleSummary(data) {
     `appointments_validation_error=${flat.appointments_validation_error}`,
     `appointments_rate_limited=${flat.appointments_rate_limited}`,
     `appointments_server_error=${flat.appointments_server_error}`,
+    `appointments_503=${flat.appointments_503}`,
     `appointments_unexpected=${flat.appointments_unexpected}`,
     `appointments_dataset_exhausted=${flat.appointments_dataset_exhausted}`,
     `appointments_skipped_after_limit=${flat.appointments_skipped_after_limit}`,
@@ -228,6 +266,7 @@ function buildFlatSummary(data) {
     appointments_validation_error: count(data, 'appointments_validation_error'),
     appointments_rate_limited: count(data, 'appointments_rate_limited'),
     appointments_server_error: count(data, 'appointments_server_error'),
+    appointments_503: count(data, 'appointments_503'),
     appointments_unexpected: count(data, 'appointments_unexpected'),
     appointments_dataset_exhausted: count(data, 'appointments_dataset_exhausted'),
     appointments_skipped_after_limit: count(data, 'appointments_skipped_after_limit'),

@@ -10,7 +10,8 @@ param(
     [string[]]$PatientIds = @(),
     [string]$PatientIdsFile,
     [string]$AvailableSlotsFile,
-    [string]$ClientId = "dataset-generator-block2"
+    [string]$ClientId = "dataset-generator-block2",
+    [string]$RunStamp
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,6 +24,9 @@ if ($Totals.Count -eq 0) {
 }
 if ($Amount -le 0) {
     throw "amount debe existir y ser mayor que cero."
+}
+if (-not $RunStamp -or $RunStamp.Trim().Length -eq 0) {
+    $RunStamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds().ToString()
 }
 
 function New-Headers {
@@ -168,6 +172,7 @@ function New-AppointmentDataset {
         $appointmentDate = if ($null -ne $slot.appointmentDate) { [string]$slot.appointmentDate } else { [string]$slot.slotDate }
 
         $appointments.Add([ordered]@{
+            runStamp = $RunStamp
             patientId = $patientId
             dentistId = $dentistId
             slotId = $slotId
@@ -184,6 +189,7 @@ function New-AppointmentDataset {
             name = if ($DatasetTotal -eq 10) { "appointments.sample" } else { "appointments-$DatasetTotal" }
             generatedAt = (Get-Date).ToUniversalTime().ToString("o")
             baseUrl = $BaseUrl
+            runStamp = $RunStamp
             total = $DatasetTotal
             amount = [decimal]$Amount
             source = if ($AvailableSlotsFile) { $AvailableSlotsFile } else { "GET /api/slots/available" }

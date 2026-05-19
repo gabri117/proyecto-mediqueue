@@ -129,6 +129,7 @@ function New-Dataset {
 
         $patient = $Patients[$i % $Patients.Count]
         $appointments.Add([ordered]@{
+            runStamp = $RunStamp
             patientId = [string]$patient.patientId
             dentistId = [string]$slot.dentistId
             slotId = $slotId
@@ -244,6 +245,9 @@ $manifest = [ordered]@{
 }
 
 Export-Json -Value $manifest -Path (Join-Path $OutputDir "load-data-manifest-$RunStamp.json")
+Export-Json -Value $manifest -Path (Join-Path $OutputDir "load-data-manifest.latest.json")
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText((Join-Path $OutputDir "latest-runstamp.txt"), $RunStamp, $utf8NoBom)
 Export-Json -Value ([ordered]@{ runStamp = $RunStamp; patientIds = @($patients | ForEach-Object { $_.patientId }); patients = $patients }) -Path (Join-Path $OutputDir "patient-ids.json")
 Export-Json -Value ([ordered]@{ runStamp = $RunStamp; dentistIds = @($dentists | ForEach-Object { $_.dentistId }); dentists = $dentists }) -Path (Join-Path $OutputDir "dentist-ids.json")
 Export-Json -Value ([ordered]@{ runStamp = $RunStamp; total = $slots.Count; slots = $slots }) -Path (Join-Path $OutputDir "available-slots.json")
@@ -256,13 +260,18 @@ $datasetTargets = @(
 )
 
 foreach ($target in $datasetTargets) {
+    $targetPath = Join-Path $OutputDir ([string]$target.File)
     if ($TotalSlots -lt [int]$target.Total) {
         Write-Warning "Skipping $($target.File): requires $($target.Total) slots, only $TotalSlots were created."
+        if (Test-Path -Path $targetPath) {
+            Remove-Item -LiteralPath $targetPath -Force
+            Write-Warning "Removed stale dataset $($target.File) so it cannot be reused accidentally."
+        }
         continue
     }
 
     $dataset = New-Dataset -Patients $patients -Slots $slots -Total ([int]$target.Total) -Name ([string]$target.Name)
-    Export-Json -Value $dataset -Path (Join-Path $OutputDir ([string]$target.File))
+    Export-Json -Value $dataset -Path $targetPath
     Write-Host "Wrote $($target.File)"
 }
 

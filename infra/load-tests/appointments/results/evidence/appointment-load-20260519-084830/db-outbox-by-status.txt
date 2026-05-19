@@ -1,0 +1,5 @@
+ publication_status | count 
+--------------------+-------
+ PUBLISHED          |  2712
+(1 row)
+

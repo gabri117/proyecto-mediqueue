@@ -132,6 +132,17 @@ management:
     tags:
       application: ${spring.application.name}
 
+mediqueue:
+  gateway:
+    circuitbreaker:
+      sliding-window-size: ${GATEWAY_CB_SLIDING_WINDOW_SIZE:100}
+      minimum-number-of-calls: ${GATEWAY_CB_MINIMUM_CALLS:50}
+      failure-rate-threshold: ${GATEWAY_CB_FAILURE_RATE_THRESHOLD:80}
+      wait-duration-open-seconds: ${GATEWAY_CB_WAIT_OPEN_SECONDS:5}
+      half-open-calls: ${GATEWAY_CB_HALF_OPEN_CALLS:10}
+    timelimiter:
+      timeout-seconds: ${GATEWAY_TIMELIMITER_TIMEOUT_SECONDS:10}
+
 logging:
   level:
     org.springframework.cloud.gateway: INFO
