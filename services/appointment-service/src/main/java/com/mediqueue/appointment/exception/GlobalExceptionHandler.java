@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -67,6 +68,12 @@ public class GlobalExceptionHandler {
         log.warn("Violación de integridad de datos: {}", ex.getMostSpecificCause().getMessage());
         return buildResponse(HttpStatus.CONFLICT, "DATA_INTEGRITY_VIOLATION",
                 "Operación rechazada: recurso duplicado o restricción violada");
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleClientAbort(AsyncRequestNotUsableException ex) {
+        log.debug("client_aborted_response: {}", ex.getMessage());
+        return ResponseEntity.status(499).build();
     }
 
     @ExceptionHandler(Exception.class)
