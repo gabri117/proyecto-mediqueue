@@ -1,0 +1,461 @@
+{
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    { "type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "11.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries",    "name": "Time series",    "version": "" },
+    { "type": "panel", "id": "stat",          "name": "Stat",           "version": "" },
+    { "type": "panel", "id": "gauge",         "name": "Gauge",          "version": "" },
+    { "type": "panel", "id": "state-timeline","name": "State timeline", "version": "" },
+    { "type": "panel", "id": "piechart",      "name": "Pie chart",      "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Tolerancia a fallos del sistema: circuit breakers, control de tasa de solicitudes, reintentos automáticos y salud de la infraestructura de mensajería y caché",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 400,
+      "title": "Circuit Breaker — ¿Está el sistema protegido contra cascada de fallos?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Línea de tiempo del estado del circuit breaker que protege las llamadas al Servicio de Pacientes. CERRADO (verde) = funcionando normalmente. MEDIO ABIERTO (amarillo) = recuperándose, probando si el servicio volvió. ABIERTO (rojo) = el servicio falló demasiadas veces, las llamadas se rechazan automáticamente para evitar sobrecarga.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 80, "lineWidth": 0, "spanNulls": false },
+          "mappings": [
+            { "type": "value", "options": {
+                "0": { "text": "CERRADO — Normal",            "color": "green",  "index": 0 },
+                "1": { "text": "MEDIO ABIERTO — Recuperando", "color": "yellow", "index": 1 },
+                "2": { "text": "ABIERTO — Fallo activo",      "color": "red",    "index": 2 }
+            }}
+          ],
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 2 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 1 },
+      "id": 401,
+      "options": {
+        "mergeValues": false,
+        "showValue": "auto",
+        "alignValue": "center",
+        "rowHeight": 0.9,
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [{
+        "expr": "max by(name) (resilience4j_circuitbreaker_state{job=\"appointment-service\",name=\"patient-service\",state=\"closed\"} * 0 or resilience4j_circuitbreaker_state{job=\"appointment-service\",name=\"patient-service\",state=\"half_open\"} * 1 or resilience4j_circuitbreaker_state{job=\"appointment-service\",name=\"patient-service\",state=\"open\"} * 2)",
+        "legendFormat": "Protección → Servicio de Pacientes",
+        "refId": "A"
+      }],
+      "title": "Circuit Breaker — Protección al Servicio de Pacientes",
+      "type": "state-timeline"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Línea de tiempo del estado del circuit breaker que protege las llamadas al Servicio de Horarios. Cuando el circuit breaker se ABRE, el sistema de citas deja de llamar al servicio de horarios y responde con un fallback para no colapsar.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 80, "lineWidth": 0, "spanNulls": false },
+          "mappings": [
+            { "type": "value", "options": {
+                "0": { "text": "CERRADO — Normal",            "color": "green",  "index": 0 },
+                "1": { "text": "MEDIO ABIERTO — Recuperando", "color": "yellow", "index": 1 },
+                "2": { "text": "ABIERTO — Fallo activo",      "color": "red",    "index": 2 }
+            }}
+          ],
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 2 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 1 },
+      "id": 402,
+      "options": {
+        "mergeValues": false,
+        "showValue": "auto",
+        "alignValue": "center",
+        "rowHeight": 0.9,
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [{
+        "expr": "max by(name) (resilience4j_circuitbreaker_state{job=\"appointment-service\",name=\"schedule-service\",state=\"closed\"} * 0 or resilience4j_circuitbreaker_state{job=\"appointment-service\",name=\"schedule-service\",state=\"half_open\"} * 1 or resilience4j_circuitbreaker_state{job=\"appointment-service\",name=\"schedule-service\",state=\"open\"} * 2)",
+        "legendFormat": "Protección → Servicio de Horarios",
+        "refId": "A"
+      }],
+      "title": "Circuit Breaker — Protección al Servicio de Horarios",
+      "type": "state-timeline"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Desglose de todas las llamadas que pasan por el circuit breaker. Verde (OK) = llamadas exitosas. Rojo (Fallidas) = llamadas que fallaron y contaron para abrir el breaker. Naranja (Rechazadas) = llamadas bloqueadas porque el breaker ya está abierto.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*Exitosa.*" },  "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Fallida.*" },  "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Rechazada.*" },"properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 16, "x": 0, "y": 6 },
+      "id": 403,
+      "options": { "legend": { "calcs": ["mean", "sum"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(resilience4j_circuitbreaker_calls_seconds_count{job=\"appointment-service\",kind=\"successful\"}[1m])",    "legendFormat": "{{name}} — Exitosa", "refId": "A" },
+        { "expr": "rate(resilience4j_circuitbreaker_calls_seconds_count{job=\"appointment-service\",kind=\"failed\"}[1m])",       "legendFormat": "{{name}} — Fallida", "refId": "B" },
+        { "expr": "rate(resilience4j_circuitbreaker_calls_seconds_count{job=\"appointment-service\",kind=\"not_permitted\"}[1m])","legendFormat": "{{name}} — Rechazada (breaker abierto)", "refId": "C" }
+      ],
+      "title": "Llamadas al Circuit Breaker — Exitosas, Fallidas y Rechazadas por el Breaker",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Número de circuit breakers en estado ABIERTO en este momento. Cero es lo normal. Si es mayor que 0, hay al menos un servicio con demasiados fallos consecutivos y el sistema está en modo de protección.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 2 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 6 },
+      "id": 404,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "sum(resilience4j_circuitbreaker_state{job=\"appointment-service\",state=\"open\"})", "legendFormat": "abiertos ahora", "refId": "A" }],
+      "title": "Circuit Breakers Abiertos — Si > 0 hay un servicio en fallo activo",
+      "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 410,
+      "title": "Rate Limiting — ¿Está el API Gateway protegiendo el sistema de sobrecarga?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Solicitudes rechazadas por el rate limiter por segundo. El API Gateway usa Redis para rastrear la velocidad de cada cliente. Cuando supera el umbral configurado, devuelve HTTP 429. Valores altos indican mucho tráfico agresivo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "reqps",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 30 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 14 },
+      "id": 411,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{status=\"429\"}[1m]))", "legendFormat": "rechazadas/s", "refId": "A" }],
+      "title": "Solicitudes Rechazadas por Rate Limit (429/s) — Protección contra abuso de API",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Estado del servidor Redis que almacena los contadores del rate limiter. Si Redis cae, el API Gateway usa un modo de 'fail open' (permite todo el tráfico) para no bloquear el servicio. Verde = protección activa. Rojo = sin rate limiting.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value",   "options": { "1": { "text": "ACTIVO — Rate limit operativo", "color": "green", "index": 0 }, "0": { "text": "CAÍDO — Sin rate limiting", "color": "red", "index": 1 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "CAÍDO — Sin rate limiting", "color": "red", "index": 2 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 14 },
+      "id": 412,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "redis_up{job=\"redis-exporter\"}", "legendFormat": "Redis", "refId": "A" }],
+      "title": "Redis — Estado del Backend del Rate Limiter",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Número de conexiones abiertas a Redis en este momento. Incluye las conexiones del rate limiter del API Gateway y otras partes del sistema. Un número alto sostenido puede indicar que no se están cerrando conexiones correctamente.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 200 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 14 },
+      "id": 413,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "redis_connected_clients{job=\"redis-exporter\"}", "legendFormat": "clientes", "refId": "A" }],
+      "title": "Clientes Conectados a Redis — Conexiones activas al servidor de caché",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Total de solicitudes bloqueadas por el rate limiter en los últimos 5 minutos. Útil durante pruebas de carga para verificar que el rate limiter está activándose correctamente.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 100 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 14 },
+      "id": 414,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "increase(http_server_requests_seconds_count{status=\"429\"}[5m])", "legendFormat": "bloqueadas total", "refId": "A" }],
+      "title": "Total Bloqueos en 5 min — Solicitudes rechazadas acumuladas por rate limit",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Historial combinado de los dos tipos de rechazo del sistema. Naranja = solicitudes rechazadas por exceder el rate limit (comportamiento esperado bajo alta carga). Rojo = errores reales del servidor. Si ambas líneas suben juntas indica un incidente real.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*Rate limit.*" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*Error.*" },      "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 18 },
+      "id": 415,
+      "options": { "legend": { "calcs": ["max", "sum"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(http_server_requests_seconds_count{status=\"429\"}[1m]) > 0",  "legendFormat": "Rate limit activado — {{job}}", "refId": "A" },
+        { "expr": "rate(http_server_requests_seconds_count{status=~\"5..\"}[1m]) > 0", "legendFormat": "Error del servidor — {{job}}", "refId": "B" }
+      ],
+      "title": "Historial de Rate Limit y Errores — Comparación de bloqueos vs fallos reales",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "id": 420,
+      "title": "Reintentos Automáticos — ¿El sistema se recupera solo de fallos transitorios?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Actividad del mecanismo de reintento configurado en el Servicio de Notificaciones. Verde (con reintento exitoso) = el sistema falló pero se recuperó solo. Rojo (con reintento fallido) = el sistema reintentó pero no pudo recuperarse. Azul (sin reintento) = funcionó en el primer intento.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*exitoso.*" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*fallido.*" }, "properties": [{ "id": "color", "value": { "fixedColor": "red",   "mode": "fixed" } }] },
+          { "matcher": { "id": "byRegexp", "options": ".*directo.*" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue",  "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 26 },
+      "id": 421,
+      "options": { "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(resilience4j_retry_calls_total{job=\"notification-service\",kind=\"successful_with_retry\"}[1m])",    "legendFormat": "{{name}} — Reintento exitoso", "refId": "A" },
+        { "expr": "rate(resilience4j_retry_calls_total{job=\"notification-service\",kind=\"failed_with_retry\"}[1m])",       "legendFormat": "{{name}} — Reintento fallido",  "refId": "B" },
+        { "expr": "rate(resilience4j_retry_calls_total{job=\"notification-service\",kind=\"successful_without_retry\"}[1m])","legendFormat": "{{name}} — Éxito directo",      "refId": "C" }
+      ],
+      "title": "Reintentos del Servicio de Notificaciones — Recuperación automática de fallos",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Errores internos del servidor (HTTP 5xx) clasificados por servicio. Cada servicio tiene su propia línea. Un pico en un servicio específico indica que ese servicio tiene un problema. Si varios suben al mismo tiempo puede ser un problema de infraestructura compartida (DB, Redis).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 26 },
+      "id": 422,
+      "options": { "legend": { "calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [{ "expr": "rate(http_server_requests_seconds_count{status=~\"5..\",job=~\".*-service|api-gateway\"}[1m])", "legendFormat": "{{job}} — {{status}}", "refId": "A" }],
+      "title": "Errores Internos por Servicio (5xx) — ¿Qué servicio está fallando?",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "id": 430,
+      "title": "Infraestructura de Mensajería y Caché — ¿Están RabbitMQ y Redis saludables?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Mensajes en RabbitMQ listos para ser procesados por algún consumidor. Un valor bajo es normal. Si sube y no baja, el consumidor (servicio de notificaciones) no está procesando los mensajes, posiblemente porque está caído o lento.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "min": 0, "max": 200,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 100 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 34 },
+      "id": 431,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": true, "showThresholdMarkers": true },
+      "targets": [{ "expr": "sum(rabbitmq_queue_messages_ready{vhost=\"/\"})", "legendFormat": "listos", "refId": "A" }],
+      "title": "Mensajes Listos en RabbitMQ — Eventos esperando ser consumidos",
+      "type": "gauge"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Mensajes entregados a un consumidor pero cuyo procesamiento no ha sido confirmado aún. Si este número crece, el consumidor está tomando demasiado tiempo procesando o tiene un problema. En condiciones normales debe ser bajo y estable.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 20 }, { "color": "red", "value": 50 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 34 },
+      "id": 432,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": true, "showThresholdMarkers": true },
+      "targets": [{ "expr": "sum(rabbitmq_queue_messages_unacked{vhost=\"/\"})", "legendFormat": "sin confirmar", "refId": "A" }],
+      "title": "Mensajes Sin Confirmar en RabbitMQ — Procesamiento incompleto del consumidor",
+      "type": "gauge"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Evolución en el tiempo del nivel de las colas de RabbitMQ. Una cola que sube sin bajar indica que los eventos se están acumulando y el sistema de notificaciones no da abasto. Las líneas deben oscilar y volver a cero regularmente.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 34 },
+      "id": 433,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rabbitmq_queue_messages_ready{vhost=\"/\"}",   "legendFormat": "{{queue}} — listos",          "refId": "A" },
+        { "expr": "rabbitmq_queue_messages_unacked{vhost=\"/\"}", "legendFormat": "{{queue}} — sin confirmar",  "refId": "B" }
+      ],
+      "title": "Profundidad de Colas en el Tiempo — Tendencia de acumulación de mensajes",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Bytes de memoria RAM utilizados por Redis. Redis almacena en memoria todos los contadores del rate limiter y otros datos de caché. Si se acerca al límite configurado, los datos más antiguos serán eliminados automáticamente.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 40 },
+      "id": 434,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" } },
+      "targets": [{ "expr": "redis_memory_used_bytes{job=\"redis-exporter\"}", "legendFormat": "memoria usada", "refId": "A" }],
+      "title": "Uso de Memoria Redis — RAM consumida por el servidor de caché y rate limiter",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Operaciones por segundo en Redis. Verde (Aciertos) = dato encontrado en caché. Rojo (Fallos) = dato no estaba en caché y hay que buscarlo en la base de datos. Una alta proporción de aciertos (>80%) indica que el caché está funcionando eficientemente.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "ops"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Aciertos de caché/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Fallos de caché/s" },   "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Comandos totales/s" },  "properties": [{ "id": "color", "value": { "fixedColor": "blue",   "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 40 },
+      "id": 435,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(redis_commands_processed_total{job=\"redis-exporter\"}[1m])", "legendFormat": "Comandos totales/s",  "refId": "A" },
+        { "expr": "rate(redis_keyspace_hits_total{job=\"redis-exporter\"}[1m])",      "legendFormat": "Aciertos de caché/s", "refId": "B" },
+        { "expr": "rate(redis_keyspace_misses_total{job=\"redis-exporter\"}[1m])",    "legendFormat": "Fallos de caché/s",   "refId": "C" }
+      ],
+      "title": "Rendimiento de Redis — Aciertos vs Fallos de Caché (eficiencia del caché)",
+      "type": "timeseries"
+    }
+
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["mediqueue", "resiliencia", "circuit-breaker"],
+  "templating": {
+    "list": [
+      { "current": {}, "hide": 0, "includeAll": false, "label": "Fuente de datos", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "type": "datasource" }
+    ]
+  },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "MediQueue — Resiliencia y Estabilidad",
+  "uid": "mediqueue-resil-v1",
+  "version": 3
+}

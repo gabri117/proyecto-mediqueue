@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -7,131 +9,337 @@
   "links": [],
   "panels": [
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
       "targets": [
-        { "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (application)", "legendFormat": "{{application}}", "refId": "A" },
-        { "expr": "sum(rate(http_server_requests_seconds_count{application=\"\"}[1m])) by (job)", "legendFormat": "{{job}}", "refId": "B" }
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (application)",
+          "legendFormat": "{{application}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"\"}[1m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "B"
+        }
       ],
-      "title": "Requests por segundo por application",
-      "type": "timeseries"
+      "title": "Solicitudes por Segundo por Servicio",
+      "type": "timeseries",
+      "description": "Volumen de tráfico procesado por cada servicio durante la prueba de carga. Permite identificar qué servicio recibe más carga y si hay desequilibrios."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
       "id": 2,
       "targets": [
-        { "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (application, uri, method, status)", "legendFormat": "{{application}} {{method}} {{uri}} {{status}}", "refId": "A" }
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (application, uri, method, status)",
+          "legendFormat": "{{application}} {{method}} {{uri}} {{status}}",
+          "refId": "A"
+        }
       ],
-      "title": "Requests por endpoint application/uri/method/status",
-      "type": "timeseries"
+      "title": "Solicitudes por Endpoint y Código de Respuesta",
+      "type": "timeseries",
+      "description": "Desglose detallado del tráfico por combinación de servicio, URI, método HTTP y código de respuesta. Útil para identificar qué endpoints específicos están generando errores."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
       "id": 3,
       "targets": [
-        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application))", "legendFormat": "p95 {{application}}", "refId": "A" }
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application))",
+          "legendFormat": "p95 {{application}}",
+          "refId": "A"
+        }
       ],
-      "title": "Latencia p95 por application",
-      "type": "timeseries"
+      "title": "Latencia Percentil 95 por Servicio",
+      "type": "timeseries",
+      "description": "El 95% de las solicitudes de cada servicio se responden en menos de este tiempo. Valores altos bajo carga indican que el servicio necesita optimización o más instancias."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
       "id": 4,
       "targets": [
-        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application))", "legendFormat": "p99 {{application}}", "refId": "A" }
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application))",
+          "legendFormat": "p99 {{application}}",
+          "refId": "A"
+        }
       ],
-      "title": "Latencia p99 por application",
-      "type": "timeseries"
+      "title": "Latencia Percentil 99 por Servicio",
+      "type": "timeseries",
+      "description": "Tiempo de respuesta de los casos más lentos (el 1% más lento). Si sube mucho bajo carga, hay solicitudes que experimentan esperas desproporcionadas, indicando posibles cuellos de botella."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
       "id": 5,
       "targets": [
-        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[1m])) by (application)", "legendFormat": "{{application}} 5xx", "refId": "A" }
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[1m])) by (application)",
+          "legendFormat": "{{application}} 5xx",
+          "refId": "A"
+        }
       ],
-      "title": "Errores 5xx por application",
-      "type": "timeseries"
+      "title": "Errores Internos del Servidor (5xx) por Servicio",
+      "type": "timeseries",
+      "description": "Cantidad de errores de servidor por servicio durante la prueba. Estos son errores reales del sistema, no del cliente. Un sistema bien dimensionado debe mantener esto en cero incluso bajo carga."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
       "id": 6,
       "targets": [
-        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"4..\"}[1m])) by (application)", "legendFormat": "{{application}} 4xx", "refId": "A" }
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"4..\"}[1m])) by (application)",
+          "legendFormat": "{{application}} 4xx",
+          "refId": "A"
+        }
       ],
-      "title": "Errores 4xx por application",
-      "type": "timeseries"
+      "title": "Errores del Cliente (4xx) por Servicio",
+      "type": "timeseries",
+      "description": "Solicitudes rechazadas por error del cliente (datos incorrectos, no autorizado, recurso no encontrado). Algunos son esperados. Un aumento brusco puede indicar que el test está enviando datos inválidos."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 21 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 21
+      },
       "id": 7,
       "targets": [
-        { "expr": "hikaricp_connections_active", "legendFormat": "{{application}} {{pool}}", "refId": "A" }
+        {
+          "expr": "hikaricp_connections_active",
+          "legendFormat": "{{application}} {{pool}}",
+          "refId": "A"
+        }
       ],
-      "title": "Hikari conexiones activas",
-      "type": "timeseries"
+      "title": "Conexiones Activas a Base de Datos por Servicio (HikariCP)",
+      "type": "timeseries",
+      "description": "Conexiones de base de datos en uso en este momento por cada servicio. Si llega al máximo del pool, las siguientes solicitudes quedarán en espera y la latencia aumentará drásticamente."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 21 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 21
+      },
       "id": 8,
       "targets": [
-        { "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) by (application)", "legendFormat": "{{application}} heap", "refId": "A" }
+        {
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) by (application)",
+          "legendFormat": "{{application}} heap",
+          "refId": "A"
+        }
       ],
-      "title": "JVM memoria usada",
-      "type": "timeseries"
+      "title": "Memoria Heap JVM Utilizada por Servicio",
+      "type": "timeseries",
+      "description": "RAM consumida por los objetos Java en cada microservicio. Un crecimiento sostenido sin estabilizarse indica una fuga de memoria. Picos seguidos de caídas son el garbage collector trabajando."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 21 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 21
+      },
       "id": 9,
       "targets": [
-        { "expr": "jvm_threads_live_threads", "legendFormat": "{{application}}", "refId": "A" }
+        {
+          "expr": "jvm_threads_live_threads",
+          "legendFormat": "{{application}}",
+          "refId": "A"
+        }
       ],
-      "title": "JVM threads",
-      "type": "timeseries"
+      "title": "Hilos JVM Activos por Servicio",
+      "type": "timeseries",
+      "description": "Número de hilos de ejecución activos en cada servicio. Bajo carga alta, Spring Boot crea más hilos para atender solicitudes concurrentes. Si llega al límite configurado, las nuevas solicitudes se encolan."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 28 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
       "id": 10,
       "targets": [
-        { "expr": "sum(rate(k6_http_reqs_total[1m])) by (testid, scenario)", "legendFormat": "{{testid}} {{scenario}}", "refId": "A" }
+        {
+          "expr": "sum(rate(k6_http_reqs_total[1m])) by (testid, scenario)",
+          "legendFormat": "{{testid}} {{scenario}}",
+          "refId": "A"
+        }
       ],
-      "title": "k6_http_reqs_total",
-      "type": "timeseries"
+      "title": "Total de Solicitudes del Generador de Carga k6",
+      "type": "timeseries",
+      "description": "Solicitudes HTTP generadas por k6 por escenario de prueba. Muestra el volumen de carga artificial enviado al sistema. Sirve para correlacionar el comportamiento del sistema con la intensidad de la prueba."
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 28 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
       "id": 11,
       "targets": [
-        { "expr": "k6_http_req_failed_rate", "legendFormat": "{{testid}} {{scenario}}", "refId": "A" }
+        {
+          "expr": "k6_http_req_failed_rate",
+          "legendFormat": "{{testid}} {{scenario}}",
+          "refId": "A"
+        }
       ],
-      "title": "k6_http_req_failed_rate",
-      "type": "timeseries"
+      "title": "Tasa de Solicitudes Fallidas en la Prueba de Carga (k6)",
+      "type": "timeseries",
+      "description": "Porcentaje de solicitudes que k6 considera fallidas (timeout, error de red o código HTTP de error). Un valor cercano a 0 indica que el sistema resistió la carga. Valores altos indican que el sistema se saturó."
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["mediqueue", "load-testing", "k6"],
+  "tags": [
+    "mediqueue",
+    "load-testing",
+    "k6"
+  ],
   "templating": {
     "list": [
       {
@@ -148,9 +356,13 @@
       }
     ]
   },
-  "time": { "from": "now-30m", "to": "now" },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
   "timezone": "browser",
-  "title": "MediQueue - Load Testing Overview",
+  "title": "MediQueue — Resumen de Pruebas de Carga",
   "uid": "mediqueue-load-testing-overview",
-  "version": 1
+  "version": 1,
+  "description": "Vista general del comportamiento del sistema bajo pruebas de carga: throughput, latencia, errores, recursos JVM y métricas del generador de carga k6"
 }
