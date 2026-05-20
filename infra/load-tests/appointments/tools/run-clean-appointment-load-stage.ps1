@@ -57,13 +57,28 @@ function Get-Scale {
     }
 }
 
-function Invoke-Docker {
-    param([string[]]$Args)
+function Format-Command {
+    param([string]$Command, [string[]]$ArgumentList)
 
-    & docker @Args
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker $($Args -join ' ') fallo con exit code $LASTEXITCODE"
+    return "$Command $($ArgumentList -join ' ')"
+}
+
+function Invoke-Docker {
+    param([string[]]$ArgumentList)
+
+    $displayCommand = Format-Command -Command "docker" -ArgumentList $ArgumentList
+    Write-Host "Executing: $displayCommand"
+    & docker @ArgumentList
+    $exitCode = $LASTEXITCODE
+    Write-Host "Exit code: $exitCode"
+    if ($exitCode -ne 0) {
+        throw "Abortando clean-run: $displayCommand fallo con exit code $exitCode."
     }
+}
+
+function Invoke-DockerComposePs {
+    Write-Host "Validating: docker compose ps"
+    Invoke-Docker -ArgumentList @("compose", "ps")
 }
 
 function Wait-GatewayHealth {
@@ -83,7 +98,27 @@ function Wait-GatewayHealth {
                 Write-Host "gateway_health=OK"
                 return
             }
+            if ($body -match "<html" -or $body -match "No server is available") {
+                throw "api-gateway health devolvio HTML de HAProxy/no backend. Abortando."
+            }
         } catch {
+            if ($_.Exception.Message -match "HAProxy/no backend") {
+                throw $_.Exception.Message
+            }
+            $response = $_.Exception.Response
+            if ($null -ne $response) {
+                $status = [int]$response.StatusCode
+                $body = ""
+                try {
+                    $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+                    $body = $reader.ReadToEnd()
+                } catch {
+                    $body = $_.Exception.Message
+                }
+                if ($status -eq 503 -and ($body -match "<html" -or $body -match "No server is available")) {
+                    throw "api-gateway health devolvio 503 HTML de HAProxy/no backend. Abortando."
+                }
+            }
             Start-Sleep -Seconds 3
             continue
         }
@@ -101,7 +136,7 @@ $scale = Get-Scale -Preset $ScalePreset
 
 try {
     Write-Host "Clean run: docker compose down -v --remove-orphans"
-    Invoke-Docker -Args @("compose", "down", "-v", "--remove-orphans")
+    Invoke-Docker -ArgumentList @("compose", "down", "-v", "--remove-orphans")
 
     $upArgs = @("compose", "up", "-d", "--build")
     foreach ($service in $scale.Keys) {
@@ -109,7 +144,8 @@ try {
     }
 
     Write-Host "Clean run: docker $($upArgs -join ' ')"
-    Invoke-Docker -Args $upArgs
+    Invoke-Docker -ArgumentList $upArgs
+    Invoke-DockerComposePs
 
     Wait-GatewayHealth -Url $BaseUrl
 

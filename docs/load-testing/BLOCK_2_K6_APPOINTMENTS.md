@@ -105,6 +105,31 @@ Clean 50k:
 
 `extreme` requires substantial CPU/RAM and probably will not be valid on a 16 GB PC.
 
+If clean-run prints `Usage: docker [OPTIONS] COMMAND`, Docker Compose was not invoked with separated native arguments. The script should show:
+
+```text
+Executing: docker compose down -v --remove-orphans
+Exit code: 0
+Executing: docker compose up -d --build --scale api-gateway=2 ...
+Exit code: 0
+Validating: docker compose ps
+```
+
+Any non-zero Docker exit code aborts before dataset preparation.
+
+Manual flow validation, capped at `1000/min`:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-clean-appointment-load-stage.ps1 `
+  -RatePerMinute 1000 `
+  -TotalLimit 1000 `
+  -PreAllocatedVus 100 `
+  -MaxVus 300 `
+  -ScalePreset medium `
+  -PrewarmCache $false `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-clean-1000-summary.json
+```
+
 ### A. API Mode
 
 Safest path, but slow. It creates patients, dentists, and slots through the public APIs.

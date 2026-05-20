@@ -132,6 +132,31 @@ The regular runner also has mandatory preflight checks before k6:
 - No duplicated `slotId` in the selected range.
 - Backend validation sample succeeds for patient, dentist, slot, amount, and slot availability.
 
+If PowerShell prints `Usage: docker [OPTIONS] COMMAND` during clean-run, Docker Compose was not invoked with separated native arguments. The clean-run script must print commands in this form:
+
+```text
+Executing: docker compose down -v --remove-orphans
+Exit code: 0
+Executing: docker compose up -d --build --scale api-gateway=2 ...
+Exit code: 0
+Validating: docker compose ps
+```
+
+If any Docker command returns a non-zero exit code, the script aborts before dataset preparation.
+
+Manual flow validation, capped at `1000/min`:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-clean-appointment-load-stage.ps1 `
+  -RatePerMinute 1000 `
+  -TotalLimit 1000 `
+  -PreAllocatedVus 100 `
+  -MaxVus 300 `
+  -ScalePreset medium `
+  -PrewarmCache $false `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-clean-1000-summary.json
+```
+
 ## Step 2 - Prepare Data
 
 There are three supported preparation paths.
