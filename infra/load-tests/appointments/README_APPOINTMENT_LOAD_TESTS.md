@@ -470,22 +470,24 @@ E2E async switches:
 $env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
 $env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
 $env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="true"
-$env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="200"
-$env:APPOINTMENT_OUTBOX_BATCH_SIZE="500"
+$env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="500"
+$env:APPOINTMENT_OUTBOX_BATCH_SIZE="100"
 $env:PAYMENT_RABBITMQ_PREFETCH="50"
-$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="8"
-$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="16"
-$env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="200"
-$env:PAYMENT_OUTBOX_BATCH_SIZE="500"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="4"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="8"
+$env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="500"
+$env:PAYMENT_OUTBOX_BATCH_SIZE="100"
 $env:PAYMENT_SIM_MIN_DELAY_MS="0"
 $env:PAYMENT_SIM_MAX_DELAY_MS="50"
 $env:PAYMENT_SIM_APPROVAL_RATE="1.0"
 $env:NOTIFICATION_RABBITMQ_PREFETCH="50"
-$env:NOTIFICATION_RABBITMQ_LISTENER_CONCURRENCY="4"
-$env:NOTIFICATION_RABBITMQ_LISTENER_MAX_CONCURRENCY="12"
+$env:NOTIFICATION_RABBITMQ_LISTENER_CONCURRENCY="2"
+$env:NOTIFICATION_RABBITMQ_LISTENER_MAX_CONCURRENCY="6"
 ```
 
 This mode still measures the synchronous `POST /api/appointments` path, but RabbitMQ, payment-service, payment outbox, appointment payment consumers, schedule slot consumers, and notification-service are active in the background. A successful creation run can still have async backlog; for an E2E pass, also verify RabbitMQ queues drain and appointment statuses move from `PENDING_PAYMENT` to `CONFIRMED`.
+
+On limited hardware, keep these conservative E2E values until the HTTP creation result is clean. If creation is clean but RabbitMQ drains too slowly after the run, increase outbox batch sizes and consumer concurrency in a second pass.
 
 Timeout diagnosis:
 
@@ -875,12 +877,12 @@ $env:PAYMENT_SIM_MIN_DELAY_MS="50"
 $env:PAYMENT_SIM_MAX_DELAY_MS="200"
 $env:PAYMENT_TIMEOUT_SECONDS="10"
 $env:PAYMENT_SIM_APPROVAL_RATE="1.0"
-$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="8"
-$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="16"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="4"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="8"
 docker compose up -d --build appointment-service payment-service
 ```
 
-These settings are for load testing, not production. They do not allow `EXPIRED -> CONFIRMED`; they reduce late payment events by extending hold TTL and making the simulator faster.
+These settings are for load testing, not production. They do not allow `EXPIRED -> CONFIRMED`; they reduce late payment events by extending hold TTL and making the simulator faster. Increase payment consumers only after the synchronous creation run is clean and PostgreSQL/Docker still have spare capacity.
 
 For load-test stability, the gateway circuit breaker uses a larger sample than the default tiny window:
 
