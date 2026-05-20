@@ -33,7 +33,7 @@ function Invoke-PsqlValue {
 if ([string]::IsNullOrWhiteSpace($DumpPath)) {
     $dump = Get-LatestFile -Path $Script:DumpDir -Filter "mediqueue_dump_*.dump"
     if (-not $dump) {
-        throw "No hay pg_dump disponible en $Script:DumpDir"
+        throw "No hay pg_dump disponible en $Script:DumpDir. Ejecuta primero .\infra\backups\scripts\backup-pgdump.ps1; restore-pgdump-test.ps1 nunca restaura sobre la base principal."
     }
     $DumpPath = $dump.FullName
 }

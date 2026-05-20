@@ -99,7 +99,7 @@ function Write-InventoryStatus {
 
     $dumpFiles = @($DestinationFiles | Where-Object { $_.RelativePath -like "dumps\*.dump" })
     $checksumFiles = @($DestinationFiles | Where-Object { $_.RelativePath -like "dumps\*.dump.sha256" -or $_.RelativePath -like "dumps\*.sha256" })
-    $baseMarkers = @(Get-ChildItem -LiteralPath (Join-Path $DestinationRoot "local") -Filter "BASE_BACKUP_OK" -File -Recurse -ErrorAction SilentlyContinue)
+    $baseMarkers = @(Get-ChildItem -LiteralPath (Join-Path $DestinationRoot "local") -Filter "BACKUP_BASE_OK.txt" -File -Recurse -ErrorAction SilentlyContinue)
     $walFiles = @(Get-ChildItem -LiteralPath (Join-Path $DestinationRoot "wal-archive") -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -match '^[0-9A-F]{24}(\.partial)?$' } |
         Sort-Object LastWriteTime -Descending)
@@ -122,7 +122,7 @@ function Write-InventoryStatus {
 
     if ($baseMarkers.Count -eq 0) {
         $Script:SyncHadWarning = $true
-        Write-Log "BASE_WARNING No se encontro backup base con BASE_BACKUP_OK en destino/local." "WARN"
+        Write-Log "BASE_WARNING No se encontro backup base con BACKUP_BASE_OK.txt en destino/local." "WARN"
     }
     else {
         Write-Log "BASE_OK base_backups=$($baseMarkers.Count)" "OK"

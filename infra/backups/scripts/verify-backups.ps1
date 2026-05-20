@@ -67,6 +67,61 @@ function Test-DumpChecksum {
     }
 }
 
+function Test-BaseBackupDirectory {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.DirectoryInfo]$Directory
+    )
+
+    $baseTar = Join-Path $Directory.FullName "base.tar.gz"
+    $walTar = Join-Path $Directory.FullName "pg_wal.tar.gz"
+    $shaFile = Join-Path $Directory.FullName "SHA256SUMS"
+    $markerFile = Join-Path $Directory.FullName "BACKUP_BASE_OK.txt"
+    $reasons = New-Object System.Collections.Generic.List[string]
+
+    if (-not (Test-Path -LiteralPath $baseTar)) {
+        $reasons.Add("falta base.tar.gz")
+    }
+    elseif ((Get-Item -LiteralPath $baseTar).Length -le 0) {
+        $reasons.Add("base.tar.gz esta vacio")
+    }
+
+    if (-not (Test-Path -LiteralPath $walTar)) {
+        $reasons.Add("falta pg_wal.tar.gz")
+    }
+    elseif ((Get-Item -LiteralPath $walTar).Length -le 0) {
+        $reasons.Add("pg_wal.tar.gz esta vacio")
+    }
+
+    if (-not (Test-Path -LiteralPath $shaFile)) {
+        $reasons.Add("falta SHA256SUMS")
+    }
+    elseif ((Get-Item -LiteralPath $shaFile).Length -le 0) {
+        $reasons.Add("SHA256SUMS esta vacio")
+    }
+    else {
+        $checksumText = Get-Content -LiteralPath $shaFile -Raw
+        if ($checksumText -notmatch "base\.tar\.gz") {
+            $reasons.Add("SHA256SUMS no incluye base.tar.gz")
+        }
+        if ($checksumText -notmatch "pg_wal\.tar\.gz") {
+            $reasons.Add("SHA256SUMS no incluye pg_wal.tar.gz")
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $markerFile)) {
+        $reasons.Add("falta BACKUP_BASE_OK.txt")
+    }
+    elseif ((Get-Item -LiteralPath $markerFile).Length -le 0) {
+        $reasons.Add("BACKUP_BASE_OK.txt esta vacio")
+    }
+
+    return [pscustomobject]@{
+        Directory = $Directory
+        IsValid = ($reasons.Count -eq 0)
+        Reasons = @($reasons)
+    }
+}
+
 try {
     Assert-DockerAvailable
     Assert-ComposeConfigValid
@@ -80,27 +135,35 @@ catch {
 $now = Get-Date
 
 try {
-    $baseBackup = Get-ChildItem -LiteralPath $Script:LocalBackupDir -Directory -ErrorAction SilentlyContinue |
+    $baseBackupDirs = @(Get-ChildItem -LiteralPath $Script:LocalBackupDir -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -like "mediqueue_base_*" } |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
+        Sort-Object LastWriteTime -Descending)
 
-    if (-not $baseBackup) {
+    if ($baseBackupDirs.Count -eq 0) {
         Write-Check -Code "BASE_ERROR" -Status "ERROR" -Message "No se encontro backup base en $Script:LocalBackupDir"
     }
-    elseif ((($now - $baseBackup.LastWriteTime).TotalHours) -gt $MaxBaseAgeHours) {
-        Write-Check -Code "BASE_ERROR" -Status "ERROR" -Message "Backup base fuera de ventana: $($baseBackup.FullName)"
-    }
     else {
-        $baseBackupFiles = @(Get-ChildItem -LiteralPath $baseBackup.FullName -File -Recurse -ErrorAction Stop)
-        $hasOkMarker = Test-Path -LiteralPath (Join-Path $baseBackup.FullName "BASE_BACKUP_OK")
-        $hasSha = Test-Path -LiteralPath (Join-Path $baseBackup.FullName "SHA256SUMS")
+        $baseChecks = @($baseBackupDirs | ForEach-Object { Test-BaseBackupDirectory -Directory $_ })
+        $incompleteBaseBackups = @($baseChecks | Where-Object { -not $_.IsValid })
+        $validBaseBackups = @($baseChecks | Where-Object { $_.IsValid } | Sort-Object { $_.Directory.LastWriteTime } -Descending)
+        $validBaseBackup = $validBaseBackups | Where-Object { (($now - $_.Directory.LastWriteTime).TotalHours) -le $MaxBaseAgeHours } | Select-Object -First 1
 
-        if ($baseBackupFiles.Count -eq 0 -or -not $hasOkMarker -or -not $hasSha) {
-            Write-Check -Code "BASE_ERROR" -Status "ERROR" -Message "Backup base incompleto: $($baseBackup.FullName)"
+        foreach ($incomplete in $incompleteBaseBackups) {
+            Write-Log ("Backup base incompleto ignorado: {0}. Motivos: {1}" -f $incomplete.Directory.FullName, ($incomplete.Reasons -join "; ")) "WARN"
+        }
+
+        if (-not $validBaseBackups) {
+            Write-Check -Code "BASE_ERROR" -Status "ERROR" -Message "No hay ningun backup base valido en $Script:LocalBackupDir"
+        }
+        elseif (-not $validBaseBackup) {
+            $latestValid = $validBaseBackups | Select-Object -First 1
+            Write-Check -Code "BASE_ERROR" -Status "ERROR" -Message "Ultimo backup base valido fuera de ventana: $($latestValid.Directory.FullName)"
+        }
+        elseif ($incompleteBaseBackups.Count -gt 0) {
+            Write-Check -Code "BASE_WARNING" -Status "WARNING" -Message "Usando backup base valido $($validBaseBackup.Directory.FullName); se encontraron $($incompleteBaseBackups.Count) carpeta(s) incompleta(s)."
         }
         else {
-            Write-Check -Code "BASE_OK" -Status "OK" -Message "$($baseBackup.FullName)"
+            Write-Check -Code "BASE_OK" -Status "OK" -Message "Usando backup base valido $($validBaseBackup.Directory.FullName)"
         }
     }
 }

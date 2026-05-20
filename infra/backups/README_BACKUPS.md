@@ -133,7 +133,16 @@ The base backup is stored as:
 infra/backups/local/mediqueue_base_YYYYMMDD_HHMMSS/
 ```
 
-It includes `backup_manifest` when PostgreSQL provides it, `SHA256SUMS`, and a `BASE_BACKUP_OK` marker.
+It is generated with `pg_basebackup -Ft -z -X stream -c fast -P`, so the expected structure is:
+
+```text
+infra/backups/local/mediqueue_base_YYYYMMDD_HHMMSS/base.tar.gz
+infra/backups/local/mediqueue_base_YYYYMMDD_HHMMSS/pg_wal.tar.gz
+infra/backups/local/mediqueue_base_YYYYMMDD_HHMMSS/SHA256SUMS
+infra/backups/local/mediqueue_base_YYYYMMDD_HHMMSS/BACKUP_BASE_OK.txt
+```
+
+`pg_basebackup` can write progress such as `waiting for checkpoint` to stderr. The script records stdout and stderr in the log, but only fails when the process exit code is non-zero or the final backup structure is incomplete.
 
 Copy a local snapshot of the current WAL archive:
 
@@ -174,6 +183,8 @@ Run a safe logical restore test:
 
 The restore test uses the isolated database `mediqueue_restore_test`; it never restores over `mediqueue`. If `mediqueue_restore_test` already exists, the script asks for confirmation before recreating it. For unattended restore drills, pass the explicit recreation flag:
 
+It requires at least one dump created by `backup-pgdump.ps1`.
+
 ```powershell
 .\infra\backups\scripts\restore-pgdump-test.ps1 -RecreateDatabase
 ```
@@ -195,6 +206,7 @@ Run the consolidated daily verification:
 Expected status labels:
 
 - `BASE_OK` / `BASE_ERROR`
+- `BASE_WARNING` when incomplete base backup folders exist but an older valid base backup is available
 - `DUMP_OK` / `DUMP_ERROR`
 - `CHECKSUM_OK` / `CHECKSUM_WARNING`
 - `WAL_OK` / `WAL_WARNING` / `WAL_ERROR`
@@ -280,6 +292,18 @@ Google Drive Desktop cleanup is not included unless requested separately, and st
 
 ```powershell
 .\infra\backups\scripts\cleanup-backups.ps1 -ConfirmDelete -IncludeGoogleDrive
+```
+
+Find incomplete physical/base backup folders without deleting anything:
+
+```powershell
+.\infra\backups\scripts\cleanup-incomplete-base-backups.ps1 -DryRun
+```
+
+Delete only incomplete `mediqueue_base_*` folders after reviewing the dry run:
+
+```powershell
+.\infra\backups\scripts\cleanup-incomplete-base-backups.ps1 -ConfirmDelete
 ```
 
 Restore tests are isolated:

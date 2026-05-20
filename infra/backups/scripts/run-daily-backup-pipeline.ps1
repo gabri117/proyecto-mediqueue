@@ -36,6 +36,22 @@ function Set-PipelineError {
     $script:pipelineStatus = "ERROR"
 }
 
+function ConvertTo-ProcessArgumentString {
+    param([string[]]$Arguments)
+
+    return (($Arguments | ForEach-Object {
+        if ($null -eq $_) {
+            '""'
+        }
+        elseif ($_ -match '[\s"]') {
+            '"' + ($_.Replace('"', '\"')) + '"'
+        }
+        else {
+            $_
+        }
+    }) -join " ")
+}
+
 function Invoke-PipelineStep {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
@@ -47,41 +63,66 @@ function Invoke-PipelineStep {
     $scriptPath = Join-Path $PSScriptRoot $ScriptName
     Write-Log "STEP_START $Name script=$scriptPath"
     $startedAt = Get-Date
+
+    $powershellExe = (Get-Process -Id $PID).Path
+    $processArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath) + $Arguments
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $powershellExe
+    $startInfo.WorkingDirectory = $Script:RepoRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.Arguments = ConvertTo-ProcessArgumentString -Arguments $processArgs
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    [void]$process.Start()
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $process.WaitForExit()
+
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
     $output = @()
 
-    try {
-        $output = & $scriptPath @Arguments *>&1
-        foreach ($line in $output) {
-            if ($null -ne $line) {
+    if (-not [string]::IsNullOrWhiteSpace($stdout)) {
+        foreach ($line in ($stdout -split "\r?\n")) {
+            if (-not [string]::IsNullOrWhiteSpace($line)) {
+                $output += $line
                 Write-Log "[$Name] $line"
             }
         }
+    }
 
-        $duration = ((Get-Date) - $startedAt).TotalSeconds
+    if (-not [string]::IsNullOrWhiteSpace($stderr)) {
+        foreach ($line in ($stderr -split "\r?\n")) {
+            if (-not [string]::IsNullOrWhiteSpace($line)) {
+                $output += $line
+                Write-Log "[$Name] [stderr] $line"
+            }
+        }
+    }
+
+    $duration = ((Get-Date) - $startedAt).TotalSeconds
+    if ($process.ExitCode -eq 0) {
         Write-Log ("STEP_END {0} status=SUCCESS duration_seconds={1:N1}" -f $Name, $duration) "OK"
-
         return [pscustomobject]@{
             Name = $Name
             Success = $true
             Output = @($output | ForEach-Object { "$_" })
+            ExitCode = $process.ExitCode
         }
     }
-    catch {
-        foreach ($line in $output) {
-            if ($null -ne $line) {
-                Write-Log "[$Name] $line"
-            }
-        }
 
-        $duration = ((Get-Date) - $startedAt).TotalSeconds
-        Write-Log ("STEP_END {0} status=FAILED duration_seconds={1:N1}" -f $Name, $duration) "ERROR"
-        Write-Log "STEP_ERROR $Name $($_.Exception.Message)" "ERROR"
+    Write-Log ("STEP_END {0} status=FAILED duration_seconds={1:N1}" -f $Name, $duration) "ERROR"
+    Write-Log "STEP_ERROR $Name exit_code=$($process.ExitCode)" "ERROR"
 
-        return [pscustomobject]@{
-            Name = $Name
-            Success = $false
-            Output = @($output | ForEach-Object { "$_" }) + @($_.Exception.Message)
-        }
+    return [pscustomobject]@{
+        Name = $Name
+        Success = $false
+        Output = @($output | ForEach-Object { "$_" })
+        ExitCode = $process.ExitCode
     }
 }
 
@@ -129,7 +170,6 @@ try {
     }
     elseif ($walResult.Success -and (Test-OutputContains -Output $walResult.Output -Pattern "WAL_WARNING")) {
         $statuses.WAL_STATUS = "WARNING"
-        Set-PipelineWarning
         Write-Log "WAL warning detectado; se continua porque verify-wal-archive no fallo." "WARN"
     }
     else {
