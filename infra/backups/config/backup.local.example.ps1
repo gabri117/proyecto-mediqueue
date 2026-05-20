@@ -1,0 +1,6 @@
+$BackupRoot = ".\infra\backups"
+$GoogleDriveBackupPath = "B:\Proyecto BD II Microservivios\MediQueue Backups"
+$DatabaseName = "mediqueue"
+$DatabaseUser = "mediqueue"
+$PostgresService = "postgres"
+$PostgresContainer = "mediqueue-postgres"
