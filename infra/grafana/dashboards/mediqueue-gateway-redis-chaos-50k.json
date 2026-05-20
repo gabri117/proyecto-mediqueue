@@ -84,8 +84,9 @@
           "refId": "A"
         }
       ],
-      "title": "Redis Availability",
-      "type": "stat"
+      "title": "Disponibilidad de Redis — ¿Está activo el backend del rate limiter?",
+      "type": "stat",
+      "description": "Estado actual de Redis. Si cae, el rate limiter entra en modo fail-open (permite todo el tráfico para no bloquear el sistema)."
     },
     {
       "datasource": {
@@ -145,8 +146,9 @@
           "refId": "A"
         }
       ],
-      "title": "Gateway 5xx Rate",
-      "type": "stat"
+      "title": "Tasa de Errores Internos del Gateway (5xx/s)",
+      "type": "stat",
+      "description": "Solicitudes por segundo que terminan en error interno del Gateway. Debe ser cercano a cero. Picos indican que el Gateway tiene problemas para procesar solicitudes."
     },
     {
       "datasource": {
@@ -206,8 +208,9 @@
           "refId": "A"
         }
       ],
-      "title": "k6 Gateway 503 Total",
-      "type": "stat"
+      "title": "Total de Errores 503 detectados por k6",
+      "type": "stat",
+      "description": "Cantidad total de respuestas HTTP 503 (servicio no disponible) capturadas por la herramienta de prueba k6 durante toda la prueba de caos."
     },
     {
       "datasource": {
@@ -255,8 +258,9 @@
           "refId": "A"
         }
       ],
-      "title": "k6 Fail-Open Responses",
-      "type": "stat"
+      "title": "Total de Respuestas en Modo Fail-Open detectadas por k6",
+      "type": "stat",
+      "description": "Cuando Redis cae, el Gateway activa el modo fail-open y permite todo el tráfico en lugar de rechazarlo. Este panel cuenta cuántas veces ocurrió durante la prueba."
     },
     {
       "datasource": {
@@ -309,8 +313,9 @@
           "refId": "A"
         }
       ],
-      "title": "Gateway RPS by Status",
-      "type": "timeseries"
+      "title": "Solicitudes del Gateway por Código de Respuesta",
+      "type": "timeseries",
+      "description": "Evolución del tráfico del Gateway clasificado por código HTTP. Verde (200) = exitosas. Rojo (5xx) = errores. Naranja (429) = bloqueadas por rate limit."
     },
     {
       "datasource": {
@@ -364,8 +369,9 @@
           "refId": "A"
         }
       ],
-      "title": "Gateway Latency p95",
-      "type": "timeseries"
+      "title": "Latencia p95 del Gateway — Tiempo de respuesta del 95% de solicitudes",
+      "type": "timeseries",
+      "description": "El 95% de las solicitudes al Gateway se respondieron en menos de este tiempo. Durante la prueba de caos, este valor puede subir si Redis está caído y el Gateway trabaja más."
     },
     {
       "datasource": {
@@ -430,8 +436,9 @@
           "refId": "A"
         }
       ],
-      "title": "Redis UP / DOWN Timeline",
-      "type": "timeseries"
+      "title": "Línea de Tiempo — Estado de Redis (ACTIVO / CAÍDO)",
+      "type": "timeseries",
+      "description": "Muestra exactamente cuándo Redis estuvo activo (valor 1) y cuándo estuvo caído (valor 0) durante la prueba. Permite correlacionar el estado de Redis con el comportamiento del Gateway."
     },
     {
       "datasource": {
@@ -485,8 +492,9 @@
           "refId": "A"
         }
       ],
-      "title": "Redis Commands / sec",
-      "type": "timeseries"
+      "title": "Comandos Redis por Segundo — Actividad del servidor de caché",
+      "type": "timeseries",
+      "description": "Número de operaciones procesadas por Redis cada segundo. Incluye lecturas y escrituras de los contadores del rate limiter. Si cae a cero mientras Redis está UP puede indicar un problema de conectividad."
     },
     {
       "datasource": {
@@ -552,8 +560,9 @@
           "refId": "A"
         }
       ],
-      "title": "Redis Memory Used",
-      "type": "gauge"
+      "title": "Memoria RAM Usada por Redis",
+      "type": "gauge",
+      "description": "Bytes de memoria utilizados por Redis para almacenar los contadores del rate limiter y otros datos. Si se acerca al límite configurado, Redis puede empezar a descartar datos."
     },
     {
       "datasource": {
@@ -607,8 +616,9 @@
           "refId": "A"
         }
       ],
-      "title": "k6 Normal Rate Limit Rate",
-      "type": "timeseries"
+      "title": "Tasa de Solicitudes con Rate Limit Normal (k6)",
+      "type": "timeseries",
+      "description": "Velocidad de solicitudes que pasaron por el mecanismo de rate limiting normal (Redis activo). Cuando Redis está disponible, el Gateway usa estos contadores para limitar el tráfico."
     },
     {
       "datasource": {
@@ -662,8 +672,9 @@
           "refId": "A"
         }
       ],
-      "title": "k6 Fail-Open Rate",
-      "type": "timeseries"
+      "title": "Tasa de Solicitudes en Modo Fail-Open (k6)",
+      "type": "timeseries",
+      "description": "Velocidad de solicitudes que pasaron sin rate limiting porque Redis estaba caído. El modo fail-open prioriza la disponibilidad del sistema sobre la protección contra abuso."
     },
     {
       "datasource": {
@@ -717,8 +728,9 @@
           "refId": "A"
         }
       ],
-      "title": "k6 HTTP Duration p95",
-      "type": "timeseries"
+      "title": "Duración p95 de Solicitudes HTTP medida por k6",
+      "type": "timeseries",
+      "description": "Tiempo de respuesta del percentil 95 medido directamente por k6 desde el cliente. Incluye latencia de red. Comparar con la latencia del Gateway para detectar problemas de red."
     },
     {
       "datasource": {
@@ -772,8 +784,9 @@
           "refId": "A"
         }
       ],
-      "title": "Business Responses",
-      "type": "timeseries"
+      "title": "Respuestas de Negocio Exitosas (k6)",
+      "type": "timeseries",
+      "description": "Solicitudes que completaron el flujo de negocio correctamente según k6. Durante modo fail-open, este valor puede mantenerse alto aunque Redis esté caído, demostrando la resiliencia del sistema."
     },
     {
       "datasource": {
@@ -827,8 +840,9 @@
           "refId": "A"
         }
       ],
-      "title": "Redis Keyspace Hits",
-      "type": "timeseries"
+      "title": "Aciertos de Caché Redis — Datos encontrados en memoria",
+      "type": "timeseries",
+      "description": "Veces por segundo que una operación encontró el dato en Redis sin necesidad de recalcularlo. Más aciertos = mejor eficiencia del caché y menos carga sobre la base de datos."
     },
     {
       "datasource": {
@@ -882,8 +896,9 @@
           "refId": "A"
         }
       ],
-      "title": "Redis Keyspace Misses",
-      "type": "timeseries"
+      "title": "Fallos de Caché Redis — Datos NO encontrados en memoria",
+      "type": "timeseries",
+      "description": "Veces por segundo que Redis no encontró el dato solicitado. Si los fallos superan a los aciertos, el caché no está siendo efectivo y la carga sobre la base de datos aumenta."
     },
     {
       "datasource": {
@@ -943,8 +958,9 @@
           "refId": "A"
         }
       ],
-      "title": "Redis Error Body",
-      "type": "stat"
+      "title": "Total de Respuestas de Error de Redis detectadas por k6",
+      "type": "stat",
+      "description": "Cantidad total de respuestas con cuerpo de error devueltas por Redis durante la prueba. Valores altos indican problemas de conectividad entre el Gateway y Redis."
     }
   ],
   "refresh": "5s",
@@ -984,8 +1000,9 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "MediQueue - Gateway Redis Chaos 50k",
+  "title": "MediQueue — Gateway y Redis: Prueba de Caos (50K solicitudes)",
   "uid": "mediqueue-gateway-redis-chaos-50k",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "description": "Resultados de la prueba de caos: comportamiento del API Gateway y Redis bajo 50,000 solicitudes con rate limiting y modo fail-open activo"
 }

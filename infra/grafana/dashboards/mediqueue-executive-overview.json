@@ -1,0 +1,558 @@
+{
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    { "type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "11.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "stat",       "name": "Stat",        "version": "" },
+    { "type": "panel", "id": "gauge",      "name": "Gauge",       "version": "" },
+    { "type": "panel", "id": "piechart",   "name": "Pie chart",   "version": "" },
+    { "type": "panel", "id": "bargauge",   "name": "Bar gauge",   "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Vista ejecutiva de MediQueue: estado de servicios, métricas clave, tráfico, errores y recursos del sistema",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 200,
+      "title": "Estado del Sistema — ¿Están todos los servicios respondiendo?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Muestra si el API Gateway está activo y respondiendo. Verde = UP (acepta tráfico). Rojo = DOWN (los clientes no pueden entrar al sistema).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value",   "options": { "1": { "text": "ACTIVO", "color": "green", "index": 0 }, "0": { "text": "CAÍDO", "color": "red", "index": 1 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "CAÍDO", "color": "red", "index": 2 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 201,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "up{job=\"api-gateway\"}", "legendFormat": "", "refId": "A" }],
+      "title": "API Gateway — Puerta de entrada al sistema",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Indica si el servicio que gestiona los datos de pacientes está operativo. Si cae, no se pueden crear ni consultar pacientes.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value",   "options": { "1": { "text": "ACTIVO", "color": "green", "index": 0 }, "0": { "text": "CAÍDO", "color": "red", "index": 1 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "CAÍDO", "color": "red", "index": 2 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 202,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "up{job=\"patient-service\"}", "legendFormat": "", "refId": "A" }],
+      "title": "Servicio de Pacientes — Gestión de datos de pacientes",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Indica si el servicio que gestiona las citas médicas está operativo. Si cae, no se pueden reservar ni consultar citas.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value",   "options": { "1": { "text": "ACTIVO", "color": "green", "index": 0 }, "0": { "text": "CAÍDO", "color": "red", "index": 1 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "CAÍDO", "color": "red", "index": 2 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 203,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "up{job=\"appointment-service\"}", "legendFormat": "", "refId": "A" }],
+      "title": "Servicio de Citas — Reserva y gestión de citas médicas",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Indica si el servicio de pagos está operativo. Si cae, no se pueden procesar pagos de ningún tipo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value",   "options": { "1": { "text": "ACTIVO", "color": "green", "index": 0 }, "0": { "text": "CAÍDO", "color": "red", "index": 1 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "CAÍDO", "color": "red", "index": 2 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 204,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "up{job=\"payment-service\"}", "legendFormat": "", "refId": "A" }],
+      "title": "Servicio de Pagos — Procesamiento de pagos",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Indica si el servicio de horarios médicos está activo. Necesario para consultar disponibilidad al reservar una cita.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value",   "options": { "1": { "text": "ACTIVO", "color": "green", "index": 0 }, "0": { "text": "CAÍDO", "color": "red", "index": 1 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "CAÍDO", "color": "red", "index": 2 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 205,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "up{job=\"schedule-service\"}", "legendFormat": "", "refId": "A" }],
+      "title": "Servicio de Horarios — Disponibilidad de médicos",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Indica si el servicio de notificaciones está activo. Si cae, los pacientes no reciben confirmaciones ni recordatorios de citas.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value",   "options": { "1": { "text": "ACTIVO", "color": "green", "index": 0 }, "0": { "text": "CAÍDO", "color": "red", "index": 1 } } },
+            { "type": "special", "options": { "match": "null", "result": { "text": "CAÍDO", "color": "red", "index": 2 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "id": 206,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "up{job=\"notification-service\"}", "legendFormat": "", "refId": "A" }],
+      "title": "Servicio de Notificaciones — Envío de alertas a pacientes",
+      "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 210,
+      "title": "Métricas Clave del Sistema — ¿Cómo está funcionando el sistema en este momento?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Número de solicitudes HTTP que el sistema está procesando por segundo en este instante. Incluye todos los microservicios. La mini-gráfica muestra la tendencia reciente.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "reqps",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 500 }, { "color": "red", "value": 1000 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 0, "y": 6 },
+      "id": 211,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service|api-gateway\"}[1m]))", "legendFormat": "req/s", "refId": "A" }],
+      "title": "Solicitudes por Segundo — Volumen de tráfico actual",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Porcentaje de solicitudes que terminan en error 5xx (fallo interno del servidor). Por debajo de 1% es normal. Arriba de 5% indica un problema crítico.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 5, "y": 6 },
+      "id": 212,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\",job=~\".*-service|api-gateway\"}[2m])) / sum(rate(http_server_requests_seconds_count{job=~\".*-service|api-gateway\"}[2m])) * 100", "legendFormat": "error %", "refId": "A" }],
+      "title": "Tasa de Error — % de solicitudes con fallo interno (5xx)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "El 95% de las solicitudes se responden en menos de este tiempo. Mide la experiencia del usuario típico. Menos de 200ms es excelente. Más de 500ms el usuario lo percibe como lento.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "ms",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 200 }, { "color": "red", "value": 500 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 10, "y": 6 },
+      "id": 213,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\".*-service|api-gateway\"}[2m])) by (le)) * 1000", "legendFormat": "p95 ms", "refId": "A" }],
+      "title": "Latencia Percentil 95 — Tiempo de respuesta del 95% de usuarios",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Cantidad de microservicios que están activos y respondiendo. Un número bajo indica que hay servicios caídos y el sistema puede estar degradado.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "yellow", "value": 4 }, { "color": "green", "value": 6 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 15, "y": 6 },
+      "id": 214,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "count(up{job=~\"api-gateway|.*-service|rabbitmq\"} == 1)", "legendFormat": "activos", "refId": "A" }],
+      "title": "Servicios Activos — Cantidad de microservicios en línea",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Solicitudes rechazadas por segundo por el rate limiter del API Gateway. Ocurre cuando un cliente supera el límite de solicitudes permitidas. Valores altos indican abuso de la API o ataque.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "reqps",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 50 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 6 },
+      "id": 215,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{status=\"429\"}[1m]))", "legendFormat": "bloqueadas/s", "refId": "A" }],
+      "title": "Solicitudes Bloqueadas/s — Rate limit activo (HTTP 429)",
+      "type": "stat"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 },
+      "id": 220,
+      "title": "Tráfico y Latencia — ¿Qué tan ocupados están los servicios y cuánto tardan en responder?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Evolución en el tiempo del volumen de solicitudes por segundo de cada microservicio. Permite ver qué servicio está recibiendo más carga y detectar picos de tráfico.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never", "spanNulls": true },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 11 },
+      "id": 221,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service|api-gateway\"}[1m])) by (job)", "legendFormat": "{{job}}", "refId": "A" }],
+      "title": "Solicitudes por Segundo por Servicio — Distribución de carga entre microservicios",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Muestra los percentiles de latencia p50, p95 y p99 por servicio. p50 = tiempo del usuario promedio. p95 = tiempo de los usuarios más lentos. p99 = peores casos. Si p99 sube mucho, hay solicitudes lentas que afectan a algunos usuarios.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never", "spanNulls": true },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 11 },
+      "id": 222,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{job=~\".*-service|api-gateway\"}[2m])) by (le, job))", "legendFormat": "p50 {{job}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\".*-service|api-gateway\"}[2m])) by (le, job))", "legendFormat": "p95 {{job}}", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\".*-service|api-gateway\"}[2m])) by (le, job))", "legendFormat": "p99 {{job}}", "refId": "C" }
+      ],
+      "title": "Distribución de Latencia p50/p95/p99 — Tiempo de respuesta por percentil y servicio",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 19 },
+      "id": 225,
+      "title": "Análisis de Respuestas — ¿Qué tipo de respuestas está dando el sistema?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Proporción de respuestas HTTP en los últimos 15 minutos. Verde (2xx) = éxito. Amarillo (4xx) = error del cliente. Naranja (429) = bloqueado por rate limit. Rojo (5xx) = error del servidor. Un sistema sano tiene >95% de verde.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short",
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Exitosas (2xx)" },      "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Error cliente (4xx)" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Bloqueadas (429)" },    "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Error servidor (5xx)" },"properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 20 },
+      "id": 226,
+      "options": {
+        "reduceOptions": { "calcs": ["sum"] },
+        "pieType": "donut",
+        "legend": { "displayMode": "table", "placement": "right", "values": ["percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=~\"2..\",job=~\".*-service|api-gateway\"}[15m]))",         "legendFormat": "Exitosas (2xx)",      "refId": "A" },
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=~\"4[^2].\",job=~\".*-service|api-gateway\"}[15m]))",    "legendFormat": "Error cliente (4xx)", "refId": "B" },
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=\"429\"}[15m]))",                                         "legendFormat": "Bloqueadas (429)",    "refId": "C" },
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=~\"5..\",job=~\".*-service|api-gateway\"}[15m]))",        "legendFormat": "Error servidor (5xx)","refId": "D" }
+      ],
+      "title": "Distribución de Respuestas HTTP — Proporción de éxitos y errores en los últimos 15 min",
+      "type": "piechart"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Barras horizontales que muestran qué servicio está procesando más solicitudes en este momento. El servicio con la barra más larga recibe más carga. Útil para detectar desequilibrios entre microservicios.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "reqps",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 200 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 20 },
+      "id": 227,
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "minVizWidth": 0,
+        "minVizHeight": 10,
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service|api-gateway\"}[1m])) by (job)", "legendFormat": "{{job}}", "refId": "A" }],
+      "title": "Ranking de Carga por Servicio — ¿Quién recibe más solicitudes ahora?",
+      "type": "bargauge"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Línea de tiempo de errores críticos del sistema. La línea naranja (429) muestra cuándo el rate limiter bloquea clientes. La línea roja (5xx) muestra cuándo el sistema falla internamente. Picos en rojo = incidente activo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Errores internos (5xx)/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Bloqueadas rate limit/s" },  "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 20 },
+      "id": 228,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\",job=~\".*-service|api-gateway\"}[1m]))", "legendFormat": "Errores internos (5xx)/s",  "refId": "A" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{status=\"429\"}[1m]))",                                "legendFormat": "Bloqueadas rate limit/s", "refId": "B" }
+      ],
+      "title": "Historial de Errores y Bloqueos — Línea de tiempo de incidentes",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "id": 230,
+      "title": "Mensajería y Base de Datos — ¿Cómo están las colas de mensajes y las conexiones a BD?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Número de mensajes en la cola de RabbitMQ que están listos para ser procesados. Si sube mucho significa que los consumidores no dan abasto con el volumen de eventos.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 30 }, { "color": "red", "value": 70 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 29 },
+      "id": 231,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [{ "expr": "sum(rabbitmq_queue_messages_ready{vhost=\"/\"})", "legendFormat": "listos", "refId": "A" }],
+      "title": "Mensajes Listos en Cola — Eventos esperando ser procesados (RabbitMQ)",
+      "type": "gauge"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Mensajes entregados a un consumidor pero que aún no fueron confirmados (acknowledged). Un número alto indica que el consumidor está procesando lento o tiene algún problema.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "min": 0, "max": 50,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 25 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 29 },
+      "id": 232,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [{ "expr": "sum(rabbitmq_queue_messages_unacked{vhost=\"/\"})", "legendFormat": "sin confirmar", "refId": "A" }],
+      "title": "Mensajes Pendientes de Confirmación — Procesamiento lento si sube (RabbitMQ)",
+      "type": "gauge"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Conexiones activas y en espera al pool de base de datos PostgreSQL. 'Activas' son las que están ejecutando una consulta ahora. 'En espera' son las que esperan una conexión libre. Si 'en espera' sube, el pool está saturado.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 29 },
+      "id": 233,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        { "expr": "hikaricp_connections_active{job=~\".*-service\"}",  "legendFormat": "{{job}} — activas",    "refId": "A" },
+        { "expr": "hikaricp_connections_pending{job=~\".*-service\"}", "legendFormat": "{{job}} — en espera", "refId": "B" }
+      ],
+      "title": "Pool de Conexiones BD — Conexiones activas y en espera por servicio (HikariCP)",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "id": 240,
+      "title": "Recursos Computacionales — ¿Cuánta CPU y memoria está usando cada servicio?",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Porcentaje de CPU consumido por cada microservicio. Valores altos sostenidos indican que el servicio necesita más instancias o tiene un proceso costoso. Un pico puntual es normal bajo carga.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "percentunit",
+          "min": 0, "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 35 },
+      "id": 241,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" } },
+      "targets": [{ "expr": "system_cpu_usage{job=~\".*-service|api-gateway\"}", "legendFormat": "{{job}}", "refId": "A" }],
+      "title": "Uso de CPU por Servicio — % de procesador consumido por cada microservicio",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Memoria heap de la JVM utilizada por cada servicio. La heap es donde Java almacena los objetos en tiempo de ejecución. Si se acerca al máximo configurado, la JVM lanzará garbage collection agresivo y el servicio se volverá lento.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 35 },
+      "id": 242,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" } },
+      "targets": [{ "expr": "sum by(job) (jvm_memory_used_bytes{area=\"heap\",job=~\".*-service|api-gateway\"})", "legendFormat": "{{job}}", "refId": "A" }],
+      "title": "Memoria Heap JVM por Servicio — Uso de RAM en la máquina virtual Java",
+      "type": "timeseries"
+    }
+
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["mediqueue", "ejecutivo"],
+  "templating": {
+    "list": [
+      { "current": {}, "hide": 0, "includeAll": false, "label": "Fuente de datos", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "type": "datasource" }
+    ]
+  },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "MediQueue — Vista Ejecutiva",
+  "uid": "mediqueue-exec-v1",
+  "version": 3
+}
