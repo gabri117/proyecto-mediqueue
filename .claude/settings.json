@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(gh pr create --base development --head feature/grafana-dashboards --title 'feat\\(grafana\\): dashboards profesionales en español — Vista Ejecutiva, Resiliencia, SLA, BD/JVM, Escenarios A/B/C' --body ' *)"
+    ]
+  }
+}
