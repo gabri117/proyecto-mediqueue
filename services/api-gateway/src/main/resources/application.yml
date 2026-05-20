@@ -17,8 +17,8 @@ spring:
       server:
         webflux:
           httpclient:
-            connect-timeout: 3000
-            response-timeout: 10s
+            connect-timeout: ${GATEWAY_HTTPCLIENT_CONNECT_TIMEOUT_MS:3000}
+            response-timeout: ${GATEWAY_HTTPCLIENT_RESPONSE_TIMEOUT:30s}
           default-filters:
             - AddResponseHeader=X-Gateway-Name, mediqueue-api-gateway
           routes:
