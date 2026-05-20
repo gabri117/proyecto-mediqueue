@@ -59,6 +59,79 @@ docker compose config --quiet
 .\infra\load-tests\appointments\tools\validate-appointment-dataset.ps1 -BaseUrl http://localhost:8080 -DataFile .\infra\load-tests\appointments\data\appointments-50000.json -StartIndex 0 -Limit 20 -ExpectedCount 50000
 ```
 
+## Clean-Run Guardrails
+
+Use `run-clean-appointment-load-stage.ps1` when a strong run must start from a known-clean database and fresh dataset. It performs:
+
+- `docker compose down -v --remove-orphans`
+- scaled `docker compose up -d --build`
+- real gateway health wait
+- SQL base-data preparation for patients, dentists, and slots only
+- dataset inspect and backend validation
+- optional prewarm
+- guarded k6 execution
+- evidence collection
+
+Scale presets:
+
+```text
+medium  = api-gateway=2, appointment=4, schedule=3, patient=2, payment=3, notification=2
+high    = api-gateway=3, appointment=6, schedule=4, patient=3, payment=3, notification=2
+extreme = api-gateway=4, appointment=8, schedule=4, patient=3, payment=3, notification=2
+```
+
+`extreme` is intended for 50k/min attempts on a strong machine. It likely will not work well on a 16 GB PC.
+
+Clean 20k:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-clean-appointment-load-stage.ps1 `
+  -RatePerMinute 20000 `
+  -TotalLimit 20000 `
+  -PreAllocatedVus 1200 `
+  -MaxVus 2600 `
+  -ScalePreset medium `
+  -PrewarmCache $true `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-clean-20000-summary.json
+```
+
+Clean 25k:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-clean-appointment-load-stage.ps1 `
+  -RatePerMinute 25000 `
+  -TotalLimit 25000 `
+  -PreAllocatedVus 1800 `
+  -MaxVus 4000 `
+  -ScalePreset high `
+  -PrewarmCache $true `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-clean-25000-summary.json
+```
+
+Clean 50k:
+
+```powershell
+.\infra\load-tests\appointments\tools\run-clean-appointment-load-stage.ps1 `
+  -RatePerMinute 50000 `
+  -TotalLimit 50000 `
+  -PreAllocatedVus 3000 `
+  -MaxVus 6000 `
+  -ScalePreset extreme `
+  -PrewarmCache $true `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-clean-50000-summary.json `
+  -Allow50k
+```
+
+The regular runner also has mandatory preflight checks before k6:
+
+- TCP connectivity to the gateway port.
+- `GET /actuator/health` returns HTTP 200 and not HAProxy HTML.
+- `docker compose ps` works and does not return Docker API `500 Internal Server Error`.
+- Dataset file is a pure JSON array.
+- `DATA_OFFSET + TOTAL_LIMIT` fits inside the dataset.
+- No duplicated `slotId` in the selected range.
+- Backend validation sample succeeds for patient, dentist, slot, amount, and slot availability.
+
 ## Step 2 - Prepare Data
 
 There are three supported preparation paths.
@@ -607,6 +680,9 @@ Interpretation:
 - `400/422`: invalid payload, stale IDs, missing `amount`, or contract mismatch.
 - `429`: gateway rate limit; this measures throttling, not backend capacity.
 - `5xx`: real gateway/backend/server error.
+- `appointments_503_html_haproxy`: HAProxy returned HTML, usually "No server is available"; the LB had no healthy backend or could not reach one.
+- `appointments_503_json_gateway`: api-gateway returned JSON `SERVICE_UNAVAILABLE`; inspect fallback logs for `BulkheadFullException`, `TimeoutException`, `CallNotPermittedException`, or upstream errors.
+- `appointments_connection_refused`: k6 got `status=0` with connect refused/connectex; gateway port, api-gateway-lb, or Docker networking was unavailable.
 - `dropped_iterations`: k6 could not sustain the requested rate with configured VUs or backend latency was too high.
 - `appointments_skipped_after_limit`: planned skip after `TOTAL_LIMIT`; useful for harmless extra iterations from `constant-arrival-rate`.
 - `appointments_dataset_exhausted`: real error. The script expected to send a request, but `DATA_OFFSET + iterationInTest` exceeded dataset length.
@@ -660,6 +736,15 @@ $summary.metrics.http_req_duration.values.'p(95)'
 ```
 
 `appointment-rpm.js` also writes a flat JSON next to the regular handleSummary artifact in `infra/load-tests/appointments/results`, with top-level fields such as `appointments_server_error`, `http_reqs`, and `http_req_duration_p95`.
+
+Failure source guide:
+
+- Dataset: validation errors, `409`, duplicate slot reports, or validator `invalid_items > 0`.
+- Gateway LB: `appointments_503_html_haproxy > 0`, api-gateway-lb logs showing backends `DOWN`, or health returning HAProxy HTML.
+- api-gateway: `appointments_503_json_gateway > 0`, fallback logs with exception class/message.
+- appointment-service: gateway JSON 503 plus appointment-service ERROR/WARN/Hikari or high `mediqueue_appointment_create_stage_duration_seconds{stage="total"}`.
+- PostgreSQL: Hikari pending/timeout, `pg_stat_activity` active/wait spikes, locks, or connections near `max_connections`.
+- Docker Desktop/host: Docker API 500, connection refused to localhost:8080, CPU/RAM pinned in `docker stats`, or broad container restarts.
 
 ## Diagnostics For 503 And Load-Test Regressions
 

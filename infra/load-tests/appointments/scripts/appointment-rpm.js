@@ -28,6 +28,9 @@ const appointmentsValidationError = new Counter('appointments_validation_error')
 const appointmentsRateLimited = new Counter('appointments_rate_limited');
 const appointmentsServerError = new Counter('appointments_server_error');
 const appointments503 = new Counter('appointments_503');
+const appointments503JsonGateway = new Counter('appointments_503_json_gateway');
+const appointments503HtmlHaproxy = new Counter('appointments_503_html_haproxy');
+const appointmentsConnectionRefused = new Counter('appointments_connection_refused');
 const appointmentsTimeout = new Counter('appointments_timeout');
 const appointmentsUnexpected = new Counter('appointments_unexpected');
 const appointmentsDatasetExhausted = new Counter('appointments_dataset_exhausted');
@@ -55,6 +58,7 @@ export const options = {
     checks: ['rate>0.95'],
     appointments_server_error: ['count==0'],
     appointments_timeout: ['count==0'],
+    appointments_connection_refused: ['count==0'],
     appointments_unexpected: ['count==0'],
     appointments_dataset_exhausted: ['count==0'],
   },
@@ -178,7 +182,11 @@ function classify(res) {
   if ([200, 201, 202].includes(res.status)) {
     appointmentsCreated.add(1);
   } else if (res.status === 0) {
-    appointmentsTimeout.add(1);
+    if (isConnectionRefused(res)) {
+      appointmentsConnectionRefused.add(1);
+    } else {
+      appointmentsTimeout.add(1);
+    }
   } else if (res.status === 409) {
     appointmentsConflict.add(1);
   } else if ([400, 422].includes(res.status)) {
@@ -189,6 +197,11 @@ function classify(res) {
     appointmentsServerError.add(1);
     if (res.status === 503) {
       appointments503.add(1);
+      if (isHaproxyNoBackend(res)) {
+        appointments503HtmlHaproxy.add(1);
+      } else if (isJsonGatewayUnavailable(res)) {
+        appointments503JsonGateway.add(1);
+      }
     }
   } else {
     appointmentsUnexpected.add(1);
@@ -209,6 +222,9 @@ function debugErrorResponse(res, body, datasetIndex, idempotencyKey, index) {
   console.error(JSON.stringify({
     debug: 'appointment-rpm-error-response',
     status: res.status,
+    error: truncate(String(res.error || ''), 1000),
+    errorCode: res.error_code || '',
+    contentType: headerValue(res, 'Content-Type'),
     body: truncate(String(res.body || ''), 2000),
     correlationId: headerValue(res, 'X-Correlation-Id'),
     datasetIndex,
@@ -217,6 +233,31 @@ function debugErrorResponse(res, body, datasetIndex, idempotencyKey, index) {
     slotId: body.slotId,
     idempotencyKey,
   }));
+}
+
+function isConnectionRefused(res) {
+  const text = `${res.error || ''} ${res.body || ''}`.toLowerCase();
+  return text.includes('connection refused') ||
+    text.includes('connectex') ||
+    text.includes('actively refused') ||
+    text.includes('dial tcp') ||
+    text.includes('no connection could be made');
+}
+
+function isHaproxyNoBackend(res) {
+  const body = String(res.body || '').toLowerCase();
+  const contentType = headerValue(res, 'Content-Type').toLowerCase();
+  return res.status === 503 &&
+    (contentType.includes('text/html') || body.includes('<html')) &&
+    (body.includes('no server is available') || body.includes('service unavailable'));
+}
+
+function isJsonGatewayUnavailable(res) {
+  const body = String(res.body || '').trim();
+  const contentType = headerValue(res, 'Content-Type').toLowerCase();
+  return res.status === 503 &&
+    (contentType.includes('application/json') || body.startsWith('{')) &&
+    (body.includes('SERVICE_UNAVAILABLE') || body.toLowerCase().includes('gateway_fallback') || body.toLowerCase().includes('service unavailable'));
 }
 
 function headerValue(res, name) {
@@ -247,6 +288,9 @@ export function handleSummary(data) {
     `appointments_rate_limited=${flat.appointments_rate_limited}`,
     `appointments_server_error=${flat.appointments_server_error}`,
     `appointments_503=${flat.appointments_503}`,
+    `appointments_503_json_gateway=${flat.appointments_503_json_gateway}`,
+    `appointments_503_html_haproxy=${flat.appointments_503_html_haproxy}`,
+    `appointments_connection_refused=${flat.appointments_connection_refused}`,
     `appointments_timeout=${flat.appointments_timeout}`,
     `appointments_unexpected=${flat.appointments_unexpected}`,
     `appointments_dataset_exhausted=${flat.appointments_dataset_exhausted}`,
@@ -279,6 +323,9 @@ function buildFlatSummary(data) {
     appointments_rate_limited: count(data, 'appointments_rate_limited'),
     appointments_server_error: count(data, 'appointments_server_error'),
     appointments_503: count(data, 'appointments_503'),
+    appointments_503_json_gateway: count(data, 'appointments_503_json_gateway'),
+    appointments_503_html_haproxy: count(data, 'appointments_503_html_haproxy'),
+    appointments_connection_refused: count(data, 'appointments_connection_refused'),
     appointments_timeout: count(data, 'appointments_timeout'),
     appointments_unexpected: count(data, 'appointments_unexpected'),
     appointments_dataset_exhausted: count(data, 'appointments_dataset_exhausted'),

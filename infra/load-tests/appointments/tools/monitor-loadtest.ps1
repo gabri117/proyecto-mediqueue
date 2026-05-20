@@ -116,7 +116,12 @@ Invoke-Capture -Name "docker-compose-ps.final.txt" -Block {
 
 Invoke-Capture -Name "api-gateway.loadtest.log" -Block {
     docker compose logs --since $Since api-gateway |
-        Select-String -Pattern "status=503 method=POST path=/api/appointments|gateway_fallback|BulkheadFullException|CallNotPermitted|Timeout|TimeoutException|ConnectException|PrematureClose"
+        Select-String -Pattern "status=503 method=POST path=/api/appointments|gateway_fallback|BulkheadFullException|CallNotPermitted|Timeout|TimeoutException|ConnectException|connection refused|PrematureClose"
+}
+
+Invoke-Capture -Name "api-gateway-lb.log" -Block {
+    docker compose logs --since $Since api-gateway-lb |
+        Select-String -Pattern "DOWN|UP|503|504|timeout|api-gateway|No server is available|connection refused"
 }
 
 Invoke-Capture -Name "appointment-service.loadtest.log" -Block {
@@ -126,17 +131,17 @@ Invoke-Capture -Name "appointment-service.loadtest.log" -Block {
 
 Invoke-Capture -Name "appointment-lb.log" -Block {
     docker compose logs --since $Since appointment-lb |
-        Select-String -Pattern "DOWN|UP|503|504|timeout|appointment-service"
+        Select-String -Pattern "DOWN|UP|503|504|timeout|appointment-service|No server is available|connection refused"
 }
 
 Invoke-Capture -Name "schedule-lb.log" -Block {
     docker compose logs --since $Since schedule-lb |
-        Select-String -Pattern "DOWN|UP|503|504|timeout|schedule-service"
+        Select-String -Pattern "DOWN|UP|503|504|timeout|schedule-service|No server is available|connection refused"
 }
 
 Invoke-Capture -Name "patient-lb.log" -Block {
     docker compose logs --since $Since patient-lb |
-        Select-String -Pattern "DOWN|UP|503|504|timeout|patient-service"
+        Select-String -Pattern "DOWN|UP|503|504|timeout|patient-service|No server is available|connection refused"
 }
 
 Invoke-Capture -Name "postgres-appointments.txt" -Block {
@@ -151,6 +156,9 @@ if ($SummaryFile) {
         "summary_file=$SummaryFile"
         "appointments_created=$(Get-MetricCount -Summary $summary -Name 'appointments_created')"
         "appointments_503=$(Get-MetricCount -Summary $summary -Name 'appointments_503')"
+        "appointments_503_json_gateway=$(Get-MetricCount -Summary $summary -Name 'appointments_503_json_gateway')"
+        "appointments_503_html_haproxy=$(Get-MetricCount -Summary $summary -Name 'appointments_503_html_haproxy')"
+        "appointments_connection_refused=$(Get-MetricCount -Summary $summary -Name 'appointments_connection_refused')"
         "appointments_server_error=$(Get-MetricCount -Summary $summary -Name 'appointments_server_error')"
         "appointments_timeout=$(Get-MetricCount -Summary $summary -Name 'appointments_timeout')"
         "appointments_validation_error=$(Get-MetricCount -Summary $summary -Name 'appointments_validation_error')"
