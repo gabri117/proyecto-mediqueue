@@ -42,10 +42,11 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
             FROM outbox_events
             WHERE publication_status = :status
             ORDER BY created_at
-            LIMIT 50
+            LIMIT :limit
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
-    List<OutboxEvent> findTop50ForUpdateSkipLocked(@Param("status") String status);
+    List<OutboxEvent> findPendingForUpdateSkipLocked(@Param("status") String status,
+                                                      @Param("limit") int limit);
 
     /**
      * Retrieves up to 10 outbox events with the given publication status,

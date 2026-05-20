@@ -117,12 +117,17 @@ public class RabbitMQConfig {
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
             ConnectionFactory connectionFactory,
             MessageConverter messageConverter,
-            @Value("${spring.rabbitmq.listener.simple.auto-startup:true}") boolean autoStartup) {
+            @Value("${spring.rabbitmq.listener.simple.auto-startup:true}") boolean autoStartup,
+            @Value("${spring.rabbitmq.listener.simple.prefetch:10}") int prefetch,
+            @Value("${spring.rabbitmq.listener.simple.concurrency:2}") int concurrency,
+            @Value("${spring.rabbitmq.listener.simple.max-concurrency:8}") int maxConcurrency) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(new SimpleMessageConverter());
         factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-        factory.setPrefetchCount(10);
+        factory.setPrefetchCount(Math.max(1, prefetch));
+        factory.setConcurrentConsumers(Math.max(1, concurrency));
+        factory.setMaxConcurrentConsumers(Math.max(Math.max(1, concurrency), maxConcurrency));
         factory.setAutoStartup(autoStartup);
         return factory;
     }

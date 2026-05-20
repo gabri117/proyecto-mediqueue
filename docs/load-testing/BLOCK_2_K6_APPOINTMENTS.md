@@ -420,6 +420,29 @@ These do not remove appointment creation rules and do not skip outbox inserts. T
 
 `LOADTEST_DIRECT_DB_VALIDATION_ENABLED=true` keeps validation enabled but moves patient/slot checks into PostgreSQL reads from `patient.patients` and `schedule.dentist_slots`. Use it for high-rate creation-only runs on limited hardware, because validating every unique slot through HTTP creates internal fan-out that can saturate `patient-lb` and `schedule-lb` before the appointment write path is measured. Disable it for strict E2E boundary testing.
 
+For E2E async load testing, keep appointment creation optimized but turn RabbitMQ publishing back on:
+
+```powershell
+$env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
+$env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
+$env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="true"
+$env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="200"
+$env:APPOINTMENT_OUTBOX_BATCH_SIZE="500"
+$env:PAYMENT_RABBITMQ_PREFETCH="50"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="8"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="16"
+$env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="200"
+$env:PAYMENT_OUTBOX_BATCH_SIZE="500"
+$env:PAYMENT_SIM_MIN_DELAY_MS="0"
+$env:PAYMENT_SIM_MAX_DELAY_MS="50"
+$env:PAYMENT_SIM_APPROVAL_RATE="1.0"
+$env:NOTIFICATION_RABBITMQ_PREFETCH="50"
+$env:NOTIFICATION_RABBITMQ_LISTENER_CONCURRENCY="4"
+$env:NOTIFICATION_RABBITMQ_LISTENER_MAX_CONCURRENCY="12"
+```
+
+In this mode, `appointments_created` proves synchronous creation, while RabbitMQ queue depth, payment rows, notification rows, and appointment status distribution prove asynchronous completion. Do not call an E2E run complete until the relevant queues drain.
+
 If gateway fallback logs show `BulkheadFullException`, the request was rejected by the gateway concurrency guard before a useful upstream result could be returned. That is different from an open circuit (`CallNotPermittedException`) or a timeout (`TimeoutException`).
 
 Use the scaled-routing evidence collector after any failed scaled run:

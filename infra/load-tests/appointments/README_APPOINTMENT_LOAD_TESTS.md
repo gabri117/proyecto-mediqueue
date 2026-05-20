@@ -464,6 +464,29 @@ $env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="false"
 
 These switches are for creation-only load tests. They keep appointment creation and outbox inserts intact, but pause hold expiration and outbox publishing so async work does not compete with the synchronous POST path. For E2E tests, set both back to `true`.
 
+E2E async switches:
+
+```powershell
+$env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
+$env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
+$env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="true"
+$env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="200"
+$env:APPOINTMENT_OUTBOX_BATCH_SIZE="500"
+$env:PAYMENT_RABBITMQ_PREFETCH="50"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="8"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="16"
+$env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="200"
+$env:PAYMENT_OUTBOX_BATCH_SIZE="500"
+$env:PAYMENT_SIM_MIN_DELAY_MS="0"
+$env:PAYMENT_SIM_MAX_DELAY_MS="50"
+$env:PAYMENT_SIM_APPROVAL_RATE="1.0"
+$env:NOTIFICATION_RABBITMQ_PREFETCH="50"
+$env:NOTIFICATION_RABBITMQ_LISTENER_CONCURRENCY="4"
+$env:NOTIFICATION_RABBITMQ_LISTENER_MAX_CONCURRENCY="12"
+```
+
+This mode still measures the synchronous `POST /api/appointments` path, but RabbitMQ, payment-service, payment outbox, appointment payment consumers, schedule slot consumers, and notification-service are active in the background. A successful creation run can still have async backlog; for an E2E pass, also verify RabbitMQ queues drain and appointment statuses move from `PENDING_PAYMENT` to `CONFIRMED`.
+
 Timeout diagnosis:
 
 - `appointments_timeout` counts k6 responses with `status=0`.

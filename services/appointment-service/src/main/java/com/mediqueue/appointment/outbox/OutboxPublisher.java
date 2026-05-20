@@ -34,22 +34,25 @@ public class OutboxPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final RabbitTemplate rabbitTemplate;
     private final boolean publisherEnabled;
+    private final int batchSize;
 
     public OutboxPublisher(OutboxEventRepository outboxEventRepository,
                            RabbitTemplate rabbitTemplate,
-                           @Value("${mediqueue.loadtest.outbox-publisher-enabled:true}") boolean publisherEnabled) {
+                           @Value("${mediqueue.loadtest.outbox-publisher-enabled:true}") boolean publisherEnabled,
+                           @Value("${mediqueue.outbox.batch-size:50}") int batchSize) {
         this.outboxEventRepository = outboxEventRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.publisherEnabled = publisherEnabled;
+        this.batchSize = Math.max(1, batchSize);
     }
 
     /**
      * Polls for pending outbox events and publishes them to RabbitMQ.
      *
      * <p>Runs on a fixed delay configured via
-     * {@code mediqueue.outbox.publish-interval-seconds} (default: 1 second).</p>
+     * {@code mediqueue.outbox.publish-interval-ms} (default: 1000 ms).</p>
      */
-    @Scheduled(fixedDelayString = "${mediqueue.outbox.publish-interval-seconds:1}000")
+    @Scheduled(fixedDelayString = "${mediqueue.outbox.publish-interval-ms:1000}")
     @Transactional
     public void publishPendingEvents() {
         if (!publisherEnabled) {
@@ -57,7 +60,7 @@ public class OutboxPublisher {
             return;
         }
         List<OutboxEvent> pending = outboxEventRepository
-                .findTop50ForUpdateSkipLocked(OutboxPublicationStatus.PENDING.name());
+                .findPendingForUpdateSkipLocked(OutboxPublicationStatus.PENDING.name(), batchSize);
 
         for (OutboxEvent event : pending) {
             try {
