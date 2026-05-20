@@ -28,9 +28,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
@@ -247,15 +245,13 @@ public class PaymentService {
     }
 
     private PaymentStatus simulateWithTimeout(java.math.BigDecimal amount) {
-        try {
-            return CompletableFuture.supplyAsync(() -> simulator.simulate(amount))
-                    .get(timeoutSeconds, TimeUnit.SECONDS);
-        } catch (TimeoutException ex) {
+        long startNanos = System.nanoTime();
+        PaymentStatus status = simulator.simulate(amount);
+        long elapsedSeconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startNanos);
+        if (elapsedSeconds > timeoutSeconds) {
             return PaymentStatus.TIMEOUT;
-        } catch (Exception ex) {
-            log.error("Payment simulation failed unexpectedly", ex);
-            return PaymentStatus.REJECTED;
         }
+        return status;
     }
 
     private PaymentResponse finalizePayment(UUID paymentId, String idempotencyKey, PaymentStatus simulatedStatus) {

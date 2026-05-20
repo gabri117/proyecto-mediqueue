@@ -108,3 +108,21 @@ temp-*.json
 # k6 generated load-test outputs
 infra/load-tests/results/*
 !infra/load-tests/results/.gitkeep
+
+# MediQueue backup outputs. Keep only directory placeholders in git.
+infra/backups/local/**
+!infra/backups/local/.gitkeep
+infra/backups/wal-archive/**
+!infra/backups/wal-archive/.gitkeep
+infra/backups/dumps/**
+!infra/backups/dumps/.gitkeep
+infra/backups/logs/**
+!infra/backups/logs/.gitkeep
+infra/backups/restore-test/**
+!infra/backups/restore-test/.gitkeep
+infra/backups/weekly/**
+!infra/backups/weekly/.gitkeep
+infra/backups/monthly/**
+!infra/backups/monthly/.gitkeep
+infra/backups/config/backup.local.ps1
+MediQueue Backups/

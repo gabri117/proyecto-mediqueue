@@ -54,6 +54,29 @@ class PatientValidationServiceTest {
     }
 
     @Test
+    void validatesPatientFromDirectDatabaseMode() {
+        UUID patientId = UUID.randomUUID();
+        LoadTestDirectValidationService directValidationService = mock(LoadTestDirectValidationService.class);
+        org.mockito.Mockito.when(directValidationService.activePatientExists(patientId)).thenReturn(true);
+        PatientValidationService service = new PatientValidationService(patientClient, directValidationService, true);
+
+        service.validatePatientExists(patientId);
+
+        verify(directValidationService, times(1)).activePatientExists(patientId);
+        verify(patientClient, times(0)).validatePatientExists(patientId);
+    }
+
+    @Test
+    void rejectsPatientFromDirectDatabaseModeWhenMissing() {
+        UUID patientId = UUID.randomUUID();
+        LoadTestDirectValidationService directValidationService = mock(LoadTestDirectValidationService.class);
+        org.mockito.Mockito.when(directValidationService.activePatientExists(patientId)).thenReturn(false);
+        PatientValidationService service = new PatientValidationService(patientClient, directValidationService, true);
+
+        assertThrows(ServiceValidationException.class, () -> service.validatePatientExists(patientId));
+    }
+
+    @Test
     void doesNotCacheWhenPatientValidationFails() {
         UUID patientId = UUID.randomUUID();
         doThrow(new ServiceValidationException("Patient not found"))
@@ -83,7 +106,7 @@ class PatientValidationServiceTest {
 
         @Bean
         PatientValidationService patientValidationService(PatientClient patientClient) {
-            return new PatientValidationService(patientClient);
+            return new PatientValidationService(patientClient, mock(LoadTestDirectValidationService.class), false);
         }
     }
 }

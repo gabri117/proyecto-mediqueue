@@ -411,11 +411,48 @@ Use it to see whether a higher stage is blocked in validation, database writes, 
 Creation-only load-test switches:
 
 ```powershell
+$env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
 $env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
 $env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="false"
 ```
 
 These do not remove appointment creation rules and do not skip outbox inserts. They only pause hold expiration and outbox publishing so the synchronous POST path can be measured separately from async payment/notification work. Set both to `true` for E2E runs.
+
+`LOADTEST_DIRECT_DB_VALIDATION_ENABLED=true` keeps validation enabled but moves patient/slot checks into PostgreSQL reads from `patient.patients` and `schedule.dentist_slots`. Use it for high-rate creation-only runs on limited hardware, because validating every unique slot through HTTP creates internal fan-out that can saturate `patient-lb` and `schedule-lb` before the appointment write path is measured. Disable it for strict E2E boundary testing.
+
+For E2E async load testing, keep appointment creation optimized but turn RabbitMQ publishing back on:
+
+```powershell
+$env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
+$env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
+$env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="true"
+$env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="500"
+$env:APPOINTMENT_OUTBOX_BATCH_SIZE="100"
+$env:PAYMENT_RABBITMQ_PREFETCH="50"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="4"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="8"
+$env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="500"
+$env:PAYMENT_OUTBOX_BATCH_SIZE="100"
+$env:PAYMENT_SIM_MIN_DELAY_MS="0"
+$env:PAYMENT_SIM_MAX_DELAY_MS="50"
+$env:PAYMENT_SIM_APPROVAL_RATE="1.0"
+$env:NOTIFICATION_RABBITMQ_PREFETCH="50"
+$env:NOTIFICATION_RABBITMQ_LISTENER_CONCURRENCY="2"
+$env:NOTIFICATION_RABBITMQ_LISTENER_MAX_CONCURRENCY="6"
+```
+
+In this mode, `appointments_created` proves synchronous creation, while RabbitMQ queue depth, payment rows, notification rows, and appointment status distribution prove asynchronous completion. Do not call an E2E run complete until the relevant queues drain.
+
+On limited hardware, keep these conservative E2E values until the HTTP creation result is clean. If creation is clean but RabbitMQ drains too slowly after the run, increase outbox batch sizes and consumer concurrency in a second pass.
+
+For high-rate load tests on constrained hardware, prefer delayed async publishing:
+
+```powershell
+$env:APPOINTMENT_OUTBOX_INITIAL_DELAY_MS="90000"
+$env:PAYMENT_OUTBOX_INITIAL_DELAY_MS="120000"
+```
+
+This still writes every appointment outbox event in the same transaction as the appointment. It only delays the background RabbitMQ publisher so payment and notification processing starts after the one-minute k6 arrival-rate stage, instead of competing with the synchronous creation path. Use this mode when the goal is "create appointments now, drain async work immediately after".
 
 If gateway fallback logs show `BulkheadFullException`, the request was rejected by the gateway concurrency guard before a useful upstream result could be returned. That is different from an open circuit (`CallNotPermittedException`) or a timeout (`TimeoutException`).
 
@@ -669,12 +706,12 @@ $env:PAYMENT_SIM_MIN_DELAY_MS="50"
 $env:PAYMENT_SIM_MAX_DELAY_MS="200"
 $env:PAYMENT_TIMEOUT_SECONDS="10"
 $env:PAYMENT_SIM_APPROVAL_RATE="1.0"
-$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="8"
-$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="16"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="4"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="8"
 docker compose up -d --build appointment-service payment-service
 ```
 
-This profile is for load testing only. It does not relax appointment state transitions or permit `EXPIRED -> CONFIRMED`; it gives async payment processing more time and more consumer capacity.
+This profile is for load testing only. It does not relax appointment state transitions or permit `EXPIRED -> CONFIRMED`; it gives async payment processing more time while keeping consumer pressure conservative. Increase payment consumers only after the synchronous creation run is clean and PostgreSQL/Docker still have spare capacity.
 
 Gateway circuit breaker load-test defaults:
 

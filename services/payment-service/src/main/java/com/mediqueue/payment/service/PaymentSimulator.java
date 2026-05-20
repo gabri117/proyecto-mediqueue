@@ -34,7 +34,7 @@ public class PaymentSimulator {
             log.warn("Payment simulation interrupted");
             return PaymentStatus.TIMEOUT;
         }
-        return amount != null && amount.compareTo(new java.math.BigDecimal("500.00")) < 0
+        return amount != null && ThreadLocalRandom.current().nextDouble() < approvalRate
                 ? PaymentStatus.APPROVED
                 : PaymentStatus.REJECTED;
     }

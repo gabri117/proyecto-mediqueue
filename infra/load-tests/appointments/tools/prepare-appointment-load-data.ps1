@@ -401,6 +401,9 @@ function Export-LoadDataOutputs {
         @{ Total = 10000; File = "appointments-10000.json"; Name = "appointments-10000" },
         @{ Total = 50000; File = "appointments-50000.json"; Name = "appointments-50000" }
     )
+    if ($Slots.Count -gt 50000) {
+        $datasetTargets += @{ Total = $Slots.Count; File = "appointments-$($Slots.Count).json"; Name = "appointments-$($Slots.Count)" }
+    }
 
     foreach ($target in $datasetTargets) {
         $targetPath = Join-Path $OutputDir ([string]$target.File)
