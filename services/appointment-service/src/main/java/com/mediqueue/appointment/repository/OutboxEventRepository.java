@@ -30,6 +30,24 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
     List<OutboxEvent> findTop50ByPublicationStatusOrderByCreatedAtAsc(OutboxPublicationStatus status);
 
     /**
+     * Claims pending outbox events with PostgreSQL row locking. Multiple
+     * appointment-service replicas can run the publisher concurrently without
+     * blocking each other or publishing the same event twice.
+     *
+     * @param status pending status value stored in the database
+     * @return locked events ready for publication
+     */
+    @Query(value = """
+            SELECT *
+            FROM outbox_events
+            WHERE publication_status = :status
+            ORDER BY created_at
+            LIMIT 50
+            FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true)
+    List<OutboxEvent> findTop50ForUpdateSkipLocked(@Param("status") String status);
+
+    /**
      * Retrieves up to 10 outbox events with the given publication status,
      * ordered by creation time ascending. Used by the retry job.
      *

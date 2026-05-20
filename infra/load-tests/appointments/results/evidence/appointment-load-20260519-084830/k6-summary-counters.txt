@@ -1,0 +1,10 @@
+appointment_attempts=0
+appointments_created=0
+appointments_503=0
+appointments_server_error=0
+appointments_validation_error=0
+appointments_unexpected=0
+appointments_dataset_exhausted=0
+dropped_iterations=0
+http_reqs=0
+http_req_duration_p95=

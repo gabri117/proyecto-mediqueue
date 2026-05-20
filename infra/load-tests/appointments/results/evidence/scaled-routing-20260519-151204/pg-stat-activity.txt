@@ -1,0 +1,15 @@
+  datname  |  usename  |        state        | wait_event_type |     wait_event      | count 
+-----------+-----------+---------------------+-----------------+---------------------+-------
+ mediqueue | mediqueue | idle                | Client          | ClientRead          |    50
+ mediqueue | mediqueue | idle in transaction | Client          | ClientRead          |     3
+ mediqueue | mediqueue | active              | LWLock          | WALWrite            |     3
+           | mediqueue |                     | Activity        | LogicalLauncherMain |     1
+ mediqueue | mediqueue | idle                |                 |                     |     1
+           |           |                     | Activity        | CheckpointerMain    |     1
+           |           |                     | Activity        | AutoVacuumMain      |     1
+           |           |                     | Activity        | WalWriterMain       |     1
+ mediqueue | mediqueue | active              |                 |                     |     1
+ mediqueue | mediqueue | active              | IO              | WALSync             |     1
+           |           |                     | Activity        | BgWriterMain        |     1
+(11 rows)
+

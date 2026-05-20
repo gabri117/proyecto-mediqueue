@@ -1,0 +1,8 @@
+  datname  |  usename  | state  | count 
+-----------+-----------+--------+-------
+ mediqueue | mediqueue | active |     1
+ mediqueue | mediqueue | idle   |    40
+           | mediqueue |        |     1
+           |           |        |     4
+(4 rows)
+

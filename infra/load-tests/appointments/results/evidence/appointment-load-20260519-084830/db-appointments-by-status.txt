@@ -1,0 +1,7 @@
+ appointment_status | count 
+--------------------+-------
+ CONFIRMED          |   373
+ EXPIRED            |   509
+ PENDING_PAYMENT    |   948
+(3 rows)
+

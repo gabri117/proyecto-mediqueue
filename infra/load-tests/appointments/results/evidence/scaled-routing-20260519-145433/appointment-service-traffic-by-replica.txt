@@ -1,0 +1,9 @@
+
+Name                  Count
+----                  -----
+appointment-service-1  1913
+appointment-service-3  1709
+appointment-service-4  1522
+appointment-service-5  1704
+
+

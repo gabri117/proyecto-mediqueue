@@ -8,8 +8,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -31,11 +33,14 @@ public class OutboxPublisher {
 
     private final OutboxEventRepository outboxEventRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final boolean publisherEnabled;
 
     public OutboxPublisher(OutboxEventRepository outboxEventRepository,
-                           RabbitTemplate rabbitTemplate) {
+                           RabbitTemplate rabbitTemplate,
+                           @Value("${mediqueue.loadtest.outbox-publisher-enabled:true}") boolean publisherEnabled) {
         this.outboxEventRepository = outboxEventRepository;
         this.rabbitTemplate = rabbitTemplate;
+        this.publisherEnabled = publisherEnabled;
     }
 
     /**
@@ -45,9 +50,14 @@ public class OutboxPublisher {
      * {@code mediqueue.outbox.publish-interval-seconds} (default: 1 second).</p>
      */
     @Scheduled(fixedDelayString = "${mediqueue.outbox.publish-interval-seconds:1}000")
+    @Transactional
     public void publishPendingEvents() {
+        if (!publisherEnabled) {
+            log.debug("outbox_publish_skipped reason=disabled_for_loadtest");
+            return;
+        }
         List<OutboxEvent> pending = outboxEventRepository
-                .findTop50ByPublicationStatusOrderByCreatedAtAsc(OutboxPublicationStatus.PENDING);
+                .findTop50ForUpdateSkipLocked(OutboxPublicationStatus.PENDING.name());
 
         for (OutboxEvent event : pending) {
             try {
@@ -61,7 +71,7 @@ public class OutboxPublisher {
                 event.setPublishedAt(Instant.now());
                 outboxEventRepository.save(event);
 
-                log.info("outbox_published eventId={} type={}", event.getEventId(), event.getEventType());
+                log.debug("outbox_published eventId={} type={}", event.getEventId(), event.getEventType());
             } catch (Exception ex) {
                 event.setPublicationStatus(OutboxPublicationStatus.FAILED);
                 outboxEventRepository.save(event);
@@ -78,7 +88,12 @@ public class OutboxPublisher {
      * {@code mediqueue.outbox.retry-interval-seconds} (default: 30 seconds).</p>
      */
     @Scheduled(fixedDelayString = "${mediqueue.outbox.retry-interval-seconds:30}000")
+    @Transactional
     public void retryFailedEvents() {
+        if (!publisherEnabled) {
+            log.debug("outbox_retry_skipped reason=disabled_for_loadtest");
+            return;
+        }
         List<OutboxEvent> failedEvents = outboxEventRepository
                 .findTop10ByPublicationStatusOrderByCreatedAtAsc(OutboxPublicationStatus.FAILED);
 
@@ -94,7 +109,7 @@ public class OutboxPublisher {
                 event.setPublishedAt(Instant.now());
                 outboxEventRepository.save(event);
 
-                log.info("Outbox event reintentado exitosamente: {}", event.getEventId());
+                log.debug("outbox_retry_published eventId={}", event.getEventId());
             } catch (Exception e) {
                 log.error("Reintento fallido para outbox event {}: {}",
                         event.getEventId(), e.getMessage());
