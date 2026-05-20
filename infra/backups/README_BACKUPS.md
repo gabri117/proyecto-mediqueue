@@ -33,13 +33,52 @@ Default values match the current Compose service:
 
 ## Google Drive Desktop
 
-The scripts do not authenticate with Google APIs. Google Drive Desktop must already be installed and syncing the configured local folder:
+Google Drive Desktop must be installed, signed in, and syncing the configured local folder. The backup scripts do not sign in to Google, do not call Google APIs, and do not upload directly to Drive. They only copy files to a local folder that Google Drive Desktop syncs.
 
 ```powershell
 $GoogleDriveBackupPath = "B:\Proyecto BD II Microservivios\MediQueue Backups"
 ```
 
-`sync-google-drive.ps1` only copies backup artifacts into that local folder.
+Create the local config from the example:
+
+```powershell
+Copy-Item .\infra\backups\config\backup.local.example.ps1 .\infra\backups\config\backup.local.ps1
+```
+
+Then confirm this value in `backup.local.ps1`:
+
+```powershell
+$GoogleDriveBackupPath = "B:\Proyecto BD II Microservivios\MediQueue Backups"
+```
+
+`sync-google-drive.ps1` copies these local backup folders while preserving structure:
+
+- `infra/backups/dumps` to `MediQueue Backups/dumps`
+- `infra/backups/local` to `MediQueue Backups/local`
+- `infra/backups/wal-archive` to `MediQueue Backups/wal-archive`
+- `infra/backups/logs` to `MediQueue Backups/logs`
+
+Run synchronization:
+
+```powershell
+.\infra\backups\scripts\sync-google-drive.ps1
+```
+
+Verify the destination without copying and open it in Explorer:
+
+```powershell
+.\infra\backups\scripts\sync-google-drive.ps1 -VerifyOnly -OpenDestination
+```
+
+Use an explicit destination for diagnostics:
+
+```powershell
+.\infra\backups\scripts\sync-google-drive.ps1 -DestinationPath "B:\Proyecto BD II Microservivios\MediQueue Backups"
+```
+
+The script prints `SOURCE_COUNT`, `DEST_COUNT`, `SOURCE_BYTES`, `DEST_BYTES`, and `LAST_COPIED_FILES`. It validates each copied source file against its destination copy with size and SHA-256. It fails if the destination is empty. It prints `SYNC_OK` only when the destination contains the expected dump, checksum, base-backup marker, and recent WAL; otherwise it prints `SYNC_WARNING` with the missing category.
+
+In Google Drive web, Desktop-synced folders may appear under "Computers" or the machine name, not necessarily under "My Drive".
 
 ## WAL and PITR
 
@@ -169,6 +208,8 @@ Non-destructive validation:
 ```powershell
 .\infra\backups\scripts\test-backup-system.ps1
 ```
+
+This sync test requires `backup.local.ps1`, creates only `sync_test_*` dummy files in `dumps` and `logs`, verifies they reached the Google Drive Desktop folder, and deletes only those dummy files. It does not delete real backups.
 
 PowerShell AST validation only:
 
