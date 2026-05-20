@@ -124,3 +124,5 @@ infra/backups/weekly/**
 !infra/backups/weekly/.gitkeep
 infra/backups/monthly/**
 !infra/backups/monthly/.gitkeep
+infra/backups/config/backup.local.ps1
+MediQueue Backups/

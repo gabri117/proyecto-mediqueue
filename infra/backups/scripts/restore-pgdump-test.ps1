@@ -8,9 +8,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-if (-not $PostgresService) { $PostgresService = "postgres" }
-if (-not $DatabaseUser) { $DatabaseUser = "mediqueue" }
-if (-not $BackupRoot) { $BackupRoot = ".\infra\backups" }
+. "$PSScriptRoot\backup-common.ps1"
+$cfg = Get-MediQueueBackupConfig
+if (-not $PostgresService) { $PostgresService = $cfg.PostgresService }
+if (-not $DatabaseUser) { $DatabaseUser = $cfg.DatabaseUser }
+if (-not $BackupRoot) { $BackupRoot = $cfg.BackupRoot }
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logDir = Join-Path $BackupRoot "logs"

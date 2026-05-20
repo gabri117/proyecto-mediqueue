@@ -1,12 +1,16 @@
 param(
     [string]$BackupRoot = $env:MEDIQUEUE_BACKUP_ROOT,
+    [string]$GoogleDriveBackupPath,
     [int]$MaxBaseAgeHours = 30,
     [int]$MaxDumpAgeHours = 30,
     [int]$MaxWalAgeMinutes = 10
 )
 
 $ErrorActionPreference = "Stop"
-if (-not $BackupRoot) { $BackupRoot = ".\infra\backups" }
+. "$PSScriptRoot\backup-common.ps1"
+$cfg = Get-MediQueueBackupConfig
+if (-not $BackupRoot) { $BackupRoot = $cfg.BackupRoot }
+if (-not $GoogleDriveBackupPath) { $GoogleDriveBackupPath = $cfg.GoogleDriveBackupPath }
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logDir = Join-Path $BackupRoot "logs"
@@ -86,6 +90,21 @@ try {
         $failures.Add("WAL demasiado antiguo para RPO objetivo: $($latestWal.FullName)")
     } else {
         Write-Log "WAL_OK file=$($latestWal.FullName) ageMinutes=$([Math]::Round(((Get-Date) - $latestWal.LastWriteTime).TotalMinutes, 2))"
+    }
+
+    if ($GoogleDriveBackupPath) {
+        if (-not (Test-Path -LiteralPath $GoogleDriveBackupPath)) {
+            $failures.Add("DRIVE_SYNC_ERROR ruta configurada no existe: $GoogleDriveBackupPath")
+        } else {
+            $driveStats = Get-DirectoryStats -Path $GoogleDriveBackupPath
+            if ($driveStats.Count -lt 1 -or $driveStats.Bytes -lt 1) {
+                $warnings.Add("DRIVE_SYNC_WARNING carpeta existe pero no contiene backups: $GoogleDriveBackupPath")
+            } else {
+                Write-Log "DRIVE_SYNC_OK path=$GoogleDriveBackupPath files=$($driveStats.Count) bytes=$($driveStats.Bytes)"
+            }
+        }
+    } else {
+        $warnings.Add("DRIVE_SYNC_WARNING GoogleDriveBackupPath no configurado.")
     }
 
     if ($failures.Count -gt 0) {

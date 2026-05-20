@@ -24,15 +24,25 @@ Retention:
 
 ## Configuration
 
-Do not commit secrets. Use environment variables or copy `config/backup.config.example.ps1` / `config/backup.env.example` to an untracked location.
+Do not commit secrets. Copy the local example and adjust it for the machine where the scheduled tasks will run:
 
 ```powershell
-$env:MEDIQUEUE_BACKUP_POSTGRES_SERVICE="postgres"
-$env:MEDIQUEUE_BACKUP_DB_NAME="mediqueue"
-$env:MEDIQUEUE_BACKUP_DB_USER="mediqueue"
-$env:MEDIQUEUE_BACKUP_ROOT=".\infra\backups"
-$env:GOOGLE_DRIVE_BACKUP_PATH="G:\My Drive\MediQueue Backups"
+Copy-Item .\infra\backups\config\backup.local.example.ps1 .\infra\backups\config\backup.local.ps1
+notepad .\infra\backups\config\backup.local.ps1
 ```
+
+Recommended local values for this project:
+
+```powershell
+$BackupRoot = ".\infra\backups"
+$GoogleDriveBackupPath = "B:\Proyecto BD II Microservivios\MediQueue Backups"
+$DatabaseName = "mediqueue"
+$DatabaseUser = "mediqueue"
+$PostgresService = "postgres"
+$PostgresContainer = "mediqueue-postgres"
+```
+
+`backup.local.ps1` is ignored by git. The scheduled tasks read this file directly, so they do not depend on temporary `$env:GOOGLE_DRIVE_BACKUP_PATH` values from an interactive PowerShell session.
 
 Optional encryption for pg_dump:
 
@@ -95,14 +105,27 @@ Verify WAL archiving:
 Sync to Google Drive folder or rclone remote:
 
 ```powershell
-$env:GOOGLE_DRIVE_BACKUP_PATH="G:\My Drive\MediQueue Backups"
 .\infra\backups\scripts\sync-google-drive.ps1
 ```
 
-`sync-google-drive.ps1` does not authenticate with Google and does not store Google credentials. It copies files into a local folder that Google Drive Desktop is already synchronizing. After the script reports `SYNC_OK`, verify two things:
+`sync-google-drive.ps1` does not authenticate with Google and does not store Google credentials. It copies files into a local folder that Google Drive Desktop is already synchronizing. Google Drive Desktop must be installed, signed in, and actively syncing that folder.
+
+The script verifies file counts, byte counts, latest copied files, `.dump`, `.sha256`, base backups, and recent WAL. After it reports `SYNC_OK`, verify two things:
 
 1. The local folder contains updated `dumps`, `local`, `wal-archive`, and `logs` folders.
 2. Google Drive Desktop finishes sync, then the files are visible in Drive web.
+
+Open the destination after sync:
+
+```powershell
+.\infra\backups\scripts\sync-google-drive.ps1 -OpenDestination
+```
+
+Verify the Drive folder without copying again:
+
+```powershell
+.\infra\backups\scripts\sync-google-drive.ps1 -VerifyOnly
+```
 
 Or with rclone:
 
@@ -127,6 +150,20 @@ Verify backups:
 
 ```powershell
 .\infra\backups\scripts\verify-backups.ps1
+```
+
+Quick end-to-end backup system test:
+
+```powershell
+.\infra\backups\scripts\test-backup-system.ps1
+```
+
+The test creates dummy files in ignored backup folders, syncs them to the local Google Drive folder, verifies they arrived, runs `verify-backups.ps1`, and removes only its own dummy files.
+
+Daily pipeline:
+
+```powershell
+.\infra\backups\scripts\run-daily-backup-pipeline.ps1
 ```
 
 Restore latest pg_dump into test database `mediqueue_restore_test`:
@@ -165,7 +202,21 @@ Create tasks:
 .\infra\backups\scripts\install-backup-tasks.ps1 -Create
 ```
 
-Schedule created:
+Create the single daily pipeline task plus cleanup and weekly restore test:
+
+```powershell
+.\infra\backups\scripts\install-backup-tasks.ps1 -Create -UsePipelineTask
+```
+
+If a task already exists and you want to replace it:
+
+```powershell
+.\infra\backups\scripts\install-backup-tasks.ps1 -Create -UsePipelineTask -DeleteExisting
+```
+
+Tasks are created with absolute script paths and the repo root as `WorkingDirectory`. They read Google Drive and database settings from `infra/backups/config/backup.local.ps1`.
+
+Schedule created without `-UsePipelineTask`:
 
 - Base backup daily 21:00.
 - pg_dump daily 22:00.
@@ -173,6 +224,30 @@ Schedule created:
 - Cleanup daily 23:00.
 - Verify daily 23:30.
 - pg_dump restore test weekly Sunday 23:45.
+
+Schedule created with `-UsePipelineTask`:
+
+- Daily pipeline at 21:00.
+- Cleanup daily 23:00.
+- pg_dump restore test weekly Sunday 23:45.
+
+Verify tasks:
+
+```powershell
+Get-ScheduledTask | Where-Object TaskName -like "MediQueue*"
+```
+
+Run the pipeline task manually:
+
+```powershell
+Start-ScheduledTask -TaskName "MediQueue Daily Backup Pipeline"
+```
+
+Review recent logs:
+
+```powershell
+Get-ChildItem .\infra\backups\logs | Sort-Object LastWriteTime -Descending | Select-Object -First 10
+```
 
 ## Daily Checklist
 
