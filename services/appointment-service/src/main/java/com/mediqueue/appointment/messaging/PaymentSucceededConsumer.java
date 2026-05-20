@@ -29,9 +29,9 @@ public class PaymentSucceededConsumer {
      *
      * @param event the inbound payment succeeded event
      */
-    @RabbitListener(queues = "payment.succeeded")
+    @RabbitListener(queues = "payment.succeeded", containerFactory = "paymentEventsListenerContainerFactory")
     public void handlePaymentSucceeded(PaymentSucceededEvent event) {
-        log.info("PaymentSucceeded recibido para appointmentId: {}", event.payload().appointmentId());
+        log.debug("PaymentSucceeded recibido para appointmentId: {}", event.payload().appointmentId());
 
         try {
             appointmentService.confirmAppointment(event.payload().appointmentId());
