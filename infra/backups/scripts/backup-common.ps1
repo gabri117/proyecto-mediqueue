@@ -25,9 +25,9 @@ function Initialize-BackupConfiguration {
         WalArchiveIntervalMinutes = 5
         WalReceiveDurationSeconds = 290
         WalReplicationSlot = "mediqueue_backup_slot"
-        BaseBackupRetentionDays = 7
-        DumpRetentionDays = 14
-        WalRetentionDays = 7
+        BaseBackupRetentionDays = 14
+        DumpRetentionDays = 30
+        WalRetentionDays = 14
         LogRetentionDays = 30
         WeeklyRetentionWeeks = 8
         MonthlyRetentionMonths = 12

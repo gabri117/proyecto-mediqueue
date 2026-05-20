@@ -264,11 +264,22 @@ infra/backups/logs/pipeline_YYYYMMDD_HHMMSS.log
 
 The pipeline stops on base backup, pg_dump, or sync failures. WAL and final verification warnings are recorded as `PIPELINE_STATUS=WARNING`; a clean run ends with `PIPELINE_STATUS=OK`.
 
-Cleanup is dry-run unless `-Apply` is explicitly passed:
+Cleanup is dry-run by default. It prints each candidate with file, age, category, and reason. It never deletes `.gitkeep` and never deletes files from the current day.
 
 ```powershell
 .\infra\backups\scripts\cleanup-backups.ps1 -DryRun
-.\infra\backups\scripts\cleanup-backups.ps1 -Apply
+```
+
+Real cleanup requires explicit confirmation:
+
+```powershell
+.\infra\backups\scripts\cleanup-backups.ps1 -ConfirmDelete
+```
+
+Google Drive Desktop cleanup is not included unless requested separately, and still requires confirmation:
+
+```powershell
+.\infra\backups\scripts\cleanup-backups.ps1 -ConfirmDelete -IncludeGoogleDrive
 ```
 
 Restore tests are isolated:
@@ -349,9 +360,9 @@ Google Drive Desktop normally syncs best when the Windows user is signed in. If 
 
 ## Retention defaults
 
-- Base backups: 7 days.
-- Logical dumps: 14 days.
-- WAL archive: 7 days.
+- Base backups: 14 days.
+- Logical dumps: 30 days.
+- WAL archive: 14 days.
 - Logs: 30 days.
 - Weekly base copies: 8 weeks.
 - Monthly base copies: 12 months.
