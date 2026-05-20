@@ -3,7 +3,9 @@ param(
     [string]$DatabaseName = $env:MEDIQUEUE_BACKUP_DB_NAME,
     [string]$DatabaseUser = $env:MEDIQUEUE_BACKUP_DB_USER,
     [string]$BackupRoot = $env:MEDIQUEUE_BACKUP_ROOT,
-    [string]$GoogleDrivePath = $env:MEDIQUEUE_BACKUP_GOOGLE_DRIVE_PATH
+    [string]$GoogleDrivePath = $env:MEDIQUEUE_BACKUP_GOOGLE_DRIVE_PATH,
+    [string]$GpgRecipient = $env:MEDIQUEUE_BACKUP_GPG_RECIPIENT,
+    [string]$GpgPassphrase = $env:MEDIQUEUE_BACKUP_GPG_PASSPHRASE
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,11 +55,36 @@ try {
         throw "pg_dump no fue creado o esta vacio: $localDump"
     }
 
+    $checksum = Get-FileHash -Algorithm SHA256 -LiteralPath $localDump
+    $checksumFile = "$localDump.sha256"
+    "$($checksum.Hash)  $(Split-Path -Leaf $localDump)" | Set-Content -LiteralPath $checksumFile -Encoding utf8
+    Write-Log "SHA256_OK file=$checksumFile hash=$($checksum.Hash)"
+
+    if ($GpgRecipient -or $GpgPassphrase) {
+        $gpg = Get-Command gpg -ErrorAction SilentlyContinue
+        if (-not $gpg) {
+            throw "Se solicito cifrado GPG, pero gpg no esta instalado o no esta en PATH."
+        }
+
+        if ($GpgRecipient) {
+            Invoke-Checked "encrypt pg_dump with GPG recipient" { gpg --batch --yes --recipient $GpgRecipient --encrypt $localDump }
+        } else {
+            Invoke-Checked "encrypt pg_dump with GPG symmetric passphrase" { gpg --batch --yes --pinentry-mode loopback --passphrase $GpgPassphrase --symmetric --cipher-algo AES256 $localDump }
+        }
+        Write-Log "ENCRYPTION_OK output=$localDump.gpg"
+    } else {
+        Write-Log "ENCRYPTION_SKIPPED reason=no_gpg_recipient_or_passphrase"
+    }
+
     Write-Log "PGDUMP_OK file=$localDump bytes=$((Get-Item -LiteralPath $localDump).Length)"
 
     if ($GoogleDrivePath) {
         New-Item -ItemType Directory -Force -Path $GoogleDrivePath | Out-Null
         Copy-Item -LiteralPath $localDump -Destination $GoogleDrivePath -Force
+        Copy-Item -LiteralPath $checksumFile -Destination $GoogleDrivePath -Force
+        if (Test-Path -LiteralPath "$localDump.gpg") {
+            Copy-Item -LiteralPath "$localDump.gpg" -Destination $GoogleDrivePath -Force
+        }
         Write-Log "GOOGLE_DRIVE_COPY_OK destination=$GoogleDrivePath"
     }
 

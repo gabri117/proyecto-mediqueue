@@ -120,3 +120,7 @@ infra/backups/logs/**
 !infra/backups/logs/.gitkeep
 infra/backups/restore-test/**
 !infra/backups/restore-test/.gitkeep
+infra/backups/weekly/**
+!infra/backups/weekly/.gitkeep
+infra/backups/monthly/**
+!infra/backups/monthly/.gitkeep

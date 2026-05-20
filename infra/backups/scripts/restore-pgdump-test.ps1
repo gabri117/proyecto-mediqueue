@@ -3,6 +3,7 @@ param(
     [string]$PostgresService = $env:MEDIQUEUE_BACKUP_POSTGRES_SERVICE,
     [string]$DatabaseUser = $env:MEDIQUEUE_BACKUP_DB_USER,
     [string]$BackupRoot = $env:MEDIQUEUE_BACKUP_ROOT,
+    [string]$TestDatabaseName = "mediqueue_restore_test",
     [switch]$KeepDatabase
 )
 
@@ -49,13 +50,17 @@ try {
     Invoke-Checked "docker info" { docker info }
     Invoke-Checked "docker compose ps" { docker compose ps }
 
-    $testDb = "mediqueue_restore_test_$stamp"
+    $testDb = $TestDatabaseName
     $containerDump = "/tmp/mediqueue_restore_test_$stamp.dump"
 
     Invoke-Checked "copy dump into postgres container" { docker compose cp $DumpFile "${PostgresService}:$containerDump" }
+    Invoke-Checked "drop existing restore test database" { docker compose exec -T $PostgresService dropdb -U $DatabaseUser --if-exists $testDb }
     Invoke-Checked "create restore test database" { docker compose exec -T $PostgresService createdb -U $DatabaseUser $testDb }
     Invoke-Checked "restore pg_dump into test database" { docker compose exec -T $PostgresService pg_restore -U $DatabaseUser -d $testDb --no-owner $containerDump }
     Invoke-Checked "verify restored schemas" { docker compose exec -T $PostgresService psql -U $DatabaseUser -d $testDb -c "select table_schema, count(*) from information_schema.tables where table_schema in ('appointment','patient','schedule','payment','notification') group by table_schema order by table_schema;" }
+    Invoke-Checked "verify critical table counts" {
+        docker compose exec -T $PostgresService bash -lc "set -e; for t in appointment.appointments patient.patients schedule.dentist_slots payment.payments; do exists=`$(psql -U '$DatabaseUser' -d '$testDb' -Atc `"select to_regclass('$t');`"); if [ -n `"`$exists`" ]; then psql -U '$DatabaseUser' -d '$testDb' -c `"select '$t' as table_name, count(*) from $t;`"; else echo `"MISSING table=$t`"; fi; done"
+    }
 
     if (-not $KeepDatabase) {
         Invoke-Checked "drop restore test database" { docker compose exec -T $PostgresService dropdb -U $DatabaseUser $testDb }
