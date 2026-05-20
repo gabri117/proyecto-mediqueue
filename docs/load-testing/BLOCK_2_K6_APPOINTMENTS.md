@@ -411,11 +411,14 @@ Use it to see whether a higher stage is blocked in validation, database writes, 
 Creation-only load-test switches:
 
 ```powershell
+$env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
 $env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
 $env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="false"
 ```
 
 These do not remove appointment creation rules and do not skip outbox inserts. They only pause hold expiration and outbox publishing so the synchronous POST path can be measured separately from async payment/notification work. Set both to `true` for E2E runs.
+
+`LOADTEST_DIRECT_DB_VALIDATION_ENABLED=true` keeps validation enabled but moves patient/slot checks into PostgreSQL reads from `patient.patients` and `schedule.dentist_slots`. Use it for high-rate creation-only runs on limited hardware, because validating every unique slot through HTTP creates internal fan-out that can saturate `patient-lb` and `schedule-lb` before the appointment write path is measured. Disable it for strict E2E boundary testing.
 
 If gateway fallback logs show `BulkheadFullException`, the request was rejected by the gateway concurrency guard before a useful upstream result could be returned. That is different from an open circuit (`CallNotPermittedException`) or a timeout (`TimeoutException`).
 

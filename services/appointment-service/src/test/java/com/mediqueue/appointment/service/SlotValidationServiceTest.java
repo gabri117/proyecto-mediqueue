@@ -54,6 +54,29 @@ class SlotValidationServiceTest {
     }
 
     @Test
+    void validatesSlotFromDirectDatabaseMode() {
+        UUID slotId = UUID.randomUUID();
+        LoadTestDirectValidationService directValidationService = mock(LoadTestDirectValidationService.class);
+        org.mockito.Mockito.when(directValidationService.availableSlotExists(slotId)).thenReturn(true);
+        SlotValidationService service = new SlotValidationService(scheduleClient, directValidationService, true);
+
+        service.validateSlotExists(slotId);
+
+        verify(directValidationService, times(1)).availableSlotExists(slotId);
+        verify(scheduleClient, times(0)).validateSlotExists(slotId);
+    }
+
+    @Test
+    void rejectsSlotFromDirectDatabaseModeWhenMissing() {
+        UUID slotId = UUID.randomUUID();
+        LoadTestDirectValidationService directValidationService = mock(LoadTestDirectValidationService.class);
+        org.mockito.Mockito.when(directValidationService.availableSlotExists(slotId)).thenReturn(false);
+        SlotValidationService service = new SlotValidationService(scheduleClient, directValidationService, true);
+
+        assertThrows(ServiceValidationException.class, () -> service.validateSlotExists(slotId));
+    }
+
+    @Test
     void doesNotCacheWhenSlotValidationFails() {
         UUID slotId = UUID.randomUUID();
         doThrow(new ServiceValidationException("Slot not found"))
@@ -83,7 +106,7 @@ class SlotValidationServiceTest {
 
         @Bean
         SlotValidationService slotValidationService(ScheduleClient scheduleClient) {
-            return new SlotValidationService(scheduleClient);
+            return new SlotValidationService(scheduleClient, mock(LoadTestDirectValidationService.class), false);
         }
     }
 }

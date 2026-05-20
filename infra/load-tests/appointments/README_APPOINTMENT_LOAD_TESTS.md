@@ -402,6 +402,14 @@ PATIENT_SERVICE_URL=http://patient-lb:8080
 SCHEDULE_SERVICE_URL=http://schedule-lb:8080
 ```
 
+For high-rate creation-only runs on limited hardware, `docker-compose.yml` enables:
+
+```text
+LOADTEST_DIRECT_DB_VALIDATION_ENABLED=true
+```
+
+This does not skip validation. `appointment-service` still verifies that the patient exists and is `ACTIVE`, and that the slot exists and is `AVAILABLE`; it performs those checks through PostgreSQL schemas (`patient.patients` and `schedule.dentist_slots`) instead of issuing one HTTP request to patient/schedule for every appointment. This avoids the internal fan-out that can make `patient-lb` and `schedule-lb` drop all backends under 25k/min pressure. For a stricter E2E microservice-boundary test, set it to `false`.
+
 Rate limit notes:
 
 - `10,000/min` is about `166.67 req/s`.
@@ -449,6 +457,7 @@ Use this to identify whether pressure moves into validation, database writes, or
 Creation-only switches:
 
 ```powershell
+$env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
 $env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
 $env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="false"
 ```
