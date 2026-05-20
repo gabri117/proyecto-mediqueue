@@ -27,7 +27,19 @@ services:
       - "5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
+      - ./infra/backups/local:/backups
       - ./infra/docker/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql:ro
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=300
+      - -c
+      - archive_command=test ! -f /var/lib/postgresql/wal-archive/%f && cp %p /var/lib/postgresql/wal-archive/%f
     networks:
       - mediqueue-net
     healthcheck:
