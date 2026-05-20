@@ -99,6 +99,11 @@ $env:GOOGLE_DRIVE_BACKUP_PATH="G:\My Drive\MediQueue Backups"
 .\infra\backups\scripts\sync-google-drive.ps1
 ```
 
+`sync-google-drive.ps1` does not authenticate with Google and does not store Google credentials. It copies files into a local folder that Google Drive Desktop is already synchronizing. After the script reports `SYNC_OK`, verify two things:
+
+1. The local folder contains updated `dumps`, `local`, `wal-archive`, and `logs` folders.
+2. Google Drive Desktop finishes sync, then the files are visible in Drive web.
+
 Or with rclone:
 
 ```powershell

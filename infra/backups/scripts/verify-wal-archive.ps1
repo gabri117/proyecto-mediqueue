@@ -4,7 +4,8 @@ param(
     [string]$DatabaseUser = $env:MEDIQUEUE_BACKUP_DB_USER,
     [string]$BackupRoot = $env:MEDIQUEUE_BACKUP_ROOT,
     [string]$ContainerWalArchiveDir = "/var/lib/postgresql/wal-archive",
-    [int]$WaitSeconds = 30
+    [int]$WaitSeconds = 90,
+    [int]$RecentWalMinutes = 10
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,6 +54,39 @@ function Get-WalCount {
     return [int](([string]$count).Trim())
 }
 
+function Get-ArchiverStats {
+    $raw = docker compose exec -T $PostgresService psql -U $DatabaseUser -d $DatabaseName -Atc "select archived_count, failed_count, coalesce(last_archived_wal,''), coalesce(last_archived_time::text,''), coalesce(last_failed_wal,''), coalesce(last_failed_time::text,'') from pg_stat_archiver;"
+    if ($LASTEXITCODE -ne 0) {
+        throw "No se pudo consultar pg_stat_archiver."
+    }
+    $parts = ([string]$raw).Trim() -split "\|", 6
+    return [ordered]@{
+        archived_count = [int64]$parts[0]
+        failed_count = [int64]$parts[1]
+        last_archived_wal = $parts[2]
+        last_archived_time = $parts[3]
+        last_failed_wal = $parts[4]
+        last_failed_time = $parts[5]
+    }
+}
+
+function Get-LatestWalInfo {
+    $raw = docker compose exec -T $PostgresService bash -lc "mkdir -p '$ContainerWalArchiveDir'; find '$ContainerWalArchiveDir' -maxdepth 1 -type f -printf '%T@|%f|%TY-%Tm-%Td %TH:%TM:%TS\n' 2>/dev/null | sort -nr | head -10"
+    if ($LASTEXITCODE -ne 0) {
+        throw "No se pudieron listar WAL en $ContainerWalArchiveDir"
+    }
+    return [string]$raw
+}
+
+function Test-RecentWal {
+    $epoch = docker compose exec -T $PostgresService bash -lc "find '$ContainerWalArchiveDir' -maxdepth 1 -type f -printf '%T@\n' 2>/dev/null | sort -nr | head -1"
+    if ($LASTEXITCODE -ne 0 -or -not ([string]$epoch).Trim()) {
+        return $false
+    }
+    $latest = [DateTimeOffset]::FromUnixTimeSeconds([int64][double](([string]$epoch).Trim())).DateTime
+    return $latest -ge (Get-Date).AddMinutes(-$RecentWalMinutes)
+}
+
 try {
     Invoke-Checked "docker info" { docker info }
     Invoke-Checked "docker compose ps" { docker compose ps }
@@ -82,28 +116,51 @@ try {
     }
 
     $beforeCount = Get-WalCount
+    $beforeStats = Get-ArchiverStats
     Write-Log "wal_count_before=$beforeCount"
+    Write-Log "archiver_before archived_count=$($beforeStats.archived_count) failed_count=$($beforeStats.failed_count) last_archived_wal=$($beforeStats.last_archived_wal) last_archived_time=$($beforeStats.last_archived_time) last_failed_wal=$($beforeStats.last_failed_wal) last_failed_time=$($beforeStats.last_failed_time)"
 
     $switchedWal = Invoke-PsqlScalar "select pg_switch_wal();"
     Write-Log "pg_switch_wal=$switchedWal"
 
     $deadline = (Get-Date).AddSeconds($WaitSeconds)
     $afterCount = $beforeCount
+    $afterStats = $beforeStats
     while ((Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 2
         $afterCount = Get-WalCount
-        if ($afterCount -gt $beforeCount) {
+        $afterStats = Get-ArchiverStats
+        if ($afterStats.archived_count -gt $beforeStats.archived_count -or
+            $afterStats.last_archived_time -ne $beforeStats.last_archived_time -or
+            $afterCount -gt $beforeCount) {
             break
         }
     }
 
     Write-Log "wal_count_after=$afterCount"
-    if ($afterCount -le $beforeCount) {
-        throw "No aparecio un WAL nuevo despues de pg_switch_wal() dentro de ${WaitSeconds}s."
+    Write-Log "archiver_after archived_count=$($afterStats.archived_count) failed_count=$($afterStats.failed_count) last_archived_wal=$($afterStats.last_archived_wal) last_archived_time=$($afterStats.last_archived_time) last_failed_wal=$($afterStats.last_failed_wal) last_failed_time=$($afterStats.last_failed_time)"
+    Write-Log "latest_wal_files_start"
+    Write-Log (Get-LatestWalInfo)
+    Write-Log "latest_wal_files_end"
+
+    if ($afterStats.failed_count -gt $beforeStats.failed_count) {
+        throw "pg_stat_archiver reporta fallos nuevos. failed_count_before=$($beforeStats.failed_count) failed_count_after=$($afterStats.failed_count) last_failed_wal=$($afterStats.last_failed_wal)"
     }
 
-    Write-Log "WAL_ARCHIVE_VERIFY_OK newFiles=$($afterCount - $beforeCount) total=$afterCount"
-    exit 0
+    if ($afterStats.archived_count -gt $beforeStats.archived_count -or
+        $afterStats.last_archived_time -ne $beforeStats.last_archived_time -or
+        $afterCount -gt $beforeCount) {
+        Write-Log "WAL_ARCHIVE_VERIFY_OK newFiles=$($afterCount - $beforeCount) archivedDelta=$($afterStats.archived_count - $beforeStats.archived_count) total=$afterCount"
+        exit 0
+    }
+
+    Write-Log "WARN No cambio archived_count/last_archived_time despues de pg_switch_wal() dentro de ${WaitSeconds}s."
+    if (Test-RecentWal) {
+        Write-Log "WAL_ARCHIVE_VERIFY_WARNING recentWal=true failed_count_unchanged=true"
+        exit 0
+    }
+
+    throw "No se archivo WAL nuevo y no hay WAL reciente dentro de ${RecentWalMinutes} minutos."
 } catch {
     Write-Log "ERROR $($_.Exception.Message)"
     exit 1

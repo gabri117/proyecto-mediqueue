@@ -58,7 +58,10 @@ try {
     $checksum = Get-FileHash -Algorithm SHA256 -LiteralPath $localDump
     $checksumFile = "$localDump.sha256"
     "$($checksum.Hash)  $(Split-Path -Leaf $localDump)" | Set-Content -LiteralPath $checksumFile -Encoding utf8
-    Write-Log "SHA256_OK file=$checksumFile hash=$($checksum.Hash)"
+    if (-not (Test-Path -LiteralPath $checksumFile) -or (Get-Item -LiteralPath $checksumFile).Length -le 0) {
+        throw "No se pudo generar checksum SHA256 para $localDump"
+    }
+    Write-Log "CHECKSUM_OK file=$checksumFile hash=$($checksum.Hash)"
 
     if ($GpgRecipient -or $GpgPassphrase) {
         $gpg = Get-Command gpg -ErrorAction SilentlyContinue
@@ -76,7 +79,7 @@ try {
         Write-Log "ENCRYPTION_SKIPPED reason=no_gpg_recipient_or_passphrase"
     }
 
-    Write-Log "PGDUMP_OK file=$localDump bytes=$((Get-Item -LiteralPath $localDump).Length)"
+    Write-Log "DUMP_OK file=$localDump bytes=$((Get-Item -LiteralPath $localDump).Length)"
 
     if ($GoogleDrivePath) {
         New-Item -ItemType Directory -Force -Path $GoogleDrivePath | Out-Null
