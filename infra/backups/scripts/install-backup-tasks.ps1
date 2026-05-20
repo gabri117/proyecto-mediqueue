@@ -52,6 +52,6 @@ Register-BackupTask -Name "$TaskPrefix - WAL snapshot diario 22:20" -Action (New
 Register-BackupTask -Name "$TaskPrefix - Sync Google Drive 22:30" -Action (New-BackupAction -ScriptName "sync-google-drive.ps1") -Trigger $syncTrigger -Description "Copia local a carpeta sincronizada por Google Drive Desktop."
 Register-BackupTask -Name "$TaskPrefix - Cleanup dry-run 23:00" -Action (New-BackupAction -ScriptName "cleanup-backups.ps1" -ExtraArguments @("-DryRun")) -Trigger $cleanupTrigger -Description "Simulacion diaria de retencion; no elimina automaticamente."
 Register-BackupTask -Name "$TaskPrefix - Verify diario 23:30" -Action (New-BackupAction -ScriptName "verify-backups.ps1") -Trigger $verifyTrigger -Description "Verificacion diaria de base, dump y WAL."
-Register-BackupTask -Name "$TaskPrefix - Restore test domingo 23:45" -Action (New-BackupAction -ScriptName "restore-pgdump-test.ps1") -Trigger $restoreTrigger -Description "Restauracion logica semanal en base aislada."
+Register-BackupTask -Name "$TaskPrefix - Restore test domingo 23:45" -Action (New-BackupAction -ScriptName "restore-pgdump-test.ps1" -ExtraArguments @("-RecreateDatabase")) -Trigger $restoreTrigger -Description "Restauracion logica semanal en base aislada."
 
 Write-Log "Instalacion de tareas completada. La limpieza queda registrada en modo -DryRun." "OK"

@@ -110,6 +110,58 @@ Plan PITR without executing a restore:
 
 This writes `infra/backups/restore-test/PITR_PLAN.txt`. It does not touch the main database, does not start a restore container, and does not delete data.
 
+## Logical dumps
+
+Create a daily logical backup with PostgreSQL custom format:
+
+```powershell
+.\infra\backups\scripts\backup-pgdump.ps1
+```
+
+The dump is stored as:
+
+```text
+infra/backups/dumps/mediqueue_dump_YYYYMMDD_HHMMSS.dump
+infra/backups/dumps/mediqueue_dump_YYYYMMDD_HHMMSS.dump.sha256
+```
+
+The script validates the dump file, writes the SHA-256 checksum, and logs `DUMP_OK` and `CHECKSUM_OK`.
+
+Run a safe logical restore test:
+
+```powershell
+.\infra\backups\scripts\restore-pgdump-test.ps1
+```
+
+The restore test uses the isolated database `mediqueue_restore_test`; it never restores over `mediqueue`. If `mediqueue_restore_test` already exists, the script asks for confirmation before recreating it. For unattended restore drills, pass the explicit recreation flag:
+
+```powershell
+.\infra\backups\scripts\restore-pgdump-test.ps1 -RecreateDatabase
+```
+
+Keep the test database for manual inspection:
+
+```powershell
+.\infra\backups\scripts\restore-pgdump-test.ps1 -RecreateDatabase -KeepDatabase
+```
+
+The restore test validates the main schemas `appointment`, `patient`, `schedule`, and `payment` when present. It also checks critical tables and logs `RESTORE_TEST_OK` when the restored database passes.
+
+Run the consolidated daily verification:
+
+```powershell
+.\infra\backups\scripts\verify-backups.ps1
+```
+
+Expected status labels:
+
+- `BASE_OK` / `BASE_ERROR`
+- `DUMP_OK` / `DUMP_ERROR`
+- `CHECKSUM_OK` / `CHECKSUM_WARNING`
+- `WAL_OK` / `WAL_WARNING` / `WAL_ERROR`
+- `DRIVE_SYNC_OK` / `DRIVE_SYNC_WARNING` / `DRIVE_SYNC_ERROR`
+- `STATUS=OK` / `STATUS=WARNING` / `STATUS=ERROR`
+
 ## Manual checks
 
 Non-destructive validation:
@@ -146,6 +198,7 @@ Run these only when you are ready to create real backup artifacts:
 .\infra\backups\scripts\backup-pgdump.ps1
 .\infra\backups\scripts\sync-google-drive.ps1
 .\infra\backups\scripts\verify-backups.ps1
+.\infra\backups\scripts\restore-pgdump-test.ps1 -RecreateDatabase
 ```
 
 Cleanup is dry-run unless `-Apply` is explicitly passed:
