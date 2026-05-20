@@ -1,0 +1,472 @@
+{
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    { "type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "11.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "stat",       "name": "Stat",        "version": "" },
+    { "type": "panel", "id": "piechart",   "name": "Pie chart",   "version": "" },
+    { "type": "panel", "id": "text",       "name": "Text",        "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Resultados de los tres escenarios de prueba: A (carga de lectura), B (concurrencia y reservas simultáneas), C (flujo completo extremo a extremo)",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+      "id": 300,
+      "options": {
+        "content": "<div style=\"text-align:center; background:#1565c0; padding:10px; border-radius:6px;\"><span style=\"color:#fff; font-size:17px; font-weight:bold; letter-spacing:1px;\">ESCENARIO A — CARGA DE LECTURA &nbsp;·&nbsp; Consultas masivas de pacientes y disponibilidad de citas</span></div>",
+        "mode": "html"
+      },
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Número de solicitudes GET por segundo durante la prueba de carga de lectura. Mide cuántas consultas simultáneas puede manejar el sistema.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "reqps",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "blue", "value": null }, { "color": "green", "value": 50 }, { "color": "yellow", "value": 200 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 2 },
+      "id": 301,
+      "options": { "reduceOptions": { "calcs": ["mean"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=~\"patient-service|appointment-service\",method=\"GET\"}[2m]))", "legendFormat": "lecturas/s", "refId": "A" }],
+      "title": "Lecturas por Segundo — Velocidad de consultas durante la prueba",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "El 95% de las consultas de lectura se respondieron en menos de este tiempo. Refleja la experiencia de la mayoría de los usuarios durante la prueba.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "ms",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 150 }, { "color": "red", "value": 400 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 2 },
+      "id": 302,
+      "options": { "reduceOptions": { "calcs": ["mean"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"patient-service|appointment-service\",method=\"GET\"}[2m])) by (le)) * 1000", "legendFormat": "p95 ms", "refId": "A" }],
+      "title": "Latencia p95 en Lectura — Tiempo del 95% de consultas (ms)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "El 99% de las consultas se respondieron en menos de este tiempo. Representa los casos más lentos de la prueba. Un valor muy alto indica cuellos de botella puntuales.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "ms",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 300 }, { "color": "red", "value": 800 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 2 },
+      "id": 303,
+      "options": { "reduceOptions": { "calcs": ["mean"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"patient-service|appointment-service\",method=\"GET\"}[2m])) by (le)) * 1000", "legendFormat": "p99 ms", "refId": "A" }],
+      "title": "Latencia p99 en Lectura — Tiempo de los casos más lentos (ms)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Porcentaje de solicitudes de lectura que terminaron exitosamente (sin error). Un sistema bien configurado debe mantener esto por encima del 99% incluso bajo carga alta.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "yellow", "value": 95 }, { "color": "green", "value": 99 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 2 },
+      "id": 304,
+      "options": { "reduceOptions": { "calcs": ["mean"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "(1 - sum(rate(http_server_requests_seconds_count{status=~\"5..\",job=~\"patient-service|appointment-service\"}[2m])) / sum(rate(http_server_requests_seconds_count{job=~\"patient-service|appointment-service\"}[2m]))) * 100", "legendFormat": "éxito %", "refId": "A" }],
+      "title": "Tasa de Éxito — % de lecturas que respondieron correctamente",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Evolución del volumen de solicitudes GET por servicio durante el escenario A. Muestra cómo se distribuye la carga de lectura entre pacientes y citas a lo largo del tiempo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never", "spanNulls": true },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 305,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=~\"patient-service|appointment-service\",method=\"GET\"}[1m])) by (job)", "legendFormat": "{{job}}", "refId": "A" }],
+      "title": "Escenario A — Volumen de Lecturas por Servicio en el Tiempo",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Comparación de los tres percentiles de latencia durante el escenario A. p50 es el usuario mediano, p95 los usuarios lentos, p99 los casos extremos. Si p99 supera 3x p50, hay variabilidad alta en el sistema.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 8, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never", "spanNulls": true },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 306,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{job=~\"patient-service|appointment-service\",method=\"GET\"}[2m])) by (le, job))", "legendFormat": "p50 {{job}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"patient-service|appointment-service\",method=\"GET\"}[2m])) by (le, job))", "legendFormat": "p95 {{job}}", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"patient-service|appointment-service\",method=\"GET\"}[2m])) by (le, job))", "legendFormat": "p99 {{job}}", "refId": "C" }
+      ],
+      "title": "Escenario A — Distribución de Latencia p50/p95/p99 por Servicio",
+      "type": "timeseries"
+    },
+
+    {
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 14 },
+      "id": 310,
+      "options": {
+        "content": "<div style=\"text-align:center; background:#bf360c; padding:10px; border-radius:6px;\"><span style=\"color:#fff; font-size:17px; font-weight:bold; letter-spacing:1px;\">ESCENARIO B — CONCURRENCIA &nbsp;·&nbsp; Reservas simultáneas, detección de duplicados y control de acceso</span></div>",
+        "mode": "html"
+      },
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Cantidad de intentos de reservar el mismo horario de forma simultánea que resultaron en conflicto (HTTP 409). El sistema detectó el duplicado y rechazó la segunda reserva. Esto demuestra que la prevención de duplicados funciona.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 16 },
+      "id": 311,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "increase(http_server_requests_seconds_count{status=\"409\",job=\"appointment-service\"}[5m])", "legendFormat": "conflictos", "refId": "A" }],
+      "title": "Conflictos de Reserva (409) — Duplicados detectados y rechazados en 5 min",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Solicitudes rechazadas porque el cliente superó el límite de velocidad permitido (HTTP 429). El API Gateway activa este mecanismo para proteger el sistema de sobrecarga. Es normal en pruebas de concurrencia alta.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 50 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 16 },
+      "id": 312,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "increase(http_server_requests_seconds_count{status=\"429\"}[5m])", "legendFormat": "bloqueadas", "refId": "A" }],
+      "title": "Solicitudes Bloqueadas (429) — Rate limiter activado en los últimos 5 min",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Velocidad actual de creación de reservas (solicitudes POST) por segundo. Mide qué tan rápido el sistema puede escribir nuevas citas bajo condiciones de alta concurrencia.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "reqps",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 100 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 16 },
+      "id": 313,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"appointment-service\",method=\"POST\"}[1m]))", "legendFormat": "reservas/s", "refId": "A" }],
+      "title": "Reservas Concurrentes por Segundo — Velocidad de escritura bajo concurrencia",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Veces que Resilience4j reintentó automáticamente una operación fallida en el servicio de citas. Los reintentos indican que hubo fallos transitorios que el sistema logró recuperar sin intervención humana.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 16 },
+      "id": 314,
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "increase(resilience4j_retry_calls_total{job=\"appointment-service\",kind=~\"successful_with_retry|failed_with_retry\"}[5m])", "legendFormat": "reintentos", "refId": "A" }],
+      "title": "Reintentos Automáticos — Recuperación automática de fallos transitorios (5 min)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Línea de tiempo de los tres tipos de error durante el escenario de concurrencia. Los conflictos 409 son esperados (detección de duplicados). Los 429 muestran el rate limiter en acción. Los 5xx son errores reales a investigar.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Conflicto de reserva (409)/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Rate limit activado (429)/s" },  "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Error interno (5xx)/s" },        "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "id": 315,
+      "options": { "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(http_server_requests_seconds_count{status=\"409\",job=\"appointment-service\"}[1m])",     "legendFormat": "Conflicto de reserva (409)/s", "refId": "A" },
+        { "expr": "rate(http_server_requests_seconds_count{status=\"429\"}[1m])",                              "legendFormat": "Rate limit activado (429)/s",  "refId": "B" },
+        { "expr": "rate(http_server_requests_seconds_count{status=~\"5..\",job=\"appointment-service\"}[1m])", "legendFormat": "Error interno (5xx)/s",        "refId": "C" }
+      ],
+      "title": "Escenario B — Historial de Conflictos, Bloqueos y Errores",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Proporción de respuestas por tipo en el escenario de concurrencia. Verde (2xx) = reservas exitosas. Naranja (409) = duplicados rechazados correctamente. Amarillo (429) = rate limit. Rojo (5xx) = errores reales. Un buen resultado tiene >50% verde y 0% rojo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short",
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Reserva exitosa (2xx)" },       "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Duplicado rechazado (409)" },   "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Bloqueada rate limit (429)" },  "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Error del servidor (5xx)" },    "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "id": 316,
+      "options": {
+        "reduceOptions": { "calcs": ["sum"] },
+        "pieType": "donut",
+        "legend": { "displayMode": "table", "placement": "right", "values": ["percent"] },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=~\"2..\",job=\"appointment-service\"}[5m]))",  "legendFormat": "Reserva exitosa (2xx)",      "refId": "A" },
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=\"409\",job=\"appointment-service\"}[5m]))",   "legendFormat": "Duplicado rechazado (409)",  "refId": "B" },
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=\"429\",job=\"appointment-service\"}[5m]))",   "legendFormat": "Bloqueada rate limit (429)", "refId": "C" },
+        { "expr": "sum(increase(http_server_requests_seconds_count{status=~\"5..\",job=\"appointment-service\"}[5m]))",  "legendFormat": "Error del servidor (5xx)",  "refId": "D" }
+      ],
+      "title": "Escenario B — Distribución de Respuestas del Servicio de Citas",
+      "type": "piechart"
+    },
+
+    {
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 28 },
+      "id": 320,
+      "options": {
+        "content": "<div style=\"text-align:center; background:#1b5e20; padding:10px; border-radius:6px;\"><span style=\"color:#fff; font-size:17px; font-weight:bold; letter-spacing:1px;\">ESCENARIO C — FLUJO COMPLETO &nbsp;·&nbsp; Paciente → Reservar cita → Pagar → Recibir notificación</span></div>",
+        "mode": "html"
+      },
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "El 95% del flujo de pago completo se procesa en menos de este tiempo. Incluye la validación, la transacción y la respuesta al cliente. Es el KPI más importante del escenario E2E.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "ms",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 500 }, { "color": "red", "value": 1500 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 30 },
+      "id": 321,
+      "options": { "reduceOptions": { "calcs": ["mean"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"payment-service\"}[2m])) by (le)) * 1000", "legendFormat": "p95 ms", "refId": "A" }],
+      "title": "Latencia p95 del Flujo de Pago — Tiempo del 95% de transacciones (ms)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Número de pagos procesados por segundo. Indica la capacidad del sistema para manejar transacciones económicas de forma concurrente.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "reqps",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 50 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 30 },
+      "id": 322,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"payment-service\",method=\"POST\"}[1m]))", "legendFormat": "pagos/s", "refId": "A" }],
+      "title": "Pagos Procesados por Segundo — Capacidad transaccional del servicio de pagos",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Mensajes acumulados en RabbitMQ esperando ser enviados como notificaciones. Si este número crece durante la prueba, el servicio de notificaciones no está procesando los eventos a tiempo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 30 },
+      "id": 323,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "sum(rabbitmq_queue_messages_ready{vhost=\"/\"})", "legendFormat": "mensajes pendientes", "refId": "A" }],
+      "title": "Mensajes Pendientes de Envío — Eventos de notificación acumulados en cola",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Porcentaje de flujos completos (reserva + pago) que terminaron exitosamente. Mide la confiabilidad del sistema de extremo a extremo. Debe mantenerse por encima del 99% para considerarse aceptable.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 99 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 30 },
+      "id": 324,
+      "options": { "reduceOptions": { "calcs": ["mean"] }, "textMode": "value_and_name", "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "(1 - sum(rate(http_server_requests_seconds_count{status=~\"5..\",job=~\"appointment-service|payment-service\"}[2m])) / sum(rate(http_server_requests_seconds_count{job=~\"appointment-service|payment-service\"}[2m]))) * 100", "legendFormat": "éxito %", "refId": "A" }],
+      "title": "Tasa de Éxito E2E — % del flujo completo que funcionó correctamente",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Comparación de latencias entre el servicio de citas y el servicio de pagos durante el flujo completo. Permite identificar cuál de los dos es el cuello de botella del proceso E2E.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never", "spanNulls": true },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "id": 325,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{job=~\"appointment-service|payment-service\"}[2m])) by (le, job))", "legendFormat": "p50 {{job}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"appointment-service|payment-service\"}[2m])) by (le, job))", "legendFormat": "p95 {{job}}", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"appointment-service|payment-service\"}[2m])) by (le, job))", "legendFormat": "p99 {{job}}", "refId": "C" }
+      ],
+      "title": "Escenario C — Latencia E2E Citas + Pagos (¿Dónde está el cuello de botella?)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Evolución de los mensajes en RabbitMQ durante el flujo E2E. 'Listos' son eventos esperando procesarse. 'Sin confirmar' son eventos entregados al consumidor pero aún no completados. Si ambas líneas suben juntas hay un problema en el servicio de notificaciones.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity", "lineInterpolation": "smooth", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "id": 326,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rabbitmq_queue_messages_ready{vhost=\"/\"}",   "legendFormat": "{{queue}} — listos",           "refId": "A" },
+        { "expr": "rabbitmq_queue_messages_unacked{vhost=\"/\"}", "legendFormat": "{{queue}} — sin confirmar",   "refId": "B" }
+      ],
+      "title": "Escenario C — Procesamiento de Cola de Notificaciones (RabbitMQ)",
+      "type": "timeseries"
+    }
+
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["mediqueue", "checkpoint", "escenarios"],
+  "templating": {
+    "list": [
+      { "current": {}, "hide": 0, "includeAll": false, "label": "Fuente de datos", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "type": "datasource" }
+    ]
+  },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "MediQueue — Escenarios de Prueba A/B/C",
+  "uid": "mediqueue-check-v1",
+  "version": 3
+}
