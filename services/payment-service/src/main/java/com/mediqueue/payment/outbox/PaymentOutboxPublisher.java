@@ -43,7 +43,9 @@ public class PaymentOutboxPublisher {
     }
 
     @Transactional
-    @Scheduled(fixedDelayString = "${mediqueue.outbox.publish-interval-ms:1000}")
+    @Scheduled(
+            initialDelayString = "${mediqueue.outbox.initial-delay-ms:0}",
+            fixedDelayString = "${mediqueue.outbox.publish-interval-ms:1000}")
     public void publishPendingEvents() {
         List<PaymentEventsOutbox> events = outboxRepository.findPendingForUpdateSkipLocked(batchSize);
         for (PaymentEventsOutbox event : events) {

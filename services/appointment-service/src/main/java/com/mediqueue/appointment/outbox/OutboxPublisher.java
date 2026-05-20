@@ -52,7 +52,9 @@ public class OutboxPublisher {
      * <p>Runs on a fixed delay configured via
      * {@code mediqueue.outbox.publish-interval-ms} (default: 1000 ms).</p>
      */
-    @Scheduled(fixedDelayString = "${mediqueue.outbox.publish-interval-ms:1000}")
+    @Scheduled(
+            initialDelayString = "${mediqueue.outbox.initial-delay-ms:0}",
+            fixedDelayString = "${mediqueue.outbox.publish-interval-ms:1000}")
     @Transactional
     public void publishPendingEvents() {
         if (!publisherEnabled) {
@@ -90,7 +92,9 @@ public class OutboxPublisher {
      * <p>Runs on a fixed delay configured via
      * {@code mediqueue.outbox.retry-interval-seconds} (default: 30 seconds).</p>
      */
-    @Scheduled(fixedDelayString = "${mediqueue.outbox.retry-interval-seconds:30}000")
+    @Scheduled(
+            initialDelayString = "${mediqueue.outbox.initial-delay-ms:0}",
+            fixedDelayString = "${mediqueue.outbox.retry-interval-seconds:30}000")
     @Transactional
     public void retryFailedEvents() {
         if (!publisherEnabled) {

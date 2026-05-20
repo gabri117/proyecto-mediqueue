@@ -445,6 +445,15 @@ In this mode, `appointments_created` proves synchronous creation, while RabbitMQ
 
 On limited hardware, keep these conservative E2E values until the HTTP creation result is clean. If creation is clean but RabbitMQ drains too slowly after the run, increase outbox batch sizes and consumer concurrency in a second pass.
 
+For high-rate load tests on constrained hardware, prefer delayed async publishing:
+
+```powershell
+$env:APPOINTMENT_OUTBOX_INITIAL_DELAY_MS="90000"
+$env:PAYMENT_OUTBOX_INITIAL_DELAY_MS="120000"
+```
+
+This still writes every appointment outbox event in the same transaction as the appointment. It only delays the background RabbitMQ publisher so payment and notification processing starts after the one-minute k6 arrival-rate stage, instead of competing with the synchronous creation path. Use this mode when the goal is "create appointments now, drain async work immediately after".
+
 If gateway fallback logs show `BulkheadFullException`, the request was rejected by the gateway concurrency guard before a useful upstream result could be returned. That is different from an open circuit (`CallNotPermittedException`) or a timeout (`TimeoutException`).
 
 Use the scaled-routing evidence collector after any failed scaled run:

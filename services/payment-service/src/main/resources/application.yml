@@ -73,5 +73,6 @@ mediqueue:
       approval-rate: ${PAYMENT_SIM_APPROVAL_RATE:0.80}
   outbox:
     publish-interval-seconds: ${OUTBOX_PUBLISH_INTERVAL_SECONDS:1}
+    initial-delay-ms: ${OUTBOX_INITIAL_DELAY_MS:0}
     publish-interval-ms: ${OUTBOX_PUBLISH_INTERVAL_MS:1000}
     batch-size: ${OUTBOX_BATCH_SIZE:50}
