@@ -242,6 +242,28 @@ Run these only when you are ready to create real backup artifacts:
 .\infra\backups\scripts\restore-pgdump-test.ps1 -RecreateDatabase
 ```
 
+Run the automated daily pipeline manually:
+
+```powershell
+.\infra\backups\scripts\run-daily-backup-pipeline.ps1
+```
+
+The pipeline runs, in order:
+
+- `backup-base.ps1`
+- `backup-pgdump.ps1`
+- `verify-wal-archive.ps1`
+- `sync-google-drive.ps1`
+- `verify-backups.ps1`
+
+It writes one evidence log per run:
+
+```text
+infra/backups/logs/pipeline_YYYYMMDD_HHMMSS.log
+```
+
+The pipeline stops on base backup, pg_dump, or sync failures. WAL and final verification warnings are recorded as `PIPELINE_STATUS=WARNING`; a clean run ends with `PIPELINE_STATUS=OK`.
+
 Cleanup is dry-run unless `-Apply` is explicitly passed:
 
 ```powershell
@@ -258,13 +280,72 @@ Restore tests are isolated:
 
 ## Scheduled tasks
 
-Register Windows scheduled tasks:
+Preview Windows scheduled tasks without creating anything:
 
 ```powershell
 .\infra\backups\scripts\install-backup-tasks.ps1
 ```
 
-The cleanup task is registered with `-DryRun` so it does not delete files automatically.
+Recommended pipeline-based installation:
+
+```powershell
+.\infra\backups\scripts\install-backup-tasks.ps1 -Create -UsePipelineTask
+```
+
+This creates:
+
+- `MediQueue Daily Backup Pipeline` at 21:00 daily
+- `MediQueue Cleanup Daily` at 23:00 daily, always with `-DryRun`
+- `MediQueue Restore PgDump Test Weekly` on Sunday at 23:45
+
+Separate-task installation:
+
+```powershell
+.\infra\backups\scripts\install-backup-tasks.ps1 -Create
+```
+
+This creates:
+
+- `MediQueue Backup Base Daily` at 21:00
+- `MediQueue PgDump Daily` at 22:00
+- `MediQueue Sync Google Drive Daily` at 22:30
+- `MediQueue Cleanup Daily` at 23:00, always with `-DryRun`
+- `MediQueue Verify Daily` at 23:30
+- `MediQueue Restore PgDump Test Weekly` on Sunday at 23:45
+
+Replace existing tasks explicitly:
+
+```powershell
+.\infra\backups\scripts\install-backup-tasks.ps1 -Create -UsePipelineTask -DeleteExisting
+```
+
+Preview a create run without registering tasks:
+
+```powershell
+.\infra\backups\scripts\install-backup-tasks.ps1 -Create -UsePipelineTask -WhatIf
+```
+
+View tasks:
+
+```powershell
+Get-ScheduledTask | Where-Object TaskName -like "MediQueue*"
+```
+
+Run the pipeline task manually:
+
+```powershell
+Start-ScheduledTask -TaskName "MediQueue Daily Backup Pipeline"
+```
+
+View the last result:
+
+```powershell
+Get-ScheduledTaskInfo -TaskName "MediQueue Daily Backup Pipeline"
+```
+
+The installer uses an absolute script path, an absolute `backup.local.ps1` path, and the repository root as the scheduled task working directory. It prefers `pwsh.exe` if available and falls back to `powershell.exe`.
+
+Google Drive Desktop normally syncs best when the Windows user is signed in. If a scheduled task runs without an interactive user session, the scripts can still create and copy files locally, but Google Drive Desktop may not upload them until the user signs in.
 
 ## Retention defaults
 

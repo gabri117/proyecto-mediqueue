@@ -1,6 +1,9 @@
 param(
     [string]$ConfigPath,
-    [string]$TaskPrefix = "MediQueue Backup"
+    [switch]$Create,
+    [switch]$DeleteExisting,
+    [switch]$WhatIf,
+    [switch]$UsePipelineTask
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,49 +12,142 @@ $ErrorActionPreference = "Stop"
 Initialize-BackupConfiguration -ConfigPath $ConfigPath
 Start-BackupLog -Name "install-backup-tasks"
 
-function New-BackupAction {
+$repoRoot = $Script:RepoRoot
+$defaultConfigPath = Join-Path $Script:BackupInfraRoot "config\backup.local.ps1"
+$taskConfigPath = if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+    $defaultConfigPath
+}
+else {
+    Resolve-BackupPath -Path $ConfigPath -BasePath $repoRoot -MustExist:$false
+}
+
+$shellCommand = Get-Command "pwsh.exe" -ErrorAction SilentlyContinue
+if (-not $shellCommand) {
+    $shellCommand = Get-Command "powershell.exe" -ErrorAction Stop
+}
+$shellPath = $shellCommand.Source
+
+if (-not (Test-Path -LiteralPath $taskConfigPath)) {
+    Write-Log "backup.local.ps1 no existe en '$taskConfigPath'. Las tareas se pueden crear, pero sync-google-drive.ps1 fallara hasta que exista." "WARN"
+}
+
+function Join-TaskArgument {
     param(
         [Parameter(Mandatory = $true)][string]$ScriptName,
         [string[]]$ExtraArguments = @()
     )
 
     $scriptPath = Join-Path $PSScriptRoot $ScriptName
-    $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$scriptPath`"")
-    if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) {
-        $arguments += @("-ConfigPath", "`"$ConfigPath`"")
-    }
-    $arguments += $ExtraArguments
+    $arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "`"$scriptPath`"",
+        "-ConfigPath", "`"$taskConfigPath`""
+    ) + $ExtraArguments
 
-    return New-ScheduledTaskAction -Execute "powershell.exe" -Argument ($arguments -join " ")
+    return ($arguments -join " ")
 }
 
-function Register-BackupTask {
+function New-BackupTaskSpec {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)]$Action,
-        [Parameter(Mandatory = $true)]$Trigger,
-        [string]$Description
+        [Parameter(Mandatory = $true)][string]$ScriptName,
+        [Parameter(Mandatory = $true)][string]$Schedule,
+        [Parameter(Mandatory = $true)][string]$At,
+        [string]$DaysOfWeek,
+        [string[]]$ExtraArguments = @(),
+        [string]$Description = ""
     )
 
-    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 4)
-    Register-ScheduledTask -TaskName $Name -Action $Action -Trigger $Trigger -Settings $settings -Description $Description -Force | Out-Null
-    Write-Log "Tarea registrada: $Name" "OK"
+    return [pscustomobject]@{
+        Name = $Name
+        ScriptName = $ScriptName
+        Arguments = Join-TaskArgument -ScriptName $ScriptName -ExtraArguments $ExtraArguments
+        Schedule = $Schedule
+        At = $At
+        DaysOfWeek = $DaysOfWeek
+        Description = $Description
+    }
 }
 
-$baseTrigger = New-ScheduledTaskTrigger -Daily -At "21:00"
-$dumpTrigger = New-ScheduledTaskTrigger -Daily -At "22:00"
-$walSnapshotTrigger = New-ScheduledTaskTrigger -Daily -At "22:20"
-$syncTrigger = New-ScheduledTaskTrigger -Daily -At "22:30"
-$cleanupTrigger = New-ScheduledTaskTrigger -Daily -At "23:00"
-$verifyTrigger = New-ScheduledTaskTrigger -Daily -At "23:30"
-$restoreTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At "23:45"
+function Get-TaskSpecs {
+    $specs = @()
 
-Register-BackupTask -Name "$TaskPrefix - Base diario 21:00" -Action (New-BackupAction -ScriptName "backup-base.ps1") -Trigger $baseTrigger -Description "Backup fisico/base diario despues del cierre."
-Register-BackupTask -Name "$TaskPrefix - pg_dump diario 22:00" -Action (New-BackupAction -ScriptName "backup-pgdump.ps1") -Trigger $dumpTrigger -Description "Backup logico diario con pg_dump custom."
-Register-BackupTask -Name "$TaskPrefix - WAL snapshot diario 22:20" -Action (New-BackupAction -ScriptName "backup-wal-archive.ps1") -Trigger $walSnapshotTrigger -Description "Snapshot local del WAL archivado por PostgreSQL."
-Register-BackupTask -Name "$TaskPrefix - Sync Google Drive 22:30" -Action (New-BackupAction -ScriptName "sync-google-drive.ps1") -Trigger $syncTrigger -Description "Copia local a carpeta sincronizada por Google Drive Desktop."
-Register-BackupTask -Name "$TaskPrefix - Cleanup dry-run 23:00" -Action (New-BackupAction -ScriptName "cleanup-backups.ps1" -ExtraArguments @("-DryRun")) -Trigger $cleanupTrigger -Description "Simulacion diaria de retencion; no elimina automaticamente."
-Register-BackupTask -Name "$TaskPrefix - Verify diario 23:30" -Action (New-BackupAction -ScriptName "verify-backups.ps1") -Trigger $verifyTrigger -Description "Verificacion diaria de base, dump y WAL."
-Register-BackupTask -Name "$TaskPrefix - Restore test domingo 23:45" -Action (New-BackupAction -ScriptName "restore-pgdump-test.ps1" -ExtraArguments @("-RecreateDatabase")) -Trigger $restoreTrigger -Description "Restauracion logica semanal en base aislada."
+    if ($UsePipelineTask) {
+        $specs += New-BackupTaskSpec -Name "MediQueue Daily Backup Pipeline" -ScriptName "run-daily-backup-pipeline.ps1" -Schedule "Daily" -At "21:00" -Description "Ejecuta backup base, pg_dump, WAL verify, sync y verificacion final."
+        $specs += New-BackupTaskSpec -Name "MediQueue Cleanup Daily" -ScriptName "cleanup-backups.ps1" -Schedule "Daily" -At "23:00" -ExtraArguments @("-DryRun") -Description "Limpieza diaria en modo simulacion; no elimina automaticamente."
+        $specs += New-BackupTaskSpec -Name "MediQueue Restore PgDump Test Weekly" -ScriptName "restore-pgdump-test.ps1" -Schedule "Weekly" -DaysOfWeek "Sunday" -At "23:45" -ExtraArguments @("-RecreateDatabase") -Description "Restauracion logica semanal en base aislada."
+        return $specs
+    }
 
-Write-Log "Instalacion de tareas completada. La limpieza queda registrada en modo -DryRun." "OK"
+    $specs += New-BackupTaskSpec -Name "MediQueue Backup Base Daily" -ScriptName "backup-base.ps1" -Schedule "Daily" -At "21:00" -Description "Backup fisico/base diario."
+    $specs += New-BackupTaskSpec -Name "MediQueue PgDump Daily" -ScriptName "backup-pgdump.ps1" -Schedule "Daily" -At "22:00" -Description "Backup logico diario pg_dump -Fc."
+    $specs += New-BackupTaskSpec -Name "MediQueue Sync Google Drive Daily" -ScriptName "sync-google-drive.ps1" -Schedule "Daily" -At "22:30" -Description "Copia local a carpeta sincronizada por Google Drive Desktop."
+    $specs += New-BackupTaskSpec -Name "MediQueue Cleanup Daily" -ScriptName "cleanup-backups.ps1" -Schedule "Daily" -At "23:00" -ExtraArguments @("-DryRun") -Description "Limpieza diaria en modo simulacion; no elimina automaticamente."
+    $specs += New-BackupTaskSpec -Name "MediQueue Verify Daily" -ScriptName "verify-backups.ps1" -Schedule "Daily" -At "23:30" -Description "Verificacion diaria de backups."
+    $specs += New-BackupTaskSpec -Name "MediQueue Restore PgDump Test Weekly" -ScriptName "restore-pgdump-test.ps1" -Schedule "Weekly" -DaysOfWeek "Sunday" -At "23:45" -ExtraArguments @("-RecreateDatabase") -Description "Restauracion logica semanal en base aislada."
+    return $specs
+}
+
+function New-TaskTriggerFromSpec {
+    param([Parameter(Mandatory = $true)]$Spec)
+
+    if ($Spec.Schedule -eq "Weekly") {
+        return New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Spec.DaysOfWeek -At $Spec.At
+    }
+
+    return New-ScheduledTaskTrigger -Daily -At $Spec.At
+}
+
+function Write-TaskPreview {
+    param([Parameter(Mandatory = $true)]$Spec)
+
+    Write-Host ""
+    Write-Host "Task: $($Spec.Name)"
+    Write-Host "Schedule: $($Spec.Schedule) $($Spec.DaysOfWeek) $($Spec.At)"
+    Write-Host "WorkingDirectory: $repoRoot"
+    Write-Host "Command:"
+    Write-Host "  `"$shellPath`" $($Spec.Arguments)"
+}
+
+$taskSpecs = Get-TaskSpecs
+
+Write-Log "PowerShell runtime seleccionado: $shellPath"
+Write-Log "Repo root: $repoRoot"
+Write-Log "ConfigPath para tareas: $taskConfigPath"
+
+foreach ($spec in $taskSpecs) {
+    Write-TaskPreview -Spec $spec
+}
+
+if (-not $Create) {
+    Write-Log "Modo preview: no se crearon tareas. Usa -Create para registrar tareas." "WARN"
+    Write-Host ""
+    Write-Host "Crear tareas recomendadas:"
+    Write-Host ".\infra\backups\scripts\install-backup-tasks.ps1 -Create -UsePipelineTask"
+    exit 0
+}
+
+if ($WhatIf) {
+    Write-Log "WhatIf activo: no se crearan ni eliminaran tareas." "WARN"
+    exit 0
+}
+
+foreach ($spec in $taskSpecs) {
+    if ($DeleteExisting) {
+        $existingTask = Get-ScheduledTask -TaskName $spec.Name -ErrorAction SilentlyContinue
+        if ($existingTask) {
+            Unregister-ScheduledTask -TaskName $spec.Name -Confirm:$false
+            Write-Log "Tarea existente eliminada: $($spec.Name)" "OK"
+        }
+    }
+
+    $action = New-ScheduledTaskAction -Execute $shellPath -Argument $spec.Arguments -WorkingDirectory $repoRoot
+    $trigger = New-TaskTriggerFromSpec -Spec $spec
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 6)
+
+    Register-ScheduledTask -TaskName $spec.Name -Action $action -Trigger $trigger -Settings $settings -Description $spec.Description -Force | Out-Null
+    Write-Log "Tarea registrada: $($spec.Name)" "OK"
+}
+
+Write-Log "Instalacion de tareas completada. Cleanup queda en -DryRun." "OK"
