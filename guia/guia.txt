@@ -1,0 +1,521 @@
+GUIA DE EJECUCION - MEDIQUEUE MICROSERVICIOS
+Fecha: 2026-05-20
+
+Esta guia usa PowerShell desde la raiz del proyecto:
+B:\Proyecto BD II Microservivios
+
+Objetivo:
+- Reconstruir contenedores.
+- Levantar el backend normal.
+- Levantar el backend con 2 replicas por microservicio.
+- Preparar datos para pruebas.
+- Ejecutar pruebas k6 de 1k, 5k, 10k, 12k, 15k, 20k, 25k y 50k rpm.
+
+IMPORTANTE:
+- Para pruebas limpias, usa DATA_OFFSET distintos en cada prueba.
+- Si repites el mismo DATA_OFFSET sobre datos ya usados, puedes obtener conflictos o validaciones.
+- Si quieres forzar conflictos, ejecuta una prueba dos veces con el mismo DATA_OFFSET y mismo dataset.
+- Para pruebas de maximo rendimiento de creacion usa el perfil creation-only.
+- Para probar flujo completo appointment -> RabbitMQ -> payment -> notification usa el perfil E2E completo.
+
+
+============================================================
+1. COMANDOS BASICOS DE DOCKER COMPOSE
+============================================================
+
+Ver estado:
+
+docker compose ps
+
+Ver logs generales:
+
+docker compose logs --tail=100
+
+Ver logs de servicios principales:
+
+docker compose logs --tail=100 api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Detener contenedores sin borrar volumenes:
+
+docker compose down
+
+Detener y borrar volumenes de datos:
+
+docker compose down -v
+
+ADVERTENCIA:
+docker compose down -v borra datos de PostgreSQL, Redis, RabbitMQ, etc.
+Usarlo solo cuando quieras reiniciar la base desde cero.
+
+
+============================================================
+2. REHACER / RECONSTRUIR CONTENEDORES
+============================================================
+
+Reconstruir todos los servicios:
+
+docker compose build
+
+Reconstruir servicios principales:
+
+docker compose build api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Reconstruir sin cache:
+
+docker compose build --no-cache api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Reconstruir y levantar:
+
+docker compose up -d --build
+
+Validar configuracion Compose:
+
+docker compose config --quiet
+
+
+============================================================
+3. LEVANTAR BACKEND NORMAL
+============================================================
+
+Levantar todo normal:
+
+docker compose up -d
+
+Levantar solo ruta principal del backend:
+
+docker compose up -d api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Revisar salud:
+
+docker compose ps api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Probar gateway:
+
+Invoke-WebRequest -UseBasicParsing http://localhost:8080/actuator/health
+
+
+============================================================
+4. LEVANTAR CON 2 REPLICAS POR MICROSERVICIO
+============================================================
+
+Usar este comando para pruebas de carga balanceadas:
+
+docker compose up -d `
+  --scale api-gateway=2 `
+  --scale appointment-service=2 `
+  --scale patient-service=2 `
+  --scale schedule-service=2 `
+  --scale payment-service=2 `
+  --scale notification-service=2 `
+  api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Verificar replicas:
+
+docker compose ps api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Volver a 1 replica:
+
+docker compose up -d `
+  --scale api-gateway=1 `
+  --scale appointment-service=1 `
+  --scale patient-service=1 `
+  --scale schedule-service=1 `
+  --scale payment-service=1 `
+  --scale notification-service=1 `
+  api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+
+============================================================
+5. PERFIL CREATION-ONLY
+============================================================
+
+Usar para buscar el maximo rendimiento de POST /api/appointments.
+Reduce carga secundaria de pagos/notificaciones.
+
+$env:GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS="3000"
+$env:GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS="1000"
+$env:GATEWAY_TIMELIMITER_TIMEOUT_SECONDS="30"
+$env:GATEWAY_CB_MINIMUM_CALLS="1000"
+$env:GATEWAY_CB_SLIDING_WINDOW_SIZE="5000"
+$env:GATEWAY_CB_FAILURE_RATE_THRESHOLD="95"
+$env:RATE_LIMIT_APPOINTMENT_REPLENISH="2000"
+$env:RATE_LIMIT_APPOINTMENT_BURST="4000"
+$env:APPOINTMENT_HOLD_TTL_MINUTES="60"
+$env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
+$env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="false"
+$env:GATEWAY_ACCESS_LOG_ENABLED="false"
+$env:GATEWAY_SLOW_REQUEST_THRESHOLD_MS="10000"
+
+Despues de definir variables, levantar con replicas:
+
+docker compose up -d --build `
+  --scale api-gateway=2 `
+  --scale appointment-service=2 `
+  --scale patient-service=2 `
+  --scale schedule-service=2 `
+  --scale payment-service=2 `
+  --scale notification-service=2 `
+  api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+
+============================================================
+6. PERFIL E2E COMPLETO
+============================================================
+
+Usar para flujo completo:
+appointment -> RabbitMQ -> payment -> notification.
+Es mas pesado que creation-only.
+
+$env:GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS="3000"
+$env:GATEWAY_BULKHEAD_DEFAULT_MAX_CONCURRENT_CALLS="1000"
+$env:GATEWAY_TIMELIMITER_TIMEOUT_SECONDS="30"
+$env:GATEWAY_CB_MINIMUM_CALLS="1000"
+$env:GATEWAY_CB_SLIDING_WINDOW_SIZE="5000"
+$env:GATEWAY_CB_FAILURE_RATE_THRESHOLD="95"
+$env:RATE_LIMIT_APPOINTMENT_REPLENISH="2000"
+$env:RATE_LIMIT_APPOINTMENT_BURST="4000"
+$env:APPOINTMENT_HOLD_TTL_MINUTES="30"
+$env:LOADTEST_HOLD_EXPIRATION_ENABLED="true"
+$env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="true"
+$env:PAYMENT_SIM_MIN_DELAY_MS="0"
+$env:PAYMENT_SIM_MAX_DELAY_MS="50"
+$env:PAYMENT_SIM_APPROVAL_RATE="1.0"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="16"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="32"
+$env:GATEWAY_ACCESS_LOG_ENABLED="false"
+$env:GATEWAY_SLOW_REQUEST_THRESHOLD_MS="10000"
+
+Despues de definir variables, levantar con replicas:
+
+docker compose up -d --build `
+  --scale api-gateway=2 `
+  --scale appointment-service=2 `
+  --scale patient-service=2 `
+  --scale schedule-service=2 `
+  --scale payment-service=2 `
+  --scale notification-service=2 `
+  api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+
+============================================================
+7. PREPARAR DATOS BASE CON SQL RAPIDO
+============================================================
+
+Preparar 50,000 slots:
+
+.\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -TotalPatients 100 `
+  -TotalDentists 20 `
+  -TotalSlots 50000 `
+  -Amount 1500.00 `
+  -Mode sql
+
+Preparar 100,000 slots:
+
+.\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -TotalPatients 200 `
+  -TotalDentists 40 `
+  -TotalSlots 100000 `
+  -Amount 1500.00 `
+  -Mode sql
+
+
+============================================================
+8. VARIABLES COMUNES PARA K6
+============================================================
+
+Estas variables se repiten en todas las pruebas:
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+Para dataset de 100,000, cambiar DATA_FILE si existe el archivo generado:
+
+$env:DATA_FILE="../data/appointments-100000.json"
+
+
+============================================================
+9. PRUEBA 1,000/MIN
+============================================================
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="1000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="1000"
+$env:DATA_OFFSET="0"
+$env:PRE_ALLOCATED_VUS="120"
+$env:MAX_VUS="300"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-1000-summary.json
+
+
+============================================================
+10. PRUEBA 5,000/MIN
+============================================================
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="5000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="5000"
+$env:DATA_OFFSET="1000"
+$env:PRE_ALLOCATED_VUS="600"
+$env:MAX_VUS="1200"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-5000-summary.json
+
+
+============================================================
+11. PRUEBA 10,000/MIN
+============================================================
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="10000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="10000"
+$env:DATA_OFFSET="6000"
+$env:PRE_ALLOCATED_VUS="1200"
+$env:MAX_VUS="2200"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
+
+
+============================================================
+12. PRUEBA 12,000/MIN
+============================================================
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="12000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="12000"
+$env:DATA_OFFSET="16000"
+$env:PRE_ALLOCATED_VUS="1800"
+$env:MAX_VUS="3000"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-12000-summary.json
+
+
+============================================================
+13. PRUEBA 15,000/MIN
+============================================================
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="15000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="15000"
+$env:DATA_OFFSET="28000"
+$env:PRE_ALLOCATED_VUS="2400"
+$env:MAX_VUS="4000"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-15000-summary.json
+
+
+============================================================
+14. PRUEBA 20,000/MIN
+============================================================
+
+Para 20k se recomienda preparar 100,000 slots o reiniciar datos antes.
+Con 50,000 slots, este offset evita cruzarse con pruebas anteriores si todas fueron limpias.
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="20000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="20000"
+$env:DATA_OFFSET="0"
+$env:PRE_ALLOCATED_VUS="3000"
+$env:MAX_VUS="5000"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-20000-summary.json
+
+
+============================================================
+15. PRUEBA 25,000/MIN LIMPIA
+============================================================
+
+Antes de 25k:
+1. Reiniciar ambiente si se quiere prueba limpia.
+2. Preparar datos de nuevo.
+3. Preferir dataset de 100,000 slots.
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="25000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="25000"
+$env:DATA_OFFSET="25000"
+$env:PRE_ALLOCATED_VUS="4000"
+$env:MAX_VUS="7000"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-25000-summary.json
+
+
+============================================================
+16. PRUEBA 50,000/MIN
+============================================================
+
+Esta prueba es extrema para ambiente local.
+Recomendado:
+- Usar dataset de 100,000.
+- Levantar con replicas.
+- Usar perfil creation-only.
+- Cerrar programas pesados.
+- Verificar Docker Desktop con suficientes CPU/RAM.
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="50000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="50000"
+$env:DATA_OFFSET="0"
+$env:PRE_ALLOCATED_VUS="7000"
+$env:MAX_VUS="12000"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-50000-summary.json
+
+
+============================================================
+17. COMO INTERPRETAR RESULTADOS
+============================================================
+
+Prueba limpia ideal:
+
+appointments_503=0
+appointments_server_error=0
+appointments_timeout=0
+appointments_connection_refused=0
+dropped_iterations=0
+checks_rate=1
+
+Si aparece:
+
+dropped_iterations > 0
+
+Significa que k6 no pudo sostener el ritmo configurado. Puede ser por:
+- backend saturado,
+- latencia alta,
+- falta de VUs,
+- limite de CPU/RAM de Docker,
+- dataset con validaciones que consumen tiempo.
+
+Si aparece:
+
+appointments_503 > 0
+
+Significa que el gateway o el balanceador devolvio indisponibilidad.
+Revisar:
+
+docker compose logs --tail=200 api-gateway appointment-service
+
+Si aparece:
+
+appointments_validation_error > 0
+
+Significa que las solicitudes fueron rechazadas por reglas de validacion.
+Puede pasar por:
+- slots no validos,
+- pacientes no validos,
+- dentists/slots ya usados,
+- DATA_OFFSET cruzado,
+- dataset agotado o contaminado por pruebas anteriores.
+
+Si aparece:
+
+Insufficient VUs
+
+No significa solamente "faltan VUs".
+Normalmente significa que las respuestas tardan mucho y k6 necesita muchos usuarios virtuales para mantener el ritmo.
+
+
+============================================================
+18. PRUEBA PARA FORZAR CONFLICTOS
+============================================================
+
+Para forzar conflictos de slots:
+1. Ejecuta una prueba limpia.
+2. Repite la misma prueba con el mismo DATA_OFFSET.
+
+Ejemplo:
+
+$env:BASE_URL="http://localhost:8080"
+$env:DATA_FILE="../data/appointments-50000.json"
+$env:RATE_PER_MINUTE="1000"
+$env:DURATION="1m"
+$env:TOTAL_LIMIT="1000"
+$env:DATA_OFFSET="0"
+$env:PRE_ALLOCATED_VUS="120"
+$env:MAX_VUS="300"
+$env:CLIENT_MODE="per-vu"
+$env:HTTP_TIMEOUT="60s"
+$env:DEBUG_RESPONSES="false"
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-conflict-pass1-summary.json
+
+k6 run .\infra\load-tests\appointments\scripts\appointment-rpm.js `
+  --summary-export .\infra\load-tests\appointments\results\appointment-rpm-conflict-pass2-summary.json
+
+En la segunda ejecucion deberian aparecer conflicts o validation errors, dependiendo de como responda la API ante slots ya ocupados.
+
+
+============================================================
+19. COMANDOS UTILES DESPUES DE CADA PRUEBA
+============================================================
+
+Ver estado de contenedores:
+
+docker compose ps api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Ver logs recientes del gateway y appointment:
+
+docker compose logs --tail=200 api-gateway appointment-service
+
+Ver metricas basicas de recursos:
+
+docker stats
+
+Ver historial Flyway:
+
+docker exec mediqueue-postgres psql -U mediqueue -d mediqueue -c "select 'appointment' as schema, version, description, success from appointment.flyway_schema_history union all select 'patient', version, description, success from patient.flyway_schema_history union all select 'schedule', version, description, success from schedule.flyway_schema_history union all select 'payment', version, description, success from payment.flyway_schema_history union all select 'notification', version, description, success from notification.flyway_schema_history order by schema, version;"
+
