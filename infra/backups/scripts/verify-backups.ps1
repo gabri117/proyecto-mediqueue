@@ -16,7 +16,10 @@ Assert-ComposeConfigValid
 Assert-PostgresAvailable
 
 $now = Get-Date
-$baseBackup = Get-LatestFile -Path $Script:LocalBackupDir -Filter "mediqueue-base-*.tar.gz"
+$baseBackup = Get-ChildItem -LiteralPath $Script:LocalBackupDir -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like "mediqueue_base_*" } |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
 $dump = Get-LatestFile -Path $Script:DumpDir -Filter "mediqueue-*.dump"
 $wal = Get-ChildItem -LiteralPath $Script:WalArchiveDir -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -match '^[0-9A-F]{24}(\.partial)?$' } |
@@ -29,7 +32,16 @@ if (-not $baseBackup) {
 if ((($now - $baseBackup.LastWriteTime).TotalHours) -gt $MaxBaseAgeHours) {
     throw "El backup base mas reciente excede $MaxBaseAgeHours horas: $($baseBackup.FullName)"
 }
-Invoke-CheckedCommand -FilePath "tar" -Arguments @("-tzf", $baseBackup.FullName) -FailureMessage "El archivo de backup base no se pudo listar con tar."
+$baseBackupFiles = @(Get-ChildItem -LiteralPath $baseBackup.FullName -File -Recurse -ErrorAction Stop)
+if ($baseBackupFiles.Count -eq 0) {
+    throw "El backup base esta vacio: $($baseBackup.FullName)"
+}
+if (-not (Test-Path -LiteralPath (Join-Path $baseBackup.FullName "BASE_BACKUP_OK"))) {
+    throw "El backup base no tiene marcador BASE_BACKUP_OK: $($baseBackup.FullName)"
+}
+if (-not (Test-Path -LiteralPath (Join-Path $baseBackup.FullName "SHA256SUMS"))) {
+    throw "El backup base no tiene SHA256SUMS: $($baseBackup.FullName)"
+}
 Write-Log "Backup base valido: $($baseBackup.FullName)" "OK"
 
 if (-not $dump) {

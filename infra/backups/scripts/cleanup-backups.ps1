@@ -40,7 +40,29 @@ function Remove-ExpiredFiles {
         }
 }
 
-Remove-ExpiredFiles -Path $Script:LocalBackupDir -Filter "mediqueue-base-*.tar.gz" -OlderThan (Get-Date).AddDays(-[int]$Script:BaseBackupRetentionDays) -Label "base"
+function Remove-ExpiredDirectories {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Filter,
+        [Parameter(Mandatory = $true)][datetime]$OlderThan,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    Get-ChildItem -LiteralPath $Path -Directory -Filter $Filter -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -lt $OlderThan } |
+        ForEach-Object {
+            if ($executeDelete) {
+                Remove-Item -LiteralPath $_.FullName -Recurse -Force
+                Write-Log "Eliminado ($Label): $($_.FullName)" "OK"
+            }
+            else {
+                Write-Log "Simulacion eliminaria ($Label): $($_.FullName)" "WARN"
+            }
+        }
+}
+
+Remove-ExpiredDirectories -Path $Script:LocalBackupDir -Filter "mediqueue_base_*" -OlderThan (Get-Date).AddDays(-[int]$Script:BaseBackupRetentionDays) -Label "base"
+Remove-ExpiredDirectories -Path $Script:LocalBackupDir -Filter "wal_archive_snapshot_*" -OlderThan (Get-Date).AddDays(-[int]$Script:WalRetentionDays) -Label "wal-snapshot"
 Remove-ExpiredFiles -Path $Script:DumpDir -Filter "mediqueue-*.dump" -OlderThan (Get-Date).AddDays(-[int]$Script:DumpRetentionDays) -Label "dump"
 Remove-ExpiredFiles -Path $Script:WalArchiveDir -Filter "*" -OlderThan (Get-Date).AddDays(-[int]$Script:WalRetentionDays) -Label "wal"
 Remove-ExpiredFiles -Path $Script:LogDir -Filter "*.log" -OlderThan (Get-Date).AddDays(-[int]$Script:LogRetentionDays) -Label "logs"

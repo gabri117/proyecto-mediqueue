@@ -43,9 +43,72 @@ $GoogleDriveBackupPath = "B:\Proyecto BD II Microservivios\MediQueue Backups"
 
 ## WAL and PITR
 
-`backup-wal-archive.ps1` uses PostgreSQL `pg_receivewal` through Docker Compose and a physical replication slot named `mediqueue_backup_slot` by default. Schedule it every 5 minutes during operating hours, 08:00 to 20:00, to support the RPO objective.
+WAL means Write-Ahead Log. PostgreSQL writes every data change to WAL before the change is considered durable in the data files. A base backup plus archived WAL files lets PostgreSQL replay changes up to a selected recovery target time.
 
-PITR tests are isolated. `restore-pitr-test.ps1` starts a separate temporary PostgreSQL container and never restores over the main database.
+WAL helps the RPO because the daily base backup is only the starting point. With `archive_timeout=300`, PostgreSQL forces WAL rotation at least every 5 minutes during activity, so the archive can be used for Point-in-Time Recovery with a target RPO of 5 minutes.
+
+The `postgres` service in `docker-compose.yml` is configured with:
+
+- `wal_level=replica`
+- `archive_mode=on`
+- `archive_timeout=300`
+- `archive_command=test ! -f /var/lib/postgresql/wal-archive/%f && cp %p /var/lib/postgresql/wal-archive/%f`
+
+The WAL archive is persisted through this bind mount:
+
+```text
+./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
+```
+
+Base backups are written through:
+
+```text
+./infra/backups/local:/backups
+```
+
+Apply the Compose changes without deleting volumes:
+
+```powershell
+docker compose up -d --force-recreate postgres
+```
+
+Do not run `docker compose down -v` for this workflow.
+
+Verify WAL archiving:
+
+```powershell
+.\infra\backups\scripts\verify-wal-archive.ps1
+```
+
+The verifier checks `SHOW wal_level`, `SHOW archive_mode`, `SHOW archive_timeout`, `SHOW archive_command`, `pg_stat_archiver`, runs `SELECT pg_switch_wal();`, waits up to 90 seconds, and prints the last 10 archived WAL files.
+
+Create a physical/base backup:
+
+```powershell
+.\infra\backups\scripts\backup-base.ps1
+```
+
+The base backup is stored as:
+
+```text
+infra/backups/local/mediqueue_base_YYYYMMDD_HHMMSS/
+```
+
+It includes `backup_manifest` when PostgreSQL provides it, `SHA256SUMS`, and a `BASE_BACKUP_OK` marker.
+
+Copy a local snapshot of the current WAL archive:
+
+```powershell
+.\infra\backups\scripts\backup-wal-archive.ps1
+```
+
+Plan PITR without executing a restore:
+
+```powershell
+.\infra\backups\scripts\restore-pitr-test.ps1 -RecoveryTargetTime "2026-05-20T19:30:00"
+```
+
+This writes `infra/backups/restore-test/PITR_PLAN.txt`. It does not touch the main database, does not start a restore container, and does not delete data.
 
 ## Manual checks
 
@@ -77,8 +140,9 @@ docker compose -f .\docker-compose.yml config --quiet
 Run these only when you are ready to create real backup artifacts:
 
 ```powershell
-.\infra\backups\scripts\backup-wal-archive.ps1
 .\infra\backups\scripts\backup-base.ps1
+.\infra\backups\scripts\verify-wal-archive.ps1
+.\infra\backups\scripts\backup-wal-archive.ps1
 .\infra\backups\scripts\backup-pgdump.ps1
 .\infra\backups\scripts\sync-google-drive.ps1
 .\infra\backups\scripts\verify-backups.ps1

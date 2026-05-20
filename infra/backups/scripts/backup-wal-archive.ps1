@@ -1,6 +1,5 @@
 param(
-    [string]$ConfigPath,
-    [int]$DurationSeconds = 0
+    [string]$ConfigPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,32 +12,37 @@ Assert-DockerAvailable
 Assert-ComposeConfigValid
 Assert-PostgresAvailable
 
-if ($DurationSeconds -le 0) {
-    $DurationSeconds = [int]$Script:WalReceiveDurationSeconds
-}
-
-$slot = $Script:WalReplicationSlot
-$remoteWalDir = "/tmp/mediqueue-wal-archive"
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$snapshotDir = Join-Path $Script:LocalBackupDir "wal_archive_snapshot_$timestamp"
 
 try {
-    Invoke-PostgresSql -Sql "SELECT pg_create_physical_replication_slot('$slot') WHERE NOT EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = '$slot');" | Out-Null
-    Invoke-PostgresSql -Sql "SELECT pg_switch_wal();" | Out-Null
+    New-Item -ItemType Directory -Force -Path $snapshotDir | Out-Null
 
-    $receiveCommand = "mkdir -p '$remoteWalDir' && timeout $DurationSeconds pg_receivewal -U '$Script:DatabaseUser' -D '$remoteWalDir' --slot='$slot' --if-not-exists --no-loop"
-    Invoke-DockerCompose -Arguments @("exec", "-T", $Script:PostgresService, "sh", "-lc", $receiveCommand) -AllowedExitCodes @(0, 124) -FailureMessage "La recepcion WAL fallo."
+    $walFiles = Get-ChildItem -LiteralPath $Script:WalArchiveDir -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^[0-9A-F]{24}(\.partial)?$' } |
+        Sort-Object Name
 
-    $containerId = Get-PostgresContainerId
-    $tempWalCopy = Join-Path $Script:WalArchiveDir "_incoming-$([guid]::NewGuid().ToString('N'))"
-    New-Item -ItemType Directory -Force -Path $tempWalCopy | Out-Null
-
-    Invoke-CheckedCommand -FilePath "docker" -Arguments @("cp", "$containerId`:$remoteWalDir/.", $tempWalCopy) -FailureMessage "No se pudo copiar WAL al host."
-
-    Get-ChildItem -LiteralPath $tempWalCopy -File -ErrorAction SilentlyContinue | ForEach-Object {
-        Move-Item -LiteralPath $_.FullName -Destination (Join-Path $Script:WalArchiveDir $_.Name) -Force
+    if (-not $walFiles -or $walFiles.Count -eq 0) {
+        throw "No hay WAL archivados para copiar desde $Script:WalArchiveDir"
     }
-    Remove-Item -LiteralPath $tempWalCopy -Recurse -Force
 
-    Write-Log "Archivo WAL actualizado en: $Script:WalArchiveDir" "OK"
+    foreach ($walFile in $walFiles) {
+        Copy-Item -LiteralPath $walFile.FullName -Destination (Join-Path $snapshotDir $walFile.Name) -Force
+    }
+
+    $snapshotFiles = Get-ChildItem -LiteralPath $snapshotDir -File -ErrorAction Stop
+    $totalBytes = ($snapshotFiles | Measure-Object -Property Length -Sum).Sum
+    $manifestPath = Join-Path $snapshotDir "WAL_SNAPSHOT.txt"
+    @(
+        "WAL_SNAPSHOT_OK"
+        "created_at=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        "source=$Script:WalArchiveDir"
+        "file_count=$($snapshotFiles.Count)"
+        "total_bytes=$totalBytes"
+    ) | Set-Content -LiteralPath $manifestPath -Encoding ASCII
+
+    Write-Log "WAL snapshot creado: $snapshotDir" "OK"
+    Write-Log "WAL snapshot conteo=$($snapshotFiles.Count), bytes=$totalBytes" "OK"
 }
 catch {
     Write-Log $_.Exception.Message "ERROR"

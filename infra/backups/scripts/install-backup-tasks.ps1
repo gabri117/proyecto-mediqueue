@@ -40,26 +40,15 @@ function Register-BackupTask {
 
 $baseTrigger = New-ScheduledTaskTrigger -Daily -At "21:00"
 $dumpTrigger = New-ScheduledTaskTrigger -Daily -At "22:00"
+$walSnapshotTrigger = New-ScheduledTaskTrigger -Daily -At "22:20"
 $syncTrigger = New-ScheduledTaskTrigger -Daily -At "22:30"
 $cleanupTrigger = New-ScheduledTaskTrigger -Daily -At "23:00"
 $verifyTrigger = New-ScheduledTaskTrigger -Daily -At "23:30"
 $restoreTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At "23:45"
-$walAction = New-BackupAction -ScriptName "backup-wal-archive.ps1"
-$walCommand = "powershell.exe $($walAction.Arguments)"
-Invoke-CheckedCommand -FilePath "schtasks.exe" -Arguments @(
-    "/Create",
-    "/TN", "$TaskPrefix - WAL cada 5 minutos",
-    "/TR", $walCommand,
-    "/SC", "MINUTE",
-    "/MO", ([string][int]$Script:WalArchiveIntervalMinutes),
-    "/ST", "08:00",
-    "/ET", "20:00",
-    "/F"
-) -FailureMessage "No se pudo registrar la tarea WAL."
-Write-Log "Tarea registrada: $TaskPrefix - WAL cada 5 minutos" "OK"
 
 Register-BackupTask -Name "$TaskPrefix - Base diario 21:00" -Action (New-BackupAction -ScriptName "backup-base.ps1") -Trigger $baseTrigger -Description "Backup fisico/base diario despues del cierre."
 Register-BackupTask -Name "$TaskPrefix - pg_dump diario 22:00" -Action (New-BackupAction -ScriptName "backup-pgdump.ps1") -Trigger $dumpTrigger -Description "Backup logico diario con pg_dump custom."
+Register-BackupTask -Name "$TaskPrefix - WAL snapshot diario 22:20" -Action (New-BackupAction -ScriptName "backup-wal-archive.ps1") -Trigger $walSnapshotTrigger -Description "Snapshot local del WAL archivado por PostgreSQL."
 Register-BackupTask -Name "$TaskPrefix - Sync Google Drive 22:30" -Action (New-BackupAction -ScriptName "sync-google-drive.ps1") -Trigger $syncTrigger -Description "Copia local a carpeta sincronizada por Google Drive Desktop."
 Register-BackupTask -Name "$TaskPrefix - Cleanup dry-run 23:00" -Action (New-BackupAction -ScriptName "cleanup-backups.ps1" -ExtraArguments @("-DryRun")) -Trigger $cleanupTrigger -Description "Simulacion diaria de retencion; no elimina automaticamente."
 Register-BackupTask -Name "$TaskPrefix - Verify diario 23:30" -Action (New-BackupAction -ScriptName "verify-backups.ps1") -Trigger $verifyTrigger -Description "Verificacion diaria de base, dump y WAL."
