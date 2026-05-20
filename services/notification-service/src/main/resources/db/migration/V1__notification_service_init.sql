@@ -12,13 +12,30 @@
 -- =============================================================================
 -- ENUMS
 -- =============================================================================
-CREATE TYPE notification_status  AS ENUM ('PENDING', 'SENT', 'FAILED');
-CREATE TYPE notification_channel AS ENUM ('EMAIL', 'SMS');
+SELECT pg_advisory_xact_lock(hashtext('mediqueue:notification:V1__notification_service_init'));
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+DO $$
+BEGIN
+    CREATE TYPE notification_status AS ENUM ('PENDING', 'SENT', 'FAILED');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END;
+$$;
+
+DO $$
+BEGIN
+    CREATE TYPE notification_channel AS ENUM ('EMAIL', 'SMS');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END;
+$$;
 
 -- =============================================================================
 -- TABLA: notifications
 -- =============================================================================
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     notification_id      UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     patient_id           UUID NOT NULL,
     appointment_id       UUID,
@@ -31,6 +48,6 @@ CREATE TABLE notifications (
     sent_at              TIMESTAMP
 );
 
-CREATE INDEX idx_notifications_patient ON notifications(patient_id);
-CREATE INDEX idx_notifications_status  ON notifications(notification_status);
-CREATE INDEX idx_notifications_event   ON notifications(event_type);
+CREATE INDEX IF NOT EXISTS idx_notifications_patient ON notifications(patient_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_status  ON notifications(notification_status);
+CREATE INDEX IF NOT EXISTS idx_notifications_event   ON notifications(event_type);

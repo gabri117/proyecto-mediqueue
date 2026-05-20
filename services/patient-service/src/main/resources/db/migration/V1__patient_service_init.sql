@@ -8,13 +8,23 @@
 -- =============================================================================
 -- ENUMS
 -- =============================================================================
-CREATE TYPE patient_status AS ENUM ('ACTIVE', 'INACTIVE');
+SELECT pg_advisory_xact_lock(hashtext('mediqueue:patient:V1__patient_service_init'));
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+DO $$
+BEGIN
+    CREATE TYPE patient_status AS ENUM ('ACTIVE', 'INACTIVE');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END;
+$$;
 
 -- =============================================================================
 -- TABLA: patients
 -- Una sola tabla con lo indispensable para identificar a un paciente.
 -- =============================================================================
-CREATE TABLE patients (
+CREATE TABLE IF NOT EXISTS patients (
     patient_id        UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     first_name        VARCHAR(100)  NOT NULL,
     last_name         VARCHAR(100)  NOT NULL,
@@ -28,7 +38,7 @@ CREATE TABLE patients (
     CONSTRAINT uq_patients_document_number UNIQUE (document_number)
 );
 
-CREATE INDEX idx_patients_status ON patients(status);
+CREATE INDEX IF NOT EXISTS idx_patients_status ON patients(status);
 
 -- =============================================================================
 -- Trigger updated_at
@@ -41,6 +51,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_patients_updated_at
-    BEFORE UPDATE ON patients
-    FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+DO $$
+BEGIN
+    CREATE TRIGGER trg_patients_updated_at
+        BEFORE UPDATE ON patients
+        FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END;
+$$;

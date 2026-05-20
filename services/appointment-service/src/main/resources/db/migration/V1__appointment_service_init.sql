@@ -19,7 +19,11 @@
 -- TABLA: appointments
 -- patient_id y dentist_id son FKs lógicas (otros servicios).
 -- =============================================================================
-CREATE TABLE appointments (
+SELECT pg_advisory_xact_lock(hashtext('mediqueue:appointment:V1__appointment_service_init'));
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+CREATE TABLE IF NOT EXISTS appointments (
     appointment_id      UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     patient_id          UUID NOT NULL,
     dentist_id          UUID NOT NULL,
@@ -33,14 +37,14 @@ CREATE TABLE appointments (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_appointments_patient     ON appointments(patient_id);
-CREATE INDEX idx_appointments_dentist     ON appointments(dentist_id, appointment_date);
-CREATE INDEX idx_appointments_status      ON appointments(appointment_status);
+CREATE INDEX IF NOT EXISTS idx_appointments_patient     ON appointments(patient_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_dentist     ON appointments(dentist_id, appointment_date);
+CREATE INDEX IF NOT EXISTS idx_appointments_status      ON appointments(appointment_status);
 
 --  REGLA CRÍTICA: "No duplicar slot horario"
 -- Un slot solo puede tener UNA cita activa (PENDING_PAYMENT o CONFIRMED).
 -- Índice parcial único: el motor rechaza el INSERT si ya hay una activa.
-CREATE UNIQUE INDEX uq_appointment_slot_active
+CREATE UNIQUE INDEX IF NOT EXISTS uq_appointment_slot_active
     ON appointments(slot_id)
     WHERE appointment_status IN ('PENDING_PAYMENT', 'CONFIRMED');
 
@@ -48,7 +52,7 @@ CREATE UNIQUE INDEX uq_appointment_slot_active
 -- TABLA: appointment_holds
 -- Reserva temporal con TTL. Protege contra reservas zombi por pago colgado.
 -- =============================================================================
-CREATE TABLE appointment_holds (
+CREATE TABLE IF NOT EXISTS appointment_holds (
     hold_id         UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     appointment_id  UUID NOT NULL,
     slot_id         UUID NOT NULL,
@@ -61,18 +65,18 @@ CREATE TABLE appointment_holds (
 );
 
 -- Solo un hold ACTIVE por slot
-CREATE UNIQUE INDEX uq_holds_one_active_per_slot
+CREATE UNIQUE INDEX IF NOT EXISTS uq_holds_one_active_per_slot
     ON appointment_holds(slot_id) WHERE hold_status = 'ACTIVE';
 
 -- Para el scheduler que expira holds vencidos
-CREATE INDEX idx_holds_expiration
+CREATE INDEX IF NOT EXISTS idx_holds_expiration
     ON appointment_holds(expires_at) WHERE hold_status = 'ACTIVE';
 
 -- =============================================================================
 -- TABLA: appointment_audit (INMUTABLE)
 -- Cumple "historial intocable". Solo INSERT, jamás UPDATE ni DELETE.
 -- =============================================================================
-CREATE TABLE appointment_audit (
+CREATE TABLE IF NOT EXISTS appointment_audit (
     audit_id          UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     appointment_id    UUID NOT NULL,
     previous_status   VARCHAR(30),
@@ -83,7 +87,7 @@ CREATE TABLE appointment_audit (
         FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
 );
 
-CREATE INDEX idx_audit_appointment ON appointment_audit(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_audit_appointment ON appointment_audit(appointment_id);
 
 -- Refuerzo a nivel de BD: bloquear UPDATE y DELETE en la tabla de auditoría.
 CREATE OR REPLACE FUNCTION trg_audit_immutable()
@@ -93,16 +97,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_audit_no_update BEFORE UPDATE ON appointment_audit
-    FOR EACH ROW EXECUTE FUNCTION trg_audit_immutable();
-CREATE TRIGGER trg_audit_no_delete BEFORE DELETE ON appointment_audit
-    FOR EACH ROW EXECUTE FUNCTION trg_audit_immutable();
+DO $$
+BEGIN
+    CREATE TRIGGER trg_audit_no_update BEFORE UPDATE ON appointment_audit
+        FOR EACH ROW EXECUTE FUNCTION trg_audit_immutable();
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END;
+$$;
+
+DO $$
+BEGIN
+    CREATE TRIGGER trg_audit_no_delete BEFORE DELETE ON appointment_audit
+        FOR EACH ROW EXECUTE FUNCTION trg_audit_immutable();
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END;
+$$;
 
 -- =============================================================================
 -- TABLA: idempotency_keys
 -- Cliente envía X-Idempotency-Key. Si ya está SUCCEEDED, devolver respuesta cacheada.
 -- =============================================================================
-CREATE TABLE idempotency_keys (
+CREATE TABLE IF NOT EXISTS idempotency_keys (
     idempotency_id      UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     operation_type      VARCHAR(50)  NOT NULL,
     idempotency_key     VARCHAR(120) NOT NULL,
@@ -114,14 +131,14 @@ CREATE TABLE idempotency_keys (
     CONSTRAINT uq_idempotency_op_key UNIQUE (operation_type, idempotency_key)
 );
 
-CREATE INDEX idx_idempotency_expires ON idempotency_keys(expires_at);
+CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys(expires_at);
 
 -- =============================================================================
 -- TABLA: outbox_events
 -- Eventos escritos en la MISMA transacción que el cambio de negocio.
 -- Publisher background los envía a RabbitMQ y los marca PUBLISHED.
 -- =============================================================================
-CREATE TABLE outbox_events (
+CREATE TABLE IF NOT EXISTS outbox_events (
     event_id            UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     aggregate_type      VARCHAR(50)  NOT NULL,
     aggregate_id        UUID         NOT NULL,
@@ -132,7 +149,7 @@ CREATE TABLE outbox_events (
     published_at        TIMESTAMP
 );
 
-CREATE INDEX idx_outbox_pending
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
     ON outbox_events(created_at) WHERE publication_status = 'PENDING';
 
 -- =============================================================================
@@ -146,6 +163,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_appointments_updated_at
-    BEFORE UPDATE ON appointments
-    FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+DO $$
+BEGIN
+    CREATE TRIGGER trg_appointments_updated_at
+        BEFORE UPDATE ON appointments
+        FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END;
+$$;

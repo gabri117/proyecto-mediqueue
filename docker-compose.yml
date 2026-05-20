@@ -246,7 +246,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 90s
+      start_period: 180s
 
   api-gateway-lb:
     image: haproxy:alpine
@@ -293,8 +293,6 @@ services:
       context: .
       dockerfile: infra/docker/appointment-service.Dockerfile
     restart: always
-    deploy:
-      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=appointment,public
@@ -346,16 +344,14 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 10
+      start_period: 180s
 
   notification-service:
     build:
       context: .
       dockerfile: infra/docker/notification-service.Dockerfile
     restart: always
-    deploy:
-      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=notification,public
@@ -388,8 +384,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 10
+      start_period: 180s
 
   payment-service:
     build:
@@ -437,8 +433,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 180s
 
   payment-lb:
     image: haproxy:alpine
@@ -485,8 +481,6 @@ services:
       context: .
       dockerfile: infra/docker/patient-service.Dockerfile
     restart: always
-    deploy:
-      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=patient,public
@@ -516,8 +510,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 10
+      start_period: 180s
 
   schedule-lb:
     image: haproxy:alpine
@@ -544,8 +538,6 @@ services:
       context: .
       dockerfile: infra/docker/schedule-service.Dockerfile
     restart: always
-    deploy:
-      replicas: 2
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres-lb}:${DB_PORT:-5432}/${DB_NAME:-mediqueue}?currentSchema=schedule,public
@@ -581,8 +573,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 10
+      start_period: 180s
 
   k6:
     image: grafana/k6:latest
