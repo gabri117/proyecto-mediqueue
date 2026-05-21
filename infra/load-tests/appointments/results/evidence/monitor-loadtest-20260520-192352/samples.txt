@@ -1,0 +1,1032 @@
+
+===== sample 1 2026-05-20T19:23:53.4297370-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.05%     85.23MiB / 7.651GiB   13.2MB / 11MB     270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.18%     384.1MiB / 7.651GiB   592kB / 16.3MB    24.3MB / 1.18MB
+proyecto-mediqueue-api-gateway-1            0.18%     374.7MiB / 7.651GiB   595kB / 16.4MB    25.1MB / 1.17MB
+mediqueue-schedule-lb                       0.04%     73.49MiB / 7.651GiB   3.04MB / 1.04MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.02%     58.03MiB / 7.651GiB   1.9MB / 699kB     81.9kB / 31.5MB
+mediqueue-payment-lb                        0.03%     40.66MiB / 7.651GiB   7.7MB / 5.7MB     229kB / 48.9MB
+mediqueue-appointment-lb                    0.12%     78.71MiB / 7.651GiB   3.96MB / 1.3MB    4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.15%     300.3MiB / 7.651GiB   774kB / 5.82MB    17.9MB / 35MB
+proyecto-mediqueue-patient-service-1        0.65%     279.7MiB / 7.651GiB   760kB / 5.11MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.36%     418.2MiB / 7.651GiB   931kB / 10.2MB    9.24MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.33%     327.6MiB / 7.651GiB   1.77MB / 9.64MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.16%     297.9MiB / 7.651GiB   781kB / 5.7MB     8.13MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.92%     312.5MiB / 7.651GiB   1.74MB / 7.45MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.18%     309.1MiB / 7.651GiB   205kB / 4.2MB     11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.59%     389.2MiB / 7.651GiB   891kB / 10.1MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.52%     391.4MiB / 7.651GiB   877kB / 10.1MB    1.69MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.27%     299.9MiB / 7.651GiB   199kB / 4.16MB    7.72MB / 71.1MB
+proyecto-mediqueue-patient-service-2        0.14%     287.8MiB / 7.651GiB   755kB / 5.08MB    25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       0.19%     291.6MiB / 7.651GiB   774kB / 5.66MB    6.79MB / 38.9MB
+proyecto-mediqueue-payment-service-1        1.03%     344.5MiB / 7.651GiB   1.75MB / 9.64MB   4.33MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.53%     385.3MiB / 7.651GiB   923kB / 10MB      2.41MB / 54.4MB
+mediqueue-grafana                           0.04%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.39%     21.22MiB / 7.651GiB   17.3MB / 17.5MB   12.9MB / 11.4MB
+mediqueue-prometheus                        0.37%     107.3MiB / 7.651GiB   115MB / 3.63MB    75.4MB / 9.09MB
+mediqueue-redis-insight                     0.01%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    1.17%     19.59MiB / 7.651GiB   3.01MB / 1.35MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.68%     77.2MiB / 7.651GiB    10.5MB / 6.69MB   59.5MB / 151MB
+mediqueue-rabbitmq                          0.80%     133MiB / 7.651GiB     572kB / 4.49MB    71MB / 29.9MB
+mediqueue-redis                             0.65%     11.93MiB / 7.651GiB   258kB / 2.92MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterMain        |     1
+        | Activity        | WalWriterMain       |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 2 2026-05-20T19:24:00.5905020-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.04%     85.22MiB / 7.651GiB   13.3MB / 11MB     270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.17%     384.1MiB / 7.651GiB   595kB / 16.4MB    24.3MB / 1.19MB
+proyecto-mediqueue-api-gateway-1            0.16%     374.7MiB / 7.651GiB   596kB / 16.5MB    25.1MB / 1.18MB
+mediqueue-schedule-lb                       0.07%     73.49MiB / 7.651GiB   3.05MB / 1.04MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.05%     58.03MiB / 7.651GiB   1.9MB / 701kB     81.9kB / 31.5MB
+mediqueue-payment-lb                        0.11%     40.91MiB / 7.651GiB   7.74MB / 5.73MB   229kB / 48.9MB
+mediqueue-appointment-lb                    0.18%     79.2MiB / 7.651GiB    3.98MB / 1.3MB    4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.24%     300.3MiB / 7.651GiB   777kB / 5.82MB    17.9MB / 35MB
+proyecto-mediqueue-patient-service-1        0.17%     280MiB / 7.651GiB     763kB / 5.11MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.50%     418.2MiB / 7.651GiB   933kB / 10.3MB    9.24MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.81%     327.6MiB / 7.651GiB   1.77MB / 9.68MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.49%     297.9MiB / 7.651GiB   783kB / 5.73MB    8.13MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.49%     312.5MiB / 7.651GiB   1.74MB / 7.46MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.17%     309.1MiB / 7.651GiB   205kB / 4.2MB     11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    2.39%     389.2MiB / 7.651GiB   894kB / 10.2MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.56%     391.4MiB / 7.651GiB   879kB / 10.1MB    1.69MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.16%     299.9MiB / 7.651GiB   199kB / 4.19MB    7.73MB / 71.1MB
+proyecto-mediqueue-patient-service-2        0.22%     287.8MiB / 7.651GiB   758kB / 5.11MB    25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       0.23%     291.6MiB / 7.651GiB   776kB / 5.69MB    6.79MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.24%     344.3MiB / 7.651GiB   1.76MB / 9.65MB   4.33MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.56%     385.3MiB / 7.651GiB   925kB / 10MB      2.41MB / 54.4MB
+mediqueue-grafana                           0.06%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       1.46%     21.26MiB / 7.651GiB   17.4MB / 17.5MB   12.9MB / 11.4MB
+mediqueue-prometheus                        0.23%     107.4MiB / 7.651GiB   115MB / 3.64MB    75.4MB / 9.09MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     19.58MiB / 7.651GiB   3.01MB / 1.35MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.56%     77.26MiB / 7.651GiB   10.6MB / 6.71MB   59.7MB / 151MB
+mediqueue-rabbitmq                          0.26%     129MiB / 7.651GiB     578kB / 4.5MB     71.6MB / 29.9MB
+mediqueue-redis                             0.48%     11.43MiB / 7.651GiB   258kB / 2.92MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 3 2026-05-20T19:24:08.4204390-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.08%     85.22MiB / 7.651GiB   13.3MB / 11.1MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.19%     384.1MiB / 7.651GiB   596kB / 16.4MB    24.3MB / 1.19MB
+proyecto-mediqueue-api-gateway-1            0.18%     374.7MiB / 7.651GiB   598kB / 16.6MB    25.1MB / 1.18MB
+mediqueue-schedule-lb                       0.12%     73.5MiB / 7.651GiB    3.06MB / 1.04MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.14%     58.03MiB / 7.651GiB   1.91MB / 703kB    81.9kB / 31.5MB
+mediqueue-payment-lb                        0.08%     40.66MiB / 7.651GiB   7.75MB / 5.73MB   229kB / 48.9MB
+mediqueue-appointment-lb                    0.13%     78.71MiB / 7.651GiB   3.99MB / 1.31MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.46%     300.4MiB / 7.651GiB   780kB / 5.85MB    17.9MB / 35MB
+proyecto-mediqueue-patient-service-1        0.14%     279.8MiB / 7.651GiB   765kB / 5.14MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.67%     418.2MiB / 7.651GiB   936kB / 10.3MB    9.24MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.22%     327.6MiB / 7.651GiB   1.78MB / 9.71MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.48%     297.9MiB / 7.651GiB   785kB / 5.73MB    8.13MB / 35.3MB
+proyecto-mediqueue-payment-service-3        1.01%     312.5MiB / 7.651GiB   1.75MB / 7.49MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.21%     309.1MiB / 7.651GiB   206kB / 4.22MB    11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.35%     389.2MiB / 7.651GiB   896kB / 10.2MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.38%     391.4MiB / 7.651GiB   881kB / 10.2MB    1.69MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.20%     299.9MiB / 7.651GiB   199kB / 4.19MB    7.73MB / 71.1MB
+proyecto-mediqueue-patient-service-2        0.47%     287.9MiB / 7.651GiB   759kB / 5.11MB    25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       0.20%     291.6MiB / 7.651GiB   778kB / 5.7MB     6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.36%     344.3MiB / 7.651GiB   1.77MB / 9.69MB   4.33MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    3.13%     385.4MiB / 7.651GiB   928kB / 10.1MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.17%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.32%     21.23MiB / 7.651GiB   17.4MB / 17.6MB   12.9MB / 11.4MB
+mediqueue-prometheus                        0.06%     107.5MiB / 7.651GiB   116MB / 3.64MB    75.4MB / 9.14MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     19.42MiB / 7.651GiB   3.02MB / 1.36MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.26%     77.27MiB / 7.651GiB   10.6MB / 6.73MB   59.7MB / 151MB
+mediqueue-rabbitmq                          0.31%     131.7MiB / 7.651GiB   581kB / 4.52MB    71.6MB / 29.9MB
+mediqueue-redis                             0.69%     11.43MiB / 7.651GiB   259kB / 2.93MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 4 2026-05-20T19:24:16.2626320-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.03%     85.22MiB / 7.651GiB   13.4MB / 11.1MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.14%     384.1MiB / 7.651GiB   598kB / 16.5MB    24.3MB / 1.19MB
+proyecto-mediqueue-api-gateway-1            0.13%     374.7MiB / 7.651GiB   600kB / 16.7MB    25.1MB / 1.18MB
+mediqueue-schedule-lb                       0.05%     73.49MiB / 7.651GiB   3.07MB / 1.04MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.03%     58.03MiB / 7.651GiB   1.91MB / 706kB    81.9kB / 31.5MB
+mediqueue-payment-lb                        0.10%     40.66MiB / 7.651GiB   7.78MB / 5.76MB   229kB / 48.9MB
+mediqueue-appointment-lb                    0.10%     78.96MiB / 7.651GiB   4MB / 1.31MB      4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       1.04%     300.4MiB / 7.651GiB   782kB / 5.86MB    17.9MB / 35MB
+proyecto-mediqueue-patient-service-1        0.14%     279.8MiB / 7.651GiB   767kB / 5.14MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.37%     418.2MiB / 7.651GiB   938kB / 10.3MB    9.24MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.31%     327.6MiB / 7.651GiB   1.78MB / 9.75MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.34%     297.9MiB / 7.651GiB   787kB / 5.76MB    8.13MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.49%     312.5MiB / 7.651GiB   1.75MB / 7.5MB    8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.13%     309.1MiB / 7.651GiB   206kB / 4.22MB    11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.31%     389.2MiB / 7.651GiB   899kB / 10.3MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.24%     391.6MiB / 7.651GiB   884kB / 10.2MB    1.69MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.11%     300.1MiB / 7.651GiB   200kB / 4.21MB    7.82MB / 71.1MB
+proyecto-mediqueue-patient-service-2        0.23%     287.8MiB / 7.651GiB   762kB / 5.14MB    25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       0.19%     291.6MiB / 7.651GiB   781kB / 5.73MB    6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.35%     344.3MiB / 7.651GiB   1.77MB / 9.72MB   4.33MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.51%     385.4MiB / 7.651GiB   931kB / 10.1MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.06%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.29%     21.22MiB / 7.651GiB   17.5MB / 17.6MB   12.9MB / 11.4MB
+mediqueue-prometheus                        0.00%     107.5MiB / 7.651GiB   116MB / 3.65MB    75.4MB / 9.14MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     19.41MiB / 7.651GiB   3.02MB / 1.36MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.28%     77.27MiB / 7.651GiB   10.6MB / 6.75MB   59.7MB / 151MB
+mediqueue-rabbitmq                          71.65%    129.3MiB / 7.651GiB   581kB / 4.52MB    71.6MB / 29.9MB
+mediqueue-redis                             0.40%     11.43MiB / 7.651GiB   259kB / 2.93MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 5 2026-05-20T19:24:24.0824570-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.15%     85.23MiB / 7.651GiB   13.4MB / 11.1MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.46%     384.1MiB / 7.651GiB   600kB / 16.6MB    24.3MB / 1.19MB
+proyecto-mediqueue-api-gateway-1            1.25%     374.7MiB / 7.651GiB   601kB / 16.7MB    25.1MB / 1.18MB
+mediqueue-schedule-lb                       0.12%     73.75MiB / 7.651GiB   3.08MB / 1.05MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.17%     58.03MiB / 7.651GiB   1.92MB / 708kB    81.9kB / 31.5MB
+mediqueue-payment-lb                        0.14%     40.66MiB / 7.651GiB   7.79MB / 5.76MB   229kB / 48.9MB
+mediqueue-appointment-lb                    0.08%     78.71MiB / 7.651GiB   4.01MB / 1.32MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.43%     300.9MiB / 7.651GiB   785kB / 5.89MB    17.9MB / 35MB
+proyecto-mediqueue-patient-service-1        0.43%     279.8MiB / 7.651GiB   769kB / 5.17MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.62%     418.2MiB / 7.651GiB   941kB / 10.4MB    9.24MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.43%     327.6MiB / 7.651GiB   1.79MB / 9.76MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.48%     298.1MiB / 7.651GiB   790kB / 5.77MB    8.15MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.61%     312.5MiB / 7.651GiB   1.76MB / 7.53MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.19%     309.1MiB / 7.651GiB   207kB / 4.24MB    11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.32%     389.2MiB / 7.651GiB   902kB / 10.3MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.37%     391.4MiB / 7.651GiB   887kB / 10.3MB    1.69MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.15%     300.1MiB / 7.651GiB   200kB / 4.21MB    7.82MB / 71.2MB
+proyecto-mediqueue-patient-service-2        0.40%     287.9MiB / 7.651GiB   764kB / 5.14MB    25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       0.38%     291.8MiB / 7.651GiB   784kB / 5.73MB    6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.51%     344.3MiB / 7.651GiB   1.78MB / 9.76MB   4.33MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.41%     385.4MiB / 7.651GiB   935kB / 10.1MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.05%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.36%     21.23MiB / 7.651GiB   17.5MB / 17.7MB   12.9MB / 11.4MB
+mediqueue-prometheus                        0.00%     107.5MiB / 7.651GiB   116MB / 3.66MB    75.4MB / 9.2MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.11MiB / 7.651GiB   3.04MB / 1.37MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.30%     77.3MiB / 7.651GiB    10.6MB / 6.77MB   59.7MB / 151MB
+mediqueue-rabbitmq                          0.26%     132.6MiB / 7.651GiB   581kB / 4.54MB    71.6MB / 29.9MB
+mediqueue-redis                             0.50%     11.43MiB / 7.651GiB   261kB / 2.95MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 6 2026-05-20T19:24:31.5471710-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.11%     85.22MiB / 7.651GiB   13.4MB / 11.1MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.53%     384.1MiB / 7.651GiB   601kB / 16.7MB    24.3MB / 1.2MB
+proyecto-mediqueue-api-gateway-1            0.55%     374.7MiB / 7.651GiB   603kB / 16.8MB    25.1MB / 1.19MB
+mediqueue-schedule-lb                       0.09%     73.5MiB / 7.651GiB    3.08MB / 1.05MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.09%     58.03MiB / 7.651GiB   1.92MB / 709kB    81.9kB / 31.5MB
+mediqueue-payment-lb                        0.13%     40.67MiB / 7.651GiB   7.83MB / 5.79MB   229kB / 48.9MB
+mediqueue-appointment-lb                    0.05%     78.71MiB / 7.651GiB   4.02MB / 1.32MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.21%     300.4MiB / 7.651GiB   786kB / 5.89MB    17.9MB / 35MB
+proyecto-mediqueue-patient-service-1        0.44%     279.8MiB / 7.651GiB   770kB / 5.17MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.64%     418.2MiB / 7.651GiB   943kB / 10.4MB    9.24MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.60%     327.6MiB / 7.651GiB   1.79MB / 9.82MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.22%     297.9MiB / 7.651GiB   792kB / 5.8MB     8.15MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.39%     312.5MiB / 7.651GiB   1.76MB / 7.54MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.18%     309.1MiB / 7.651GiB   207kB / 4.24MB    11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    1.05%     389.2MiB / 7.651GiB   905kB / 10.3MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.82%     391.4MiB / 7.651GiB   889kB / 10.3MB    1.69MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.17%     300.1MiB / 7.651GiB   201kB / 4.23MB    7.83MB / 71.2MB
+proyecto-mediqueue-patient-service-2        0.14%     287.8MiB / 7.651GiB   767kB / 5.17MB    25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       0.59%     291.6MiB / 7.651GiB   786kB / 5.76MB    6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.62%     344.3MiB / 7.651GiB   1.78MB / 9.77MB   4.33MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.80%     385.4MiB / 7.651GiB   936kB / 10.1MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.06%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.34%     21.22MiB / 7.651GiB   17.6MB / 17.7MB   12.9MB / 11.4MB
+mediqueue-prometheus                        0.00%     107.5MiB / 7.651GiB   117MB / 3.67MB    75.4MB / 9.2MB
+mediqueue-redis-insight                     0.05%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.1MiB / 7.651GiB    3.04MB / 1.37MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.25%     77.26MiB / 7.651GiB   10.7MB / 6.79MB   59.7MB / 151MB
+mediqueue-rabbitmq                          1.17%     128.6MiB / 7.651GiB   582kB / 4.54MB    71.6MB / 29.9MB
+mediqueue-redis                             0.43%     11.43MiB / 7.651GiB   261kB / 2.95MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 7 2026-05-20T19:24:39.3983360-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.08%     85.22MiB / 7.651GiB   13.5MB / 11.2MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.37%     384.1MiB / 7.651GiB   603kB / 16.7MB    24.3MB / 1.2MB
+proyecto-mediqueue-api-gateway-1            0.54%     374.7MiB / 7.651GiB   604kB / 16.8MB    25.1MB / 1.19MB
+mediqueue-schedule-lb                       0.12%     73.49MiB / 7.651GiB   3.09MB / 1.05MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.08%     54.18MiB / 7.651GiB   1.93MB / 711kB    81.9kB / 36.7MB
+mediqueue-payment-lb                        0.06%     24.28MiB / 7.651GiB   7.84MB / 5.8MB    229kB / 69.9MB
+mediqueue-appointment-lb                    0.15%     78.71MiB / 7.651GiB   4.03MB / 1.32MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       1.09%     300.4MiB / 7.651GiB   789kB / 5.92MB    17.9MB / 35MB
+proyecto-mediqueue-patient-service-1        1.23%     279.8MiB / 7.651GiB   773kB / 5.2MB     31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    1.51%     418.3MiB / 7.651GiB   946kB / 10.4MB    9.24MB / 18.3MB
+proyecto-mediqueue-payment-service-2        1.32%     327.6MiB / 7.651GiB   1.8MB / 9.83MB    19MB / 18MB
+proyecto-mediqueue-schedule-service-1       1.19%     297.9MiB / 7.651GiB   794kB / 5.8MB     8.15MB / 35.3MB
+proyecto-mediqueue-payment-service-3        1.42%     312.5MiB / 7.651GiB   1.77MB / 7.58MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   1.23%     309.1MiB / 7.651GiB   208kB / 4.27MB    11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    1.52%     389.2MiB / 7.651GiB   907kB / 10.3MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    1.44%     391.4MiB / 7.651GiB   892kB / 10.3MB    1.7MB / 49.9MB
+proyecto-mediqueue-notification-service-1   1.39%     297.5MiB / 7.651GiB   201kB / 4.23MB    7.83MB / 72.3MB
+proyecto-mediqueue-patient-service-2        0.11%     287.8MiB / 7.651GiB   769kB / 5.17MB    25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       1.38%     291.6MiB / 7.651GiB   788kB / 5.77MB    6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        1.64%     344.4MiB / 7.651GiB   1.79MB / 9.8MB    4.33MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    1.20%     385.4MiB / 7.651GiB   939kB / 10.2MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.08%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.47%     16.74MiB / 7.651GiB   17.6MB / 17.8MB   12.9MB / 12.3MB
+mediqueue-prometheus                        0.24%     107.8MiB / 7.651GiB   117MB / 3.67MB    75.4MB / 9.25MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.44MiB / 7.651GiB   3.06MB / 1.38MB   12.6MB / 24.6kB
+mediqueue-postgres                          2.58%     77.28MiB / 7.651GiB   10.7MB / 6.8MB    59.7MB / 151MB
+mediqueue-rabbitmq                          0.74%     131.7MiB / 7.651GiB   585kB / 4.56MB    71.6MB / 29.9MB
+mediqueue-redis                             0.55%     11.69MiB / 7.651GiB   262kB / 2.97MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 8 2026-05-20T19:24:47.2379940-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.06%     85.23MiB / 7.651GiB   13.5MB / 11.2MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.17%     384.1MiB / 7.651GiB   605kB / 16.8MB    24.3MB / 1.2MB
+proyecto-mediqueue-api-gateway-1            0.42%     375MiB / 7.651GiB     606kB / 16.9MB    25.1MB / 1.19MB
+mediqueue-schedule-lb                       0.03%     73.49MiB / 7.651GiB   3.1MB / 1.06MB    4.1kB / 13.3MB
+mediqueue-patient-lb                        0.06%     54.18MiB / 7.651GiB   1.94MB / 714kB    81.9kB / 36.7MB
+mediqueue-payment-lb                        0.04%     24.29MiB / 7.651GiB   7.87MB / 5.83MB   262kB / 69.9MB
+mediqueue-appointment-lb                    0.09%     78.71MiB / 7.651GiB   4.05MB / 1.33MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       1.81%     300.4MiB / 7.651GiB   791kB / 5.93MB    18MB / 35MB
+proyecto-mediqueue-patient-service-1        0.35%     279.8MiB / 7.651GiB   775kB / 5.2MB     31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.23%     418.4MiB / 7.651GiB   948kB / 10.4MB    9.26MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.39%     327.6MiB / 7.651GiB   1.8MB / 9.86MB    19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.11%     296.9MiB / 7.651GiB   797kB / 5.83MB    8.15MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.43%     312.5MiB / 7.651GiB   1.77MB / 7.58MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.20%     309.3MiB / 7.651GiB   209kB / 4.27MB    11.8MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.32%     389.2MiB / 7.651GiB   910kB / 10.4MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.32%     391.4MiB / 7.651GiB   894kB / 10.3MB    1.7MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.16%     297.5MiB / 7.651GiB   202kB / 4.26MB    7.83MB / 72.3MB
+proyecto-mediqueue-patient-service-2        0.13%     287.8MiB / 7.651GiB   771kB / 5.2MB     25.3MB / 27.2MB
+proyecto-mediqueue-schedule-service-2       0.48%     291.6MiB / 7.651GiB   790kB / 5.8MB     6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.57%     344.9MiB / 7.651GiB   1.79MB / 9.83MB   4.34MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.47%     385.4MiB / 7.651GiB   942kB / 10.2MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.16%     141.8MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.23%     16.75MiB / 7.651GiB   17.7MB / 17.8MB   12.9MB / 12.3MB
+mediqueue-prometheus                        0.11%     107.8MiB / 7.651GiB   117MB / 3.68MB    75.4MB / 9.25MB
+mediqueue-redis-insight                     0.36%     163.6MiB / 7.651GiB   818kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.44MiB / 7.651GiB   3.06MB / 1.38MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.47%     77.27MiB / 7.651GiB   10.7MB / 6.82MB   59.7MB / 151MB
+mediqueue-rabbitmq                          71.43%    128.9MiB / 7.651GiB   585kB / 4.56MB    71.6MB / 29.9MB
+mediqueue-redis                             0.50%     11.43MiB / 7.651GiB   262kB / 2.97MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 9 2026-05-20T19:24:55.0820900-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.07%     85.23MiB / 7.651GiB   13.6MB / 11.3MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.22%     384.1MiB / 7.651GiB   606kB / 16.8MB    24.3MB / 1.2MB
+proyecto-mediqueue-api-gateway-1            0.47%     374.7MiB / 7.651GiB   608kB / 16.9MB    25.1MB / 1.19MB
+mediqueue-schedule-lb                       0.14%     73.49MiB / 7.651GiB   3.11MB / 1.06MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.08%     54.18MiB / 7.651GiB   1.94MB / 715kB    81.9kB / 36.7MB
+mediqueue-payment-lb                        0.10%     24.29MiB / 7.651GiB   7.91MB / 5.86MB   262kB / 69.9MB
+mediqueue-appointment-lb                    0.27%     78.96MiB / 7.651GiB   4.06MB / 1.33MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.16%     300.4MiB / 7.651GiB   793kB / 5.96MB    18MB / 35MB
+proyecto-mediqueue-patient-service-1        0.36%     279.8MiB / 7.651GiB   777kB / 5.23MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.36%     418.4MiB / 7.651GiB   951kB / 10.5MB    9.26MB / 18.3MB
+proyecto-mediqueue-payment-service-2        2.40%     327.6MiB / 7.651GiB   1.81MB / 9.87MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.17%     296.9MiB / 7.651GiB   800kB / 5.84MB    8.15MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.40%     312.5MiB / 7.651GiB   1.78MB / 7.62MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   2.47%     309.3MiB / 7.651GiB   210kB / 4.29MB    11.9MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.68%     389.2MiB / 7.651GiB   913kB / 10.4MB    1.77MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    2.04%     391.5MiB / 7.651GiB   897kB / 10.4MB    1.7MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.73%     297.5MiB / 7.651GiB   202kB / 4.26MB    7.86MB / 72.3MB
+proyecto-mediqueue-patient-service-2        0.15%     287.8MiB / 7.651GiB   773kB / 5.2MB     25.3MB / 27.3MB
+proyecto-mediqueue-schedule-service-2       0.20%     291.6MiB / 7.651GiB   792kB / 5.8MB     6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.56%     344.4MiB / 7.651GiB   1.8MB / 9.87MB    4.34MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.57%     385.4MiB / 7.651GiB   945kB / 10.2MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.08%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.35%     17MiB / 7.651GiB      17.7MB / 17.9MB   12.9MB / 12.3MB
+mediqueue-prometheus                        0.16%     107.5MiB / 7.651GiB   118MB / 3.69MB    75.4MB / 9.3MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   819kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.2MiB / 7.651GiB    3.08MB / 1.38MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.23%     77.27MiB / 7.651GiB   10.8MB / 6.84MB   59.7MB / 151MB
+mediqueue-rabbitmq                          1.45%     131.5MiB / 7.651GiB   591kB / 4.59MB    71.6MB / 29.9MB
+mediqueue-redis                             0.46%     11.68MiB / 7.651GiB   263kB / 2.99MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 10 2026-05-20T19:25:02.8987510-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.04%     85.23MiB / 7.651GiB   13.6MB / 11.3MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.21%     384.2MiB / 7.651GiB   608kB / 16.9MB    24.3MB / 1.21MB
+proyecto-mediqueue-api-gateway-1            0.20%     374.7MiB / 7.651GiB   610kB / 17MB      25.1MB / 1.2MB
+mediqueue-schedule-lb                       0.07%     73.5MiB / 7.651GiB    3.12MB / 1.06MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.06%     54.18MiB / 7.651GiB   1.95MB / 717kB    81.9kB / 36.7MB
+mediqueue-payment-lb                        0.04%     24.29MiB / 7.651GiB   7.92MB / 5.86MB   262kB / 69.9MB
+mediqueue-appointment-lb                    0.19%     78.96MiB / 7.651GiB   4.07MB / 1.34MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.97%     300.5MiB / 7.651GiB   795kB / 5.99MB    18MB / 35MB
+proyecto-mediqueue-patient-service-1        0.19%     279.8MiB / 7.651GiB   779kB / 5.23MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.37%     418.4MiB / 7.651GiB   954kB / 10.5MB    9.26MB / 18.3MB
+proyecto-mediqueue-payment-service-2        1.04%     327.6MiB / 7.651GiB   1.81MB / 9.93MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.28%     297MiB / 7.651GiB     802kB / 5.87MB    8.16MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.53%     312.5MiB / 7.651GiB   1.78MB / 7.63MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.24%     309.3MiB / 7.651GiB   210kB / 4.29MB    11.9MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.65%     389.3MiB / 7.651GiB   916kB / 10.4MB    1.8MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    1.32%     391.5MiB / 7.651GiB   899kB / 10.4MB    1.73MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.24%     297.6MiB / 7.651GiB   203kB / 4.28MB    7.88MB / 72.3MB
+proyecto-mediqueue-patient-service-2        0.27%     287.9MiB / 7.651GiB   775kB / 5.23MB    25.3MB / 27.3MB
+proyecto-mediqueue-schedule-service-2       0.23%     291.6MiB / 7.651GiB   794kB / 5.83MB    6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.94%     344.5MiB / 7.651GiB   1.8MB / 9.88MB    4.34MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    1.18%     385.4MiB / 7.651GiB   947kB / 10.3MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.05%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.39%     17MiB / 7.651GiB      17.8MB / 17.9MB   12.9MB / 12.3MB
+mediqueue-prometheus                        0.42%     107.5MiB / 7.651GiB   118MB / 3.7MB     75.4MB / 9.3MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   819kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.2MiB / 7.651GiB    3.08MB / 1.38MB   12.6MB / 24.6kB
+mediqueue-postgres                          0.25%     77.28MiB / 7.651GiB   10.8MB / 6.86MB   59.7MB / 151MB
+mediqueue-rabbitmq                          1.01%     128.2MiB / 7.651GiB   592kB / 4.59MB    71.6MB / 29.9MB
+mediqueue-redis                             0.57%     11.43MiB / 7.651GiB   263kB / 2.99MB    12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 11 2026-05-20T19:25:10.5122340-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.12%     85.23MiB / 7.651GiB   13.7MB / 11.4MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.17%     384.2MiB / 7.651GiB   609kB / 16.9MB    24.3MB / 1.21MB
+proyecto-mediqueue-api-gateway-1            0.15%     374.7MiB / 7.651GiB   612kB / 17.1MB    25.1MB / 1.2MB
+mediqueue-schedule-lb                       0.07%     73.49MiB / 7.651GiB   3.13MB / 1.06MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.05%     54.18MiB / 7.651GiB   1.95MB / 719kB    81.9kB / 36.7MB
+mediqueue-payment-lb                        0.07%     24.29MiB / 7.651GiB   7.95MB / 5.89MB   262kB / 69.9MB
+mediqueue-appointment-lb                    0.09%     78.71MiB / 7.651GiB   4.08MB / 1.34MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.26%     300.5MiB / 7.651GiB   797kB / 5.99MB    18MB / 35MB
+proyecto-mediqueue-patient-service-1        0.15%     279.8MiB / 7.651GiB   781kB / 5.26MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.38%     418.4MiB / 7.651GiB   957kB / 10.5MB    9.26MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.17%     327.6MiB / 7.651GiB   1.82MB / 9.94MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       0.29%     297MiB / 7.651GiB     804kB / 5.87MB    8.16MB / 35.3MB
+proyecto-mediqueue-payment-service-3        0.38%     312.5MiB / 7.651GiB   1.79MB / 7.66MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.16%     309.4MiB / 7.651GiB   211kB / 4.32MB    11.9MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.24%     389.3MiB / 7.651GiB   918kB / 10.4MB    1.82MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.34%     391.5MiB / 7.651GiB   901kB / 10.4MB    1.73MB / 49.9MB
+proyecto-mediqueue-notification-service-1   1.94%     297.7MiB / 7.651GiB   203kB / 4.31MB    7.91MB / 72.3MB
+proyecto-mediqueue-patient-service-2        0.32%     287.9MiB / 7.651GiB   777kB / 5.23MB    25.3MB / 27.3MB
+proyecto-mediqueue-schedule-service-2       0.15%     291.6MiB / 7.651GiB   796kB / 5.83MB    6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.29%     344.5MiB / 7.651GiB   1.81MB / 9.94MB   4.35MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.47%     385.7MiB / 7.651GiB   951kB / 10.3MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.06%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       1.20%     17.05MiB / 7.651GiB   17.8MB / 18MB     12.9MB / 12.3MB
+mediqueue-prometheus                        0.12%     107.6MiB / 7.651GiB   118MB / 3.71MB    75.4MB / 9.35MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   819kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.15MiB / 7.651GiB   3.1MB / 1.39MB    12.8MB / 24.6kB
+mediqueue-postgres                          1.03%     77.27MiB / 7.651GiB   10.8MB / 6.88MB   59.7MB / 151MB
+mediqueue-rabbitmq                          0.15%     131.2MiB / 7.651GiB   594kB / 4.61MB    71.6MB / 29.9MB
+mediqueue-redis                             0.38%     11.68MiB / 7.651GiB   265kB / 3MB       12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2
+
+===== sample 12 2026-05-20T19:25:18.2788240-06:00 =====
+
+--- docker stats ---
+NAME                                        CPU %     MEM USAGE / LIMIT     NET I/O           BLOCK I/O
+mediqueue-api-gateway-lb                    0.12%     85.23MiB / 7.651GiB   13.8MB / 11.5MB   270kB / 0B
+proyecto-mediqueue-api-gateway-2            0.77%     384.2MiB / 7.651GiB   612kB / 17.1MB    24.3MB / 1.21MB
+proyecto-mediqueue-api-gateway-1            0.15%     374.7MiB / 7.651GiB   613kB / 17.2MB    25.1MB / 1.2MB
+mediqueue-schedule-lb                       0.09%     73.49MiB / 7.651GiB   3.14MB / 1.07MB   4.1kB / 13.3MB
+mediqueue-patient-lb                        0.13%     54.18MiB / 7.651GiB   1.96MB / 722kB    81.9kB / 36.7MB
+mediqueue-payment-lb                        0.06%     24.29MiB / 7.651GiB   7.96MB / 5.89MB   262kB / 69.9MB
+mediqueue-appointment-lb                    0.03%     78.71MiB / 7.651GiB   4.09MB / 1.34MB   4.1kB / 7.36MB
+proyecto-mediqueue-schedule-service-3       0.52%     300.6MiB / 7.651GiB   800kB / 6.02MB    18MB / 35MB
+proyecto-mediqueue-patient-service-1        0.14%     279.8MiB / 7.651GiB   782kB / 5.26MB    31.3MB / 29.2MB
+proyecto-mediqueue-appointment-service-2    0.72%     418.4MiB / 7.651GiB   959kB / 10.5MB    9.26MB / 18.3MB
+proyecto-mediqueue-payment-service-2        0.25%     327.6MiB / 7.651GiB   1.82MB / 9.97MB   19MB / 18MB
+proyecto-mediqueue-schedule-service-1       2.78%     297MiB / 7.651GiB     806kB / 5.9MB     8.16MB / 35.3MB
+proyecto-mediqueue-payment-service-3        1.67%     312.7MiB / 7.651GiB   1.79MB / 7.67MB   8.44MB / 34.8MB
+proyecto-mediqueue-notification-service-2   0.16%     309.4MiB / 7.651GiB   211kB / 4.32MB    11.9MB / 46.2MB
+proyecto-mediqueue-appointment-service-3    0.23%     389.3MiB / 7.651GiB   921kB / 10.5MB    1.82MB / 47.3MB
+proyecto-mediqueue-appointment-service-4    0.61%     391.5MiB / 7.651GiB   905kB / 10.5MB    1.73MB / 49.9MB
+proyecto-mediqueue-notification-service-1   0.14%     297.7MiB / 7.651GiB   203kB / 4.31MB    7.91MB / 72.3MB
+proyecto-mediqueue-patient-service-2        0.27%     287.8MiB / 7.651GiB   781kB / 5.26MB    25.3MB / 27.3MB
+proyecto-mediqueue-schedule-service-2       3.37%     291.6MiB / 7.651GiB   798kB / 5.86MB    6.8MB / 38.9MB
+proyecto-mediqueue-payment-service-1        0.24%     344.5MiB / 7.651GiB   1.81MB / 9.95MB   4.35MB / 24.1MB
+proyecto-mediqueue-appointment-service-1    0.47%     385.4MiB / 7.651GiB   953kB / 10.4MB    2.42MB / 54.4MB
+mediqueue-grafana                           0.10%     141.5MiB / 7.651GiB   2.63MB / 23.7MB   184MB / 25.8MB
+mediqueue-postgres-lb                       0.36%     16.76MiB / 7.651GiB   17.9MB / 18MB     12.9MB / 12.3MB
+mediqueue-prometheus                        1.18%     107.7MiB / 7.651GiB   119MB / 3.71MB    75.4MB / 9.35MB
+mediqueue-redis-insight                     0.00%     163.6MiB / 7.651GiB   819kB / 10.8MB    184MB / 24.2MB
+mediqueue-redis-exporter                    0.00%     20.15MiB / 7.651GiB   3.1MB / 1.39MB    12.8MB / 24.6kB
+mediqueue-postgres                          0.78%     77.2MiB / 7.651GiB    10.9MB / 6.9MB    59.7MB / 151MB
+mediqueue-rabbitmq                          71.45%    128.6MiB / 7.651GiB   594kB / 4.61MB    71.6MB / 29.9MB
+mediqueue-redis                             0.51%     11.93MiB / 7.651GiB   265kB / 3MB       12.8MB / 664kB
+
+--- pg_stat_activity ---
+ state  | wait_event_type |     wait_event      | count 
+--------+-----------------+---------------------+-------
+ idle   | Client          | ClientRead          |    24
+        | Activity        | WalWriterMain       |     1
+        | Activity        | LogicalLauncherMain |     1
+        | Activity        | BgWriterHibernate   |     1
+ active |                 |                     |     1
+        | Activity        | AutoVacuumMain      |     1
+        | Activity        | CheckpointerMain    |     1
+(7 rows)
+
+
+--- pg_locks summary ---
+      mode       | granted | count 
+-----------------+---------+-------
+ AccessShareLock | t       |     1
+ ExclusiveLock   | t       |     1
+(2 rows)
+
+
+--- rabbitmq queues ---
+Timeout: 60.0 seconds ...
+Listing queues for vhost / ...
+name	messages_ready	messages_unacknowledged	consumers
+appointment.expired	0	0	0
+appointment.cancelled.dlq	0	0	0
+appointment.held.dlq	0	0	0
+payment.appointment-held.queue	0	0	24
+payment.succeeded.queue	0	0	0
+payment.failed.queue	0	0	0
+appointment.held.queue	0	0	0
+payment.failed.dlq	0	0	0
+schedule.appointment.cancelled	0	0	3
+appointment.confirmed.queue	0	0	0
+schedule.appointment.expired	0	0	3
+schedule.appointments.dlq	0	0	0
+notification.appointment.queue	0	0	2
+payment.succeeded.dlq	0	0	0
+notification.appointment.dlq	0	0	0
+payment.succeeded	0	0	4
+appointment.confirmed	0	0	0
+appointment.cancelled	0	0	0
+appointment.confirmed.dlq	0	0	0
+payment.failed	0	0	4
+notification.payment.dlq	0	0	0
+appointment.cancelled.queue	0	0	0
+schedule.appointment.held	0	0	3
+appointment.expired.queue	0	0	0
+schedule.appointment.confirmed	0	0	3
+notification.payment.queue	0	0	2

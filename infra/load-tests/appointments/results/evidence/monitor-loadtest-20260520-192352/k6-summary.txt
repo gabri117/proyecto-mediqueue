@@ -1,0 +1,1 @@
+ERROR: Cannot find path './infra/load-tests/appointments/results/appointment-rpm-10000-summary.json' because it does not exist.

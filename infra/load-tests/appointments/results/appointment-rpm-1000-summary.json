@@ -9,25 +9,25 @@
                 "fails": 0
             },
             "no 5xx": {
-                "name": "no 5xx",
-                "path": "::no 5xx",
                 "id": "d1ddfa01c9c508d09ccb3a23b0b94c45",
                 "passes": 1000,
-                "fails": 0
+                "fails": 0,
+                "name": "no 5xx",
+                "path": "::no 5xx"
             },
             "no RedisConnectionFailureException": {
-                "passes": 1000,
-                "fails": 0,
                 "name": "no RedisConnectionFailureException",
                 "path": "::no RedisConnectionFailureException",
-                "id": "9432fcdffbe099a1b647793c9dc31c06"
+                "id": "9432fcdffbe099a1b647793c9dc31c06",
+                "passes": 1000,
+                "fails": 0
             },
             "no dataset exhausted": {
                 "name": "no dataset exhausted",
                 "path": "::no dataset exhausted",
                 "id": "bb05ef07b27662ddf5bcbe82da00ab4e",
                 "passes": 1000,
-                "fails": 1
+                "fails": 0
             }
         },
         "name": "",
@@ -36,97 +36,120 @@
         "groups": {}
     },
     "metrics": {
-        "http_req_receiving": {
-            "avg": 0.04379120000000001,
-            "min": 0,
-            "med": 0,
-            "max": 1.6572,
-            "p(90)": 0,
-            "p(95)": 0.50782
-        },
-        "data_sent": {
-            "count": 548673,
-            "rate": 9143.763057272081
-        },
-        "http_req_blocked": {
-            "min": 0,
-            "med": 0,
-            "max": 30.0735,
-            "p(90)": 0.03328000000000757,
-            "p(95)": 0.9570399999999999,
-            "avg": 0.11915809999999999
-        },
-        "http_req_connecting": {
-            "p(95)": 0.5758399999999999,
-            "avg": 0.07893119999999998,
-            "min": 0,
-            "med": 0,
-            "max": 2.5379,
-            "p(90)": 0
-        },
-        "http_req_sending": {
-            "avg": 0.021330399999999996,
-            "min": 0,
-            "med": 0,
-            "max": 0.8448,
-            "p(90)": 0,
-            "p(95)": 0
-        },
-        "http_req_duration": {
-            "p(95)": 50.55692,
-            "avg": 28.364661000000012,
-            "min": 14.8368,
-            "med": 21.033949999999997,
-            "max": 556.9117,
-            "p(90)": 39.29556000000001
-        },
-        "iteration_duration": {
-            "med": 21.228,
-            "max": 558.1999,
-            "p(90)": 40.2614,
-            "p(95)": 51.7333,
-            "avg": 28.675888611388636,
-            "min": 0
-        },
-        "http_reqs": {
+        "iterations": {
             "count": 1000,
-            "rate": 16.665232401215444
+            "rate": 16.666170014800226
         },
-        "appointments_server_error": {
-            "rate": 0,
+        "appointments_unexpected": {
             "count": 0,
+            "rate": 0,
             "thresholds": {
                 "count==0": false
             }
         },
-        "http_req_waiting": {
-            "avg": 28.29953940000002,
-            "min": 14.8368,
-            "med": 21.00395,
-            "max": 556.9117,
-            "p(90)": 39.15813000000001,
-            "p(95)": 50.55692
+        "appointments_connection_refused": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
         },
-        "vus": {
-            "value": 1,
-            "min": 0,
-            "max": 6
-        },
-        "http_req_duration{expected_response:true}": {
-            "avg": 28.364661000000012,
-            "min": 14.8368,
-            "med": 21.033949999999997,
-            "max": 556.9117,
-            "p(90)": 39.29556000000001,
-            "p(95)": 50.55692
-        },
-        "appointments_conflict": {
-            "count": 10,
-            "rate": 0.16665232401215443
+        "data_sent": {
+            "count": 551703,
+            "rate": 9194.775995675329
         },
         "data_received": {
-            "count": 834544,
-            "rate": 13907.869709039942
+            "count": 839893,
+            "rate": 13997.799532240606
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 1000,
+            "value": 0
+        },
+        "iteration_duration": {
+            "avg": 32.09633231899997,
+            "min": 10.119792,
+            "med": 14.2540625,
+            "max": 1393.90825,
+            "p(90)": 19.7008298,
+            "p(95)": 21.863049699999994
+        },
+        "appointments_dataset_exhausted": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "http_req_connecting": {
+            "p(90)": 0.00960000000000213,
+            "p(95)": 0.23839999999999964,
+            "avg": 0.023052999999999997,
+            "min": 0,
+            "med": 0,
+            "max": 0.364
+        },
+        "vus_max": {
+            "value": 100,
+            "min": 100,
+            "max": 100
+        },
+        "http_req_duration{expected_response:true}": {
+            "min": 9.826,
+            "med": 13.9325,
+            "max": 1393.559,
+            "p(90)": 19.1281,
+            "p(95)": 21.427749999999993,
+            "avg": 31.723000999999964
+        },
+        "appointments_server_error": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "vus": {
+            "value": 0,
+            "min": 0,
+            "max": 17
+        },
+        "http_req_waiting": {
+            "max": 1393.519,
+            "p(90)": 19.0342,
+            "p(95)": 21.3216,
+            "avg": 31.63238900000002,
+            "min": 9.753,
+            "med": 13.84
+        },
+        "http_req_receiving": {
+            "p(95)": 0.082,
+            "avg": 0.05764200000000003,
+            "min": 0.009,
+            "med": 0.057,
+            "max": 0.209,
+            "p(90)": 0.077
+        },
+        "appointments_created": {
+            "count": 1000,
+            "rate": 16.666170014800226
+        },
+        "http_req_sending": {
+            "avg": 0.03297000000000001,
+            "min": 0.011,
+            "med": 0.0315,
+            "max": 0.118,
+            "p(90)": 0.04510000000000002,
+            "p(95)": 0.06304999999999995
+        },
+        "http_req_duration": {
+            "p(90)": 19.1281,
+            "p(95)": 21.427749999999993,
+            "avg": 31.723000999999964,
+            "min": 9.826,
+            "med": 13.9325,
+            "max": 1393.559
         },
         "http_req_tls_handshaking": {
             "avg": 0,
@@ -136,49 +159,36 @@
             "p(90)": 0,
             "p(95)": 0
         },
-        "iterations": {
-            "count": 1001,
-            "rate": 16.68189763361666
-        },
         "checks": {
             "passes": 4000,
-            "fails": 1,
+            "fails": 0,
             "thresholds": {
                 "rate>0.95": false
             },
-            "value": 0.9997500624843789
+            "value": 1
         },
-        "http_req_failed": {
-            "passes": 0,
-            "fails": 1000,
-            "value": 0
+        "http_req_blocked": {
+            "p(90)": 0.07450000000000123,
+            "p(95)": 0.30829999999999974,
+            "avg": 0.03655800000000011,
+            "min": 0.002,
+            "med": 0.007,
+            "max": 1.536
         },
-        "appointment_attempts": {
+        "http_reqs": {
             "count": 1000,
-            "rate": 16.665232401215444
+            "rate": 16.666170014800226
         },
-        "vus_max": {
-            "max": 100,
-            "value": 100,
-            "min": 100
-        },
-        "appointments_dataset_exhausted": {
-            "count": 1,
-            "rate": 0.016665232401215445,
-            "thresholds": {
-                "count==0": true
-            }
-        },
-        "appointments_unexpected": {
+        "appointments_timeout": {
             "count": 0,
             "rate": 0,
             "thresholds": {
                 "count==0": false
             }
         },
-        "appointments_created": {
-            "count": 990,
-            "rate": 16.49858007720329
+        "appointment_attempts": {
+            "count": 1000,
+            "rate": 16.666170014800226
         }
     }
 }

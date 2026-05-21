@@ -1,0 +1,22 @@
+{
+  "appointment_attempts": 50000,
+  "appointments_created": 14000,
+  "appointments_conflict": 36000,
+  "appointments_validation_error": 0,
+  "appointments_rate_limited": 0,
+  "appointments_server_error": 0,
+  "appointments_503": 0,
+  "appointments_503_json_gateway": 0,
+  "appointments_503_html_haproxy": 0,
+  "appointments_connection_refused": 0,
+  "appointments_timeout": 0,
+  "appointments_unexpected": 0,
+  "appointments_dataset_exhausted": 0,
+  "appointments_skipped_after_limit": 1,
+  "dropped_iterations": 0,
+  "checks_rate": 1,
+  "http_reqs": 50000,
+  "http_req_failed_rate": 0,
+  "http_req_duration_p95": 8.476149999999993,
+  "http_req_duration_p99": 0
+}

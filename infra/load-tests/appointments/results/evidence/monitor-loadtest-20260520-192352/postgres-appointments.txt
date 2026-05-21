@@ -1,0 +1,12 @@
+ appointment_status | count 
+--------------------+-------
+(0 rows)
+
+ slot_id | count 
+---------+-------
+(0 rows)
+
+ publication_status | count 
+--------------------+-------
+(0 rows)
+
