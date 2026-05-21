@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 $cfg = Get-MediQueueBackupConfig
 if (-not $BackupRoot) { $BackupRoot = $cfg.BackupRoot }
 if (-not $GoogleDriveBackupPath) { $GoogleDriveBackupPath = $cfg.GoogleDriveBackupPath }
+$BackupMode = $cfg.BackupMode
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logDir = Join-Path $BackupRoot "logs"
@@ -43,16 +44,43 @@ function Get-LatestDirectory {
 try {
     $failures = New-Object System.Collections.Generic.List[string]
     $warnings = New-Object System.Collections.Generic.List[string]
+    Write-Log "BACKUP_MODE=$BackupMode"
+
+    if ($BackupMode -eq "patroni") {
+        $patroniHealthScript = Join-Path $PSScriptRoot "..\..\patroni\scripts\patroni-healthcheck.ps1"
+        if (Test-Path -LiteralPath $patroniHealthScript) {
+            & $patroniHealthScript 2>&1 | Tee-Object -FilePath $logFile -Append
+            if ($LASTEXITCODE -ne 0) {
+                $failures.Add("Patroni healthcheck fallo.")
+            } else {
+                Write-Log "PATRONI_HEALTH_OK"
+            }
+        } else {
+            $warnings.Add("No se encontro patroni-healthcheck.ps1 para validar modo Patroni.")
+        }
+    } elseif ($BackupMode -ne "single") {
+        $failures.Add("BackupMode invalido: $BackupMode")
+    }
 
     $base = Get-LatestDirectory -Path (Join-Path $BackupRoot "local") -Filter "mediqueue_base_*"
     $baseTar = if ($null -ne $base) { Join-Path $base.FullName "base.tar.gz" } else { $null }
+    $walTar = if ($null -ne $base) { Join-Path $base.FullName "pg_wal.tar.gz" } else { $null }
     $manifest = if ($null -ne $base) { Join-Path $base.FullName "backup_manifest" } else { $null }
-    if ($null -eq $base -or -not (Test-Path -LiteralPath $baseTar) -or -not (Test-Path -LiteralPath $manifest) -or (Get-Item -LiteralPath $baseTar).Length -le 0) {
+    $shaFile = if ($null -ne $base) { Join-Path $base.FullName "SHA256SUMS" } else { $null }
+    $markerFile = if ($null -ne $base) { Join-Path $base.FullName "BACKUP_BASE_OK.txt" } else { $null }
+    if ($null -eq $base -or
+        -not (Test-Path -LiteralPath $baseTar) -or
+        -not (Test-Path -LiteralPath $walTar) -or
+        -not (Test-Path -LiteralPath $manifest) -or
+        -not (Test-Path -LiteralPath $shaFile) -or
+        -not (Test-Path -LiteralPath $markerFile) -or
+        (Get-Item -LiteralPath $baseTar).Length -le 0 -or
+        (Get-Item -LiteralPath $walTar).Length -le 0) {
         $failures.Add("No existe backup base valido.")
     } elseif ($base.LastWriteTime -lt (Get-Date).AddHours(-$MaxBaseAgeHours)) {
         $failures.Add("Backup base demasiado antiguo: $($base.FullName)")
     } else {
-        Write-Log "BASE_OK dir=$($base.FullName) baseTarBytes=$((Get-Item -LiteralPath $baseTar).Length)"
+        Write-Log "BASE_OK dir=$($base.FullName) baseTarBytes=$((Get-Item -LiteralPath $baseTar).Length) pgWalTarBytes=$((Get-Item -LiteralPath $walTar).Length)"
     }
 
     $dump = Get-LatestFile -Path (Join-Path $BackupRoot "dumps") -Filter "mediqueue_dump_*.dump"
@@ -76,11 +104,14 @@ try {
         }
     }
 
-    $walRoot = Join-Path $BackupRoot "wal-archive"
+    $walRoot = if ($BackupMode -eq "patroni") { Join-Path $BackupRoot "wal-archive\patroni" } else { Join-Path $BackupRoot "wal-archive" }
     $latestWal = $null
     if (Test-Path -LiteralPath $walRoot) {
         $latestWal = Get-ChildItem -LiteralPath $walRoot -File -Recurse |
-            Where-Object { $_.Name -ne ".gitkeep" } |
+            Where-Object {
+                $_.Name -ne ".gitkeep" -and
+                ($BackupMode -ne "single" -or $_.FullName -notlike "*\wal-archive\patroni\*")
+            } |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
     }

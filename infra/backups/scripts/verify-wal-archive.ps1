@@ -15,6 +15,10 @@ if (-not $PostgresService) { $PostgresService = $cfg.PostgresService }
 if (-not $DatabaseName) { $DatabaseName = $cfg.DatabaseName }
 if (-not $DatabaseUser) { $DatabaseUser = $cfg.DatabaseUser }
 if (-not $BackupRoot) { $BackupRoot = $cfg.BackupRoot }
+$BackupMode = $cfg.BackupMode
+if ($BackupMode -eq "patroni" -and $ContainerWalArchiveDir -eq "/var/lib/postgresql/wal-archive") {
+    $ContainerWalArchiveDir = "/var/lib/postgresql/wal-archive/patroni"
+}
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logDir = Join-Path $BackupRoot "logs"
@@ -39,9 +43,46 @@ function Invoke-Checked {
     }
 }
 
+function Get-ComposeArgs {
+    if ($BackupMode -eq "patroni") {
+        return @("-f", "docker-compose.yml", "-f", "docker-compose.patroni.yml")
+    }
+    return @()
+}
+
+function Get-PatroniLeaderService {
+    $definitions = @(
+        @{ Service = "$($cfg.PatroniDockerServicePrefix)-1"; Port = 18008 },
+        @{ Service = "$($cfg.PatroniDockerServicePrefix)-2"; Port = 18009 },
+        @{ Service = "$($cfg.PatroniDockerServicePrefix)-3"; Port = 18010 }
+    )
+    foreach ($definition in $definitions) {
+        try {
+            $status = Invoke-RestMethod -Uri "http://127.0.0.1:$($definition.Port)/patroni" -TimeoutSec 3
+            if ($status.role -in @("master", "primary")) {
+                return $definition.Service
+            }
+        }
+        catch {
+            continue
+        }
+    }
+    throw "No se encontro lider Patroni para verificar WAL."
+}
+
+function Invoke-DockerCompose {
+    param([string[]]$CommandArgs)
+    $composeArgs = Get-ComposeArgs
+    docker compose @composeArgs @CommandArgs
+}
+
 function Invoke-PsqlScalar {
     param([string]$Sql)
-    $value = docker compose exec -T $PostgresService psql -U $DatabaseUser -d $DatabaseName -Atc $Sql
+    if ($BackupMode -eq "patroni") {
+        $value = Invoke-DockerCompose -CommandArgs @("exec", "-T", "-e", "PGPASSWORD=$($cfg.PatroniAdminPassword)", $PostgresService, "psql", "-U", $($cfg.PatroniAdminUser), "-d", $DatabaseName, "-Atc", $Sql)
+    } else {
+        $value = docker compose exec -T $PostgresService psql -U $DatabaseUser -d $DatabaseName -Atc $Sql
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "psql fallo ejecutando: $Sql"
     }
@@ -49,7 +90,7 @@ function Invoke-PsqlScalar {
 }
 
 function Get-WalCount {
-    $count = docker compose exec -T $PostgresService bash -lc "mkdir -p '$ContainerWalArchiveDir'; find '$ContainerWalArchiveDir' -maxdepth 1 -type f | wc -l"
+    $count = Invoke-DockerCompose -CommandArgs @("exec", "-T", $PostgresService, "bash", "-lc", "mkdir -p '$ContainerWalArchiveDir'; find '$ContainerWalArchiveDir' -maxdepth 1 -type f | wc -l")
     if ($LASTEXITCODE -ne 0) {
         throw "No se pudo contar WAL en $ContainerWalArchiveDir"
     }
@@ -57,7 +98,11 @@ function Get-WalCount {
 }
 
 function Get-ArchiverStats {
-    $raw = docker compose exec -T $PostgresService psql -U $DatabaseUser -d $DatabaseName -Atc "select archived_count, failed_count, coalesce(last_archived_wal,''), coalesce(last_archived_time::text,''), coalesce(last_failed_wal,''), coalesce(last_failed_time::text,'') from pg_stat_archiver;"
+    if ($BackupMode -eq "patroni") {
+        $raw = Invoke-DockerCompose -CommandArgs @("exec", "-T", "-e", "PGPASSWORD=$($cfg.PatroniAdminPassword)", $PostgresService, "psql", "-U", $($cfg.PatroniAdminUser), "-d", $DatabaseName, "-Atc", "select archived_count, failed_count, coalesce(last_archived_wal,''), coalesce(last_archived_time::text,''), coalesce(last_failed_wal,''), coalesce(last_failed_time::text,'') from pg_stat_archiver;")
+    } else {
+        $raw = docker compose exec -T $PostgresService psql -U $DatabaseUser -d $DatabaseName -Atc "select archived_count, failed_count, coalesce(last_archived_wal,''), coalesce(last_archived_time::text,''), coalesce(last_failed_wal,''), coalesce(last_failed_time::text,'') from pg_stat_archiver;"
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "No se pudo consultar pg_stat_archiver."
     }
@@ -73,7 +118,7 @@ function Get-ArchiverStats {
 }
 
 function Get-LatestWalInfo {
-    $raw = docker compose exec -T $PostgresService bash -lc "mkdir -p '$ContainerWalArchiveDir'; find '$ContainerWalArchiveDir' -maxdepth 1 -type f -printf '%T@|%f|%TY-%Tm-%Td %TH:%TM:%TS\n' 2>/dev/null | sort -nr | head -10"
+    $raw = Invoke-DockerCompose -CommandArgs @("exec", "-T", $PostgresService, "bash", "-lc", "mkdir -p '$ContainerWalArchiveDir'; find '$ContainerWalArchiveDir' -maxdepth 1 -type f -printf '%T@|%f|%TY-%Tm-%Td %TH:%TM:%TS\n' 2>/dev/null | sort -nr | head -10")
     if ($LASTEXITCODE -ne 0) {
         throw "No se pudieron listar WAL en $ContainerWalArchiveDir"
     }
@@ -81,7 +126,7 @@ function Get-LatestWalInfo {
 }
 
 function Test-RecentWal {
-    $epoch = docker compose exec -T $PostgresService bash -lc "find '$ContainerWalArchiveDir' -maxdepth 1 -type f -printf '%T@\n' 2>/dev/null | sort -nr | head -1"
+    $epoch = Invoke-DockerCompose -CommandArgs @("exec", "-T", $PostgresService, "bash", "-lc", "find '$ContainerWalArchiveDir' -maxdepth 1 -type f -printf '%T@\n' 2>/dev/null | sort -nr | head -1")
     if ($LASTEXITCODE -ne 0 -or -not ([string]$epoch).Trim()) {
         return $false
     }
@@ -90,9 +135,21 @@ function Test-RecentWal {
 }
 
 try {
+    Write-Log "BACKUP_MODE=$BackupMode"
+    if ($BackupMode -eq "patroni") {
+        $PostgresService = Get-PatroniLeaderService
+        Write-Log "PATRONI_WAL_LEADER_SERVICE=$PostgresService archive_dir=$ContainerWalArchiveDir"
+    } elseif ($BackupMode -ne "single") {
+        throw "BackupMode invalido: $BackupMode. Use single o patroni."
+    }
     Invoke-Checked "docker info" { docker info }
-    Invoke-Checked "docker compose ps" { docker compose ps }
-    Invoke-Checked "postgres readiness" { docker compose exec -T $PostgresService pg_isready -U $DatabaseUser -d $DatabaseName }
+    if ($BackupMode -eq "patroni") {
+        Invoke-Checked "docker compose patroni ps" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml ps }
+        Invoke-Checked "patroni postgres readiness" { Invoke-DockerCompose -CommandArgs @("exec", "-T", $PostgresService, "pg_isready", "-U", $($cfg.PatroniAdminUser), "-d", $DatabaseName) }
+    } else {
+        Invoke-Checked "docker compose ps" { docker compose ps }
+        Invoke-Checked "postgres readiness" { docker compose exec -T $PostgresService pg_isready -U $DatabaseUser -d $DatabaseName }
+    }
 
     $walLevel = Invoke-PsqlScalar "show wal_level;"
     $archiveMode = Invoke-PsqlScalar "show archive_mode;"
