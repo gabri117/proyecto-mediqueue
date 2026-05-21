@@ -1,67 +1,69 @@
 param(
-    [int]$WriterPort = 55432,
-    [int]$ReaderPort = 55433,
+    [string]$ComposeFile = "docker-compose.patroni.yml",
     [int[]]$RestPorts = @(18008, 18009, 18010)
 )
 
 $ErrorActionPreference = "Stop"
 $hasPrimary = $false
 $reachableNodes = 0
+$replicaCount = 0
+$root = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
+$composeArgs = @("-f", "docker-compose.yml", "-f", $ComposeFile)
+$nodes = @(
+    @{ Service = "patroni-postgres-1"; Port = 18008 },
+    @{ Service = "patroni-postgres-2"; Port = 18009 },
+    @{ Service = "patroni-postgres-3"; Port = 18010 }
+)
 
-function Test-TcpPort {
-    param(
-        [string]$HostName,
-        [int]$Port
-    )
-
+function Test-Etcd {
     try {
-        $client = [System.Net.Sockets.TcpClient]::new()
-        $connect = $client.BeginConnect($HostName, $Port, $null, $null)
-        $success = $connect.AsyncWaitHandle.WaitOne(2000, $false)
-        if ($success) {
-            $client.EndConnect($connect)
-        }
-        $client.Close()
-        return $success
+        docker compose @composeArgs exec -T etcd-1 etcdctl --endpoints=http://etcd-1:2379,http://etcd-2:2379,http://etcd-3:2379 endpoint health | Out-Host
+        return ($LASTEXITCODE -eq 0)
     }
     catch {
         return $false
     }
 }
 
-foreach ($port in $RestPorts) {
-    try {
-        $status = Invoke-RestMethod -Uri "http://127.0.0.1:$port/patroni" -TimeoutSec 3
-        $reachableNodes++
-        if ($status.role -eq "primary" -or $status.role -eq "master") {
-            $hasPrimary = $true
-            Write-Host "PATRONI_PRIMARY_OK port=$port role=$($status.role)"
+Push-Location $root
+try {
+    $etcdOk = Test-Etcd
+    Write-Host "ETCD_HEALTH_OK=$etcdOk"
+
+    foreach ($node in $nodes | Where-Object { $RestPorts -contains $_.Port }) {
+        try {
+            $port = $node.Port
+            $status = Invoke-RestMethod -Uri "http://127.0.0.1:$port/patroni" -TimeoutSec 3
+            $name = if ($status.name) { $status.name } else { $node.Service }
+            $reachableNodes++
+            if ($status.role -eq "primary" -or $status.role -eq "master") {
+                $hasPrimary = $true
+                Write-Host "PATRONI_PRIMARY_OK name=$name port=$port role=$($status.role)"
+            }
+            elseif ($status.role -eq "replica" -or $status.role -eq "standby_leader") {
+                $replicaCount++
+                Write-Host "PATRONI_REPLICA_OK name=$name port=$port role=$($status.role) state=$($status.state)"
+            }
+            else {
+                Write-Host "PATRONI_NODE_WARNING name=$name port=$port role=$($status.role) state=$($status.state)"
+            }
         }
-        else {
-            Write-Host "PATRONI_NODE_OK port=$port role=$($status.role) state=$($status.state)"
+        catch {
+            Write-Host "PATRONI_NODE_ERROR port=$port unreachable"
         }
     }
-    catch {
-        Write-Host "PATRONI_NODE_ERROR port=$port unreachable"
+
+    Write-Host "PATRONI_REACHABLE_NODES=$reachableNodes"
+    Write-Host "PATRONI_HAS_PRIMARY=$hasPrimary"
+    Write-Host "PATRONI_REPLICA_COUNT=$replicaCount"
+
+    if (-not $etcdOk -or -not $hasPrimary -or $reachableNodes -lt 3 -or $replicaCount -lt 2) {
+        Write-Host "PATRONI_HEALTH_STATUS=ERROR"
+        exit 1
     }
+
+    Write-Host "PATRONI_HEALTH_STATUS=OK"
 }
-
-$writerOk = Test-TcpPort -HostName "127.0.0.1" -Port $WriterPort
-$readerOk = Test-TcpPort -HostName "127.0.0.1" -Port $ReaderPort
-
-Write-Host "PATRONI_REACHABLE_NODES=$reachableNodes"
-Write-Host "PATRONI_HAS_PRIMARY=$hasPrimary"
-Write-Host "PATRONI_WRITER_TCP_OK=$writerOk"
-Write-Host "PATRONI_READER_TCP_OK=$readerOk"
-
-if (-not $hasPrimary -or -not $writerOk) {
-    Write-Host "PATRONI_HEALTH_STATUS=ERROR"
-    exit 1
+finally {
+    Pop-Location
 }
-
-if (-not $readerOk) {
-    Write-Host "PATRONI_HEALTH_STATUS=WARNING reader endpoint unavailable"
-    exit 0
-}
-
-Write-Host "PATRONI_HEALTH_STATUS=OK"

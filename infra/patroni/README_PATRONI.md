@@ -62,6 +62,12 @@ docker compose -f docker-compose.yml -f docker-compose.patroni.yml up -d
 
 Esto levanta el stack Patroni junto al compose actual. En esta fase, los microservicios siguen usando `postgres-lb` del PostgreSQL actual porque sus variables continuan apuntando a `DB_HOST=postgres-lb` y `DB_PORT=5432`.
 
+Para levantar solo etcd y los nodos PostgreSQL administrados por Patroni, sin HAProxy ni microservicios:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml up -d etcd-1 etcd-2 etcd-3 patroni-postgres-1 patroni-postgres-2 patroni-postgres-3
+```
+
 ## Levantar solo etcd
 
 Para validar unicamente el DCS, sin levantar PostgreSQL Patroni:
@@ -104,6 +110,55 @@ docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T etcd-
 .\infra\patroni\scripts\patroni-status.ps1
 .\infra\patroni\scripts\patroni-healthcheck.ps1
 ```
+
+`patroni-status.ps1` muestra el lider actual, las replicas y el estado REST de cada nodo.
+
+## Conectarse al lider
+
+Cuando HAProxy este levantado, usar el writer:
+
+```powershell
+psql -h 127.0.0.1 -p 55432 -U postgres -d mediqueue
+```
+
+Sin HAProxy, usar el script SQL check para detectar el lider por REST y ejecutar la consulta dentro del contenedor correcto:
+
+```powershell
+.\infra\patroni\scripts\patroni-sql-check.ps1
+```
+
+Para crear una tabla tecnica de salud en un schema no relacionado con negocio:
+
+```powershell
+.\infra\patroni\scripts\patroni-sql-check.ps1 -CreateHealthTable
+```
+
+## Validar replicacion
+
+Ver lider y replicas:
+
+```powershell
+.\infra\patroni\scripts\patroni-status.ps1
+```
+
+El estado esperado es 1 nodo con rol `primary` o `master`, y 2 nodos con rol `replica`.
+
+Ver logs:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml logs -f patroni-postgres-1 patroni-postgres-2 patroni-postgres-3
+```
+
+## Replicacion asincrona vs sincrona
+
+Este stack local usa replicacion asincrona inicialmente. Es mejor para rendimiento y menor latencia, que es lo mas conveniente para pruebas locales y cargas altas.
+
+Tradeoff:
+
+- Asincrona: mejor rendimiento, pero puede perderse una pequena cantidad de transacciones si el primario cae antes de que una replica reciba todos los WAL.
+- Sincrona: reduce o evita perdida de datos confirmados, pero agrega latencia porque el primario espera confirmacion de replica.
+
+La replicacion sincrona queda como opcion futura para ambientes donde el RPO sea mas estricto que la latencia.
 
 ## Switchover controlado
 

@@ -26,7 +26,8 @@ bootstrap:
         max_replication_slots: 10
         wal_keep_size: 256MB
         archive_mode: "on"
-        archive_command: "test ! -f /var/lib/postgresql/wal-archive/%f && cp %p /var/lib/postgresql/wal-archive/%f"
+        archive_timeout: 300
+        archive_command: "mkdir -p /var/lib/postgresql/wal-archive/patroni && (test -f /var/lib/postgresql/wal-archive/patroni/%f || cp %p /var/lib/postgresql/wal-archive/patroni/%f)"
   initdb:
     - encoding: UTF8
     - data-checksums
@@ -38,11 +39,12 @@ bootstrap:
       password: mediqueue
       options:
         - createdb
+  post_init: bash /etc/patroni/initdb/create-mediqueue-db.sh
 
 postgresql:
   listen: 0.0.0.0:5432
   connect_address: patroni-postgres-2:5432
-  data_dir: /var/lib/postgresql/data
+  data_dir: /home/postgres/pgdata/pgroot/data
   bin_dir: /usr/lib/postgresql/16/bin
   authentication:
     superuser:

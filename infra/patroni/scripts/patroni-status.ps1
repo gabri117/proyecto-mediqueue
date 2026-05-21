@@ -7,21 +7,23 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
 $composeArgs = @("-f", "docker-compose.yml", "-f", $ComposeFile)
 $nodes = @(
-    @{ Name = "patroni-postgres-1"; Port = 18008 },
-    @{ Name = "patroni-postgres-2"; Port = 18009 },
-    @{ Name = "patroni-postgres-3"; Port = 18010 }
+    @{ Service = "patroni-postgres-1"; Port = 18008 },
+    @{ Service = "patroni-postgres-2"; Port = 18009 },
+    @{ Service = "patroni-postgres-3"; Port = 18010 }
 )
 
 function Get-PatroniNodeStatus {
     param(
-        [string]$Name,
+        [string]$Service,
         [int]$Port
     )
 
     try {
         $response = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/patroni" -Method Get -TimeoutSec 3
+        $nodeName = if ($response.name) { $response.name } else { $Service }
         [pscustomobject]@{
-            Node = $Name
+            Service = $Service
+            Name = $nodeName
             Port = $Port
             Reachable = $true
             Role = $response.role
@@ -32,7 +34,8 @@ function Get-PatroniNodeStatus {
     }
     catch {
         [pscustomobject]@{
-            Node = $Name
+            Service = $Service
+            Name = ""
             Port = $Port
             Reachable = $false
             Role = "unknown"
@@ -50,7 +53,20 @@ try {
 
     Write-Host ""
     Write-Host "PATRONI_REST_STATUS"
-    $nodes | ForEach-Object { Get-PatroniNodeStatus -Name $_.Name -Port $_.Port } | Format-Table -AutoSize
+    $statuses = $nodes | ForEach-Object { Get-PatroniNodeStatus -Service $_.Service -Port $_.Port }
+    $statuses | Format-Table -AutoSize
+
+    $leader = $statuses | Where-Object { $_.Role -in @("primary", "master") } | Select-Object -First 1
+    $replicas = $statuses | Where-Object { $_.Role -in @("replica", "standby_leader") }
+
+    if ($leader) {
+        Write-Host "PATRONI_LEADER=$($leader.Service)"
+    }
+    else {
+        Write-Host "PATRONI_LEADER=NONE"
+    }
+
+    Write-Host "PATRONI_REPLICAS=$(@($replicas).Count)"
 
     Write-Host "WRITER_ENDPOINT=127.0.0.1:55432"
     Write-Host "READER_ENDPOINT=127.0.0.1:55433"

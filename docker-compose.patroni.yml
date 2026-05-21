@@ -81,8 +81,9 @@ services:
       - mediqueue-net
 
   patroni-postgres-1:
-    image: patroni/patroni:3.3.2
+    image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-1
+    user: postgres
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
       etcd-1:
@@ -100,13 +101,14 @@ services:
       PATRONI_REPLICATION_USERNAME: ${PATRONI_REPLICATION_USERNAME:-replicator}
       PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
     volumes:
-      - patroni-postgres-1-data:/var/lib/postgresql/data
+      - patroni-postgres-1-data:/home/postgres/pgdata
       - ./infra/patroni/patroni/patroni-postgres-1.yml:/etc/patroni/patroni.yml:ro
+      - ./infra/patroni/patroni/create-mediqueue-db.sh:/etc/patroni/initdb/create-mediqueue-db.sh:ro
       - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
     ports:
       - "127.0.0.1:${PATRONI_NODE1_REST_PORT:-18008}:8008"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8008/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8008/health >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -114,8 +116,9 @@ services:
       - mediqueue-net
 
   patroni-postgres-2:
-    image: patroni/patroni:3.3.2
+    image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-2
+    user: postgres
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
       etcd-1:
@@ -133,13 +136,14 @@ services:
       PATRONI_REPLICATION_USERNAME: ${PATRONI_REPLICATION_USERNAME:-replicator}
       PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
     volumes:
-      - patroni-postgres-2-data:/var/lib/postgresql/data
+      - patroni-postgres-2-data:/home/postgres/pgdata
       - ./infra/patroni/patroni/patroni-postgres-2.yml:/etc/patroni/patroni.yml:ro
+      - ./infra/patroni/patroni/create-mediqueue-db.sh:/etc/patroni/initdb/create-mediqueue-db.sh:ro
       - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
     ports:
       - "127.0.0.1:${PATRONI_NODE2_REST_PORT:-18009}:8008"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8008/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8008/health >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -147,8 +151,9 @@ services:
       - mediqueue-net
 
   patroni-postgres-3:
-    image: patroni/patroni:3.3.2
+    image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-3
+    user: postgres
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
       etcd-1:
@@ -166,13 +171,14 @@ services:
       PATRONI_REPLICATION_USERNAME: ${PATRONI_REPLICATION_USERNAME:-replicator}
       PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
     volumes:
-      - patroni-postgres-3-data:/var/lib/postgresql/data
+      - patroni-postgres-3-data:/home/postgres/pgdata
       - ./infra/patroni/patroni/patroni-postgres-3.yml:/etc/patroni/patroni.yml:ro
+      - ./infra/patroni/patroni/create-mediqueue-db.sh:/etc/patroni/initdb/create-mediqueue-db.sh:ro
       - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
     ports:
       - "127.0.0.1:${PATRONI_NODE3_REST_PORT:-18010}:8008"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8008/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8008/health >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
