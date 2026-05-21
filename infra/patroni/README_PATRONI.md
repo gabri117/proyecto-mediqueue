@@ -388,10 +388,26 @@ Dry run:
 .\infra\patroni\scripts\patroni-failover-test.ps1
 ```
 
-Ejecutar prueba deteniendo temporalmente el primario:
+Ejecutar prueba simulando caida real del primario con `docker compose kill`:
 
 ```powershell
 .\infra\patroni\scripts\patroni-failover-test.ps1 -Execute
+```
+
+La prueba espera la promocion de una replica, reintenta el writer de HAProxy hasta que `pg_is_in_recovery=false`, inserta una fila en `health_check.ha_write_probe` y espera que el nodo caido vuelva como replica.
+
+`docker compose stop` representa una parada manual y no dispara la politica `restart`. Para simular crash se usa `docker compose kill`. Si el proceso no vuelve solo, el script ejecuta `docker compose up -d <oldLeader>` para recuperar el nodo.
+
+El lider anterior no debe recuperar liderazgo automaticamente. Si se quiere devolver liderazgo al nodo original, hacerlo despues con un switchover controlado:
+
+```powershell
+.\infra\patroni\scripts\patroni-switchover.ps1 -Candidate patroni-postgres-2 -Execute
+```
+
+Validar recuperacion completa:
+
+```powershell
+.\infra\patroni\scripts\patroni-cluster-recovery-check.ps1
 ```
 
 ## Limpieza

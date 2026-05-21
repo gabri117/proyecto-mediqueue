@@ -2,6 +2,7 @@ services:
   etcd-1:
     image: quay.io/coreos/etcd:v3.5.15
     container_name: mediqueue-etcd-1
+    restart: unless-stopped
     command:
       - /usr/local/bin/etcd
       - --name=etcd-1
@@ -29,6 +30,7 @@ services:
   etcd-2:
     image: quay.io/coreos/etcd:v3.5.15
     container_name: mediqueue-etcd-2
+    restart: unless-stopped
     command:
       - /usr/local/bin/etcd
       - --name=etcd-2
@@ -56,6 +58,7 @@ services:
   etcd-3:
     image: quay.io/coreos/etcd:v3.5.15
     container_name: mediqueue-etcd-3
+    restart: unless-stopped
     command:
       - /usr/local/bin/etcd
       - --name=etcd-3
@@ -83,6 +86,7 @@ services:
   patroni-postgres-1:
     image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-1
+    restart: unless-stopped
     user: postgres
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
@@ -118,6 +122,7 @@ services:
   patroni-postgres-2:
     image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-2
+    restart: unless-stopped
     user: postgres
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
@@ -153,6 +158,7 @@ services:
   patroni-postgres-3:
     image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-3
+    restart: unless-stopped
     user: postgres
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
@@ -188,6 +194,7 @@ services:
   patroni-postgres-lb:
     image: haproxy:alpine
     container_name: mediqueue-patroni-postgres-lb
+    restart: unless-stopped
     depends_on:
       patroni-postgres-1:
         condition: service_healthy

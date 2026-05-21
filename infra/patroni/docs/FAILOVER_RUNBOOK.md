@@ -34,6 +34,10 @@ Caracteristicas:
 - Requiere verificar que HAProxy redirige al nuevo lider.
 - El nodo caido debe volver como replica o requerir reinit.
 
+Para simular una caida real se usa `docker compose kill`. `docker compose stop` es una parada manual y no representa crash; ademas no activa la politica `restart: unless-stopped`.
+
+Durante el failover puede haber algunos segundos donde HAProxy todavia no enruta correctamente al nuevo lider. Por eso las pruebas deben validar writer con retries y no fallar ante el primer `psql` fallido.
+
 ## Evidencia a capturar
 
 Antes, durante y despues de cada prueba guardar:
@@ -149,37 +153,40 @@ Ejecutar prueba real:
 El script:
 
 - Detecta el lider actual.
-- Detiene temporalmente el contenedor lider.
+- Mata el proceso/contenedor lider con `docker compose kill`.
 - Espera promocion automatica de una replica.
-- Valida que HAProxy writer responde contra el nuevo lider.
+- Valida que HAProxy writer responde contra el nuevo lider con retries.
 - Hace un `INSERT` en `health_check.ha_write_probe`.
-- Reinicia el lider detenido.
+- Espera que Docker reinicie el nodo caido; si no ocurre, ejecuta `up -d <oldLeader>`.
 - Verifica que el nodo detenido vuelve como replica.
+- Confirma recuperacion completa: 1 lider, 2 replicas, writer en primario y reader en replica.
 
 Salida esperada:
 
 ```text
 FAILOVER_TEST_CURRENT_LEADER=<lider anterior>
 FAILOVER_TEST_NEW_LEADER=<nuevo lider>
-PATRONI_DB_CONNECTION_STATUS=OK
-FAILOVER_TEST_WRITE_PROBE_OK probe_id=<uuid>
+FAILOVER_TEST_WRITER_READY=True
+FAILOVER_TEST_WRITE_PROBE_OK test_name=<nombre de prueba> observed_leader=<nuevo lider>
 FAILOVER_TEST_OLD_LEADER_RETURNED_AS_REPLICA ...
+PATRONI_CLUSTER_RECOVERY_STATUS=OK
 FAILOVER_TEST_STATUS=OK
 ```
 
-Si se quiere dejar el lider detenido para inspeccion manual:
+Si se quiere omitir la recuperacion automatica para inspeccion manual:
 
 ```powershell
-.\infra\patroni\scripts\patroni-failover-test.ps1 -Execute -SkipRestartStoppedLeader
+.\infra\patroni\scripts\patroni-failover-test.ps1 -Execute -SkipRecovery
 ```
 
-Luego reiniciarlo manualmente:
+Luego recuperarlo manualmente:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.patroni.yml start patroni-postgres-1
-docker compose -f docker-compose.yml -f docker-compose.patroni.yml start patroni-postgres-2
-docker compose -f docker-compose.yml -f docker-compose.patroni.yml start patroni-postgres-3
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml up -d patroni-postgres-1 patroni-postgres-2 patroni-postgres-3
+.\infra\patroni\scripts\patroni-cluster-recovery-check.ps1
 ```
+
+El lider anterior vuelve como replica. Si se desea que vuelva a ser lider, ejecutar un switchover controlado despues de que el cluster este sano.
 
 ## 4. Confirmar writer de HAProxy
 
@@ -237,7 +244,19 @@ docker compose -f docker-compose.yml -f docker-compose.patroni.yml start patroni
 .\infra\patroni\scripts\patroni-healthcheck.ps1
 ```
 
-4. Si una replica no vuelve, usar reinit con `-Execute`.
+Durante una recuperacion intermedia, se puede permitir estado degradado:
+
+```powershell
+.\infra\patroni\scripts\patroni-healthcheck.ps1 -AllowDegraded
+```
+
+4. Confirmar recuperacion completa:
+
+```powershell
+.\infra\patroni\scripts\patroni-cluster-recovery-check.ps1
+```
+
+5. Si una replica no vuelve, usar reinit con `-Execute`.
 
 5. Para las aplicaciones, se puede volver al PostgreSQL simple:
 

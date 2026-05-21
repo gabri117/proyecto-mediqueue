@@ -3,7 +3,8 @@ param(
     [int[]]$RestPorts = @(18008, 18009, 18010),
     [string]$Database = "mediqueue",
     [string]$User = "mediqueue",
-    [string]$Password = "mediqueue"
+    [string]$Password = "mediqueue",
+    [switch]$AllowDegraded
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,10 +28,11 @@ function Test-Etcd {
 function Invoke-PsqlScalar {
     param(
         [string]$Port,
-        [string]$Sql
+        [string]$Sql,
+        [string]$RunnerService
     )
 
-    $result = docker compose @composeArgs exec -T -e "PGPASSWORD=$Password" patroni-postgres-1 `
+    $result = docker compose @composeArgs exec -T -e "PGPASSWORD=$Password" $RunnerService `
         psql -h patroni-postgres-lb -p $Port -U $User -d $Database -At -v ON_ERROR_STOP=1 -c $Sql
 
     if ($LASTEXITCODE -ne 0) {
@@ -40,16 +42,39 @@ function Invoke-PsqlScalar {
     return (($result | Select-Object -First 1) -as [string]).Trim()
 }
 
+function Get-RunnerService {
+    param([object[]]$Statuses)
+
+    $runner = $Statuses |
+        Where-Object { $_.Role -in @("primary", "master", "replica", "standby_leader") -and $_.Reachable -and $_.State -eq "running" } |
+        Select-Object -First 1
+
+    if (-not $runner) {
+        throw "No running Patroni service is available to execute psql."
+    }
+
+    return $runner.Service
+}
+
 Push-Location $root
 try {
     $etcdOk = Test-Etcd
     Write-Host "ETCD_HEALTH_OK=$etcdOk"
 
+    $nodeStatuses = @()
     foreach ($node in $nodes | Where-Object { $RestPorts -contains $_.Port }) {
         try {
             $port = $node.Port
             $status = Invoke-RestMethod -Uri "http://127.0.0.1:$port/patroni" -TimeoutSec 3
             $name = if ($status.name) { $status.name } else { $node.Service }
+            $nodeStatuses += [pscustomobject]@{
+                Service = $node.Service
+                Name = $name
+                Port = $port
+                Role = $status.role
+                State = $status.state
+                Reachable = $true
+            }
             $reachableNodes++
             if ($status.role -eq "primary" -or $status.role -eq "master") {
                 $hasPrimary = $true
@@ -65,6 +90,14 @@ try {
         }
         catch {
             Write-Host "PATRONI_NODE_ERROR port=$port unreachable"
+            $nodeStatuses += [pscustomobject]@{
+                Service = $node.Service
+                Name = $node.Service
+                Port = $node.Port
+                Role = "unreachable"
+                State = "unreachable"
+                Reachable = $false
+            }
         }
     }
 
@@ -72,17 +105,29 @@ try {
     Write-Host "PATRONI_HAS_PRIMARY=$hasPrimary"
     Write-Host "PATRONI_REPLICA_COUNT=$replicaCount"
 
-    $writerRecovery = Invoke-PsqlScalar -Port "5432" -Sql "SELECT pg_is_in_recovery();"
+    $runnerService = Get-RunnerService -Statuses $nodeStatuses
+    Write-Host "PATRONI_HEALTH_RUNNER_SERVICE=$runnerService"
+
+    $writerRecovery = Invoke-PsqlScalar -Port "5432" -Sql "SELECT pg_is_in_recovery();" -RunnerService $runnerService
     Write-Host "PATRONI_WRITER_PG_IS_IN_RECOVERY=$writerRecovery"
     $writerOk = ($writerRecovery -eq "f")
     Write-Host "PATRONI_WRITER_OK=$writerOk"
 
     Write-Host "PATRONICTL_LIST"
-    docker compose @composeArgs exec -T patroni-postgres-1 patronictl -c /etc/patroni/patroni.yml list
+    docker compose @composeArgs exec -T $runnerService patronictl -c /etc/patroni/patroni.yml list
     $patronictlOk = ($LASTEXITCODE -eq 0)
     Write-Host "PATRONICTL_LIST_OK=$patronictlOk"
 
-    if (-not $etcdOk -or -not $hasPrimary -or $reachableNodes -lt 3 -or $replicaCount -lt 2 -or -not $writerOk -or -not $patronictlOk) {
+    $fullHealthy = ($etcdOk -and $hasPrimary -and $reachableNodes -ge 3 -and $replicaCount -ge 2 -and $writerOk -and $patronictlOk)
+    $degradedHealthy = ($AllowDegraded -and $etcdOk -and $hasPrimary -and $replicaCount -ge 1 -and $writerOk)
+
+    if ($degradedHealthy -and -not $fullHealthy) {
+        Write-Host "PATRONI_DEGRADED_WARNING reachable_nodes=$reachableNodes replica_count=$replicaCount patronictl_ok=$patronictlOk"
+        Write-Host "PATRONI_HEALTH_STATUS=OK_DEGRADED"
+        exit 0
+    }
+
+    if (-not $fullHealthy) {
         Write-Host "PATRONI_HEALTH_STATUS=ERROR"
         exit 1
     }
