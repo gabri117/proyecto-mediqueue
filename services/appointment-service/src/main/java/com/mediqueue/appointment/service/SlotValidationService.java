@@ -23,7 +23,8 @@ public class SlotValidationService {
         this.directDbValidationEnabled = directDbValidationEnabled;
     }
 
-    @Cacheable(value = "slots", key = "#slotId", unless = "#result == false")
+    @Cacheable(value = "slots", key = "#slotId", unless = "#result == false",
+            condition = "!@loadTestDirectValidationService.isPreloadEnabled()")
     public boolean validateSlotExists(UUID slotId) {
         if (directDbValidationEnabled) {
             if (!directValidationService.availableSlotExists(slotId)) {

@@ -1,0 +1,11 @@
+{
+    "runStamp":  "1779396143477",
+    "generatedAt":  "2026-05-21T20:42:37.7687588Z",
+    "baseUrl":  "http://localhost:8080",
+    "totalPatients":  100,
+    "totalDentists":  20,
+    "totalSlots":  50000,
+    "amount":  1500,
+    "mode":  "sql",
+    "databaseTarget":  "patroni"
+}

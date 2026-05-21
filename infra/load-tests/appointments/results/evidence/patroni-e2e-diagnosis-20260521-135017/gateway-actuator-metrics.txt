@@ -1,0 +1,30 @@
+===== container=70a98e658c48b8d54a8a09a7578fcfc192855c1d2b088d0baad7dfc715886ce2 service=api-gateway =====
+--- metric=http.server.requests ---
+{"name":"http.server.requests","baseUnit":"seconds","measurements":[{"statistic":"COUNT","value":4333.0},{"statistic":"TOTAL_TIME","value":5429.4532398970005},{"statistic":"MAX","value":0.426414264}],"availableTags":[{"tag":"exception","values":["none"]},{"tag":"method","values":["POST","GET"]},{"tag":"application","values":["api-gateway"]},{"tag":"error","values":["none"]},{"tag":"uri","values":["/actuator/metrics/{requiredMetricName}","/actuator/health","/fallback/appointment","UNKNOWN","/actuator/prometheus"]},{"tag":"outcome","values":["CLIENT_ERROR","SUCCESS","SERVER_ERROR"]},{"tag":"status","values":["503","404","200","201"]}]}
+--- metric=spring.cloud.gateway.requests ---
+{"name":"spring.cloud.gateway.requests","baseUnit":"seconds","measurements":[{"statistic":"COUNT","value":2980.0},{"statistic":"TOTAL_TIME","value":5311.415645364001},{"statistic":"MAX","value":0.0}],"availableTags":[{"tag":"routeUri","values":["http://appointment-lb:8080"]},{"tag":"routeId","values":["appointment-service"]},{"tag":"application","values":["api-gateway"]},{"tag":"httpMethod","values":["POST"]},{"tag":"outcome","values":["SUCCESSFUL","SERVER_ERROR"]},{"tag":"status","values":["SERVICE_UNAVAILABLE","CREATED"]},{"tag":"httpStatusCode","values":["503","201"]}]}
+--- metric=reactor.netty.connection.provider.active.connections ---
+FAILED metric=reactor.netty.connection.provider.active.connections error=wget: server returned error: HTTP/1.1 404 Not Found
+--- metric=reactor.netty.connection.provider.pending.connections ---
+FAILED metric=reactor.netty.connection.provider.pending.connections error=wget: server returned error: HTTP/1.1 404 Not Found
+--- metric=reactor.netty.connection.provider.max.connections ---
+FAILED metric=reactor.netty.connection.provider.max.connections error=wget: server returned error: HTTP/1.1 404 Not Found
+--- metric=jvm.memory.used ---
+{"name":"jvm.memory.used","description":"The amount of used memory","baseUnit":"bytes","measurements":[{"statistic":"VALUE","value":1.86746752E8}],"availableTags":[{"tag":"area","values":["heap","nonheap"]},{"tag":"application","values":["api-gateway"]},{"tag":"id","values":["CodeHeap 'profiled nmethods'","G1 Old Gen","CodeHeap 'non-profiled nmethods'","G1 Survivor Space","Compressed Class Space","Metaspace","G1 Eden Space","CodeHeap 'non-nmethods'"]}]}
+--- metric=process.cpu.usage ---
+{"name":"process.cpu.usage","description":"The \"recent cpu usage\" for the Java Virtual Machine process","measurements":[{"statistic":"VALUE","value":5.834589390771624E-4}],"availableTags":[{"tag":"application","values":["api-gateway"]}]}
+===== container=985e88ba8cdbdfc253d21b8e5ea3a3416a2e271e5e0603651c0681e0ea729ce7 service=api-gateway =====
+--- metric=http.server.requests ---
+{"name":"http.server.requests","baseUnit":"seconds","measurements":[{"statistic":"COUNT","value":4276.0},{"statistic":"TOTAL_TIME","value":5634.226059952999},{"statistic":"MAX","value":0.369316849}],"availableTags":[{"tag":"exception","values":["none"]},{"tag":"method","values":["POST","GET"]},{"tag":"application","values":["api-gateway"]},{"tag":"error","values":["none"]},{"tag":"uri","values":["/actuator/metrics/{requiredMetricName}","/actuator/health","/fallback/appointment","UNKNOWN","/actuator/prometheus"]},{"tag":"outcome","values":["CLIENT_ERROR","SUCCESS","SERVER_ERROR"]},{"tag":"status","values":["503","404","200","201"]}]}
+--- metric=spring.cloud.gateway.requests ---
+{"name":"spring.cloud.gateway.requests","baseUnit":"seconds","measurements":[{"statistic":"COUNT","value":2979.0},{"statistic":"TOTAL_TIME","value":5529.506924642999},{"statistic":"MAX","value":0.0}],"availableTags":[{"tag":"routeUri","values":["http://appointment-lb:8080"]},{"tag":"routeId","values":["appointment-service"]},{"tag":"application","values":["api-gateway"]},{"tag":"httpMethod","values":["POST"]},{"tag":"outcome","values":["SUCCESSFUL","SERVER_ERROR"]},{"tag":"status","values":["SERVICE_UNAVAILABLE","CREATED"]},{"tag":"httpStatusCode","values":["503","201"]}]}
+--- metric=reactor.netty.connection.provider.active.connections ---
+FAILED metric=reactor.netty.connection.provider.active.connections error=wget: server returned error: HTTP/1.1 404 Not Found
+--- metric=reactor.netty.connection.provider.pending.connections ---
+FAILED metric=reactor.netty.connection.provider.pending.connections error=wget: server returned error: HTTP/1.1 404 Not Found
+--- metric=reactor.netty.connection.provider.max.connections ---
+FAILED metric=reactor.netty.connection.provider.max.connections error=wget: server returned error: HTTP/1.1 404 Not Found
+--- metric=jvm.memory.used ---
+{"name":"jvm.memory.used","description":"The amount of used memory","baseUnit":"bytes","measurements":[{"statistic":"VALUE","value":1.7902876E8}],"availableTags":[{"tag":"area","values":["heap","nonheap"]},{"tag":"application","values":["api-gateway"]},{"tag":"id","values":["CodeHeap 'profiled nmethods'","G1 Old Gen","CodeHeap 'non-profiled nmethods'","G1 Survivor Space","Compressed Class Space","Metaspace","G1 Eden Space","CodeHeap 'non-nmethods'"]}]}
+--- metric=process.cpu.usage ---
+{"name":"process.cpu.usage","description":"The \"recent cpu usage\" for the Java Virtual Machine process","measurements":[{"statistic":"VALUE","value":0.0022118247554232242}],"availableTags":[{"tag":"application","values":["api-gateway"]}]}

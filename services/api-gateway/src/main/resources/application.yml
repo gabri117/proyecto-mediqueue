@@ -19,6 +19,12 @@ spring:
           httpclient:
             connect-timeout: ${GATEWAY_HTTPCLIENT_CONNECT_TIMEOUT_MS:3000}
             response-timeout: ${GATEWAY_HTTPCLIENT_RESPONSE_TIMEOUT:30s}
+            pool:
+              type: fixed
+              max-connections: ${GATEWAY_HTTPCLIENT_POOL_MAX_CONNECTIONS:2000}
+              acquire-timeout: ${GATEWAY_HTTPCLIENT_POOL_ACQUIRE_TIMEOUT_MS:10000}
+              max-idle-time: ${GATEWAY_HTTPCLIENT_POOL_MAX_IDLE_TIME:30s}
+              max-life-time: ${GATEWAY_HTTPCLIENT_POOL_MAX_LIFE_TIME:120s}
           default-filters:
             - AddResponseHeader=X-Gateway-Name, mediqueue-api-gateway
           routes:
@@ -134,6 +140,8 @@ management:
 
 mediqueue:
   gateway:
+    rate-limit:
+      enabled: ${GATEWAY_RATE_LIMIT_ENABLED:true}
     circuitbreaker:
       sliding-window-size: ${GATEWAY_CB_SLIDING_WINDOW_SIZE:100}
       minimum-number-of-calls: ${GATEWAY_CB_MINIMUM_CALLS:50}

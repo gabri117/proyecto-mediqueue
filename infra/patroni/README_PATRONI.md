@@ -437,6 +437,34 @@ Validar recuperacion completa:
 
 ## Limpieza
 
+Para limpiar datos de pruebas E2E en Patroni sin borrar schemas, Flyway, extensiones, usuarios ni configuracion del cluster, usar primero dry-run:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 `
+  -DatabaseTarget patroni
+```
+
+El dry-run valida que `patroni-postgres-lb` apunte a un writer con `pg_is_in_recovery=false`, muestra conteos actuales y enseña el `TRUNCATE ... CASCADE` que se ejecutaria.
+
+Ejecutar limpieza real solo con confirmacion explicita:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 `
+  -DatabaseTarget patroni `
+  -ConfirmClean
+```
+
+Para dejar tambien RabbitMQ sin mensajes acumulados de pruebas:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 `
+  -DatabaseTarget patroni `
+  -PurgeRabbitMqQueues `
+  -ConfirmClean
+```
+
+Esta limpieza elimina datos runtime/base de prueba en `notification`, `payment`, `appointment`, `schedule` y `patient`, pero no elimina estructura, historiales Flyway, schemas, usuarios, extensiones, volumenes ni configuracion Patroni. Usarla solo entre corridas E2E controladas.
+
 Dry run:
 
 ```powershell
@@ -456,3 +484,27 @@ Eliminar tambien volumenes de prueba Patroni:
 ```
 
 La limpieza no debe usarse sobre datos importantes y no toca el volumen `postgres-data` del PostgreSQL principal.
+
+## Perfil Patroni E2E para pruebas
+
+Para pruebas E2E de appointments con Patroni usar el overlay dedicado:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml -f docker-compose.patroni-apps.yml -f docker-compose.patroni-e2e.yml up -d --build `
+  --scale api-gateway=2 `
+  --scale appointment-service=3 `
+  --scale patient-service=2 `
+  --scale schedule-service=2 `
+  --scale payment-service=3 `
+  --scale notification-service=2
+```
+
+Este perfil no cambia reglas de negocio. Ajusta presupuesto de recursos:
+
+- `appointment-service`: pool Hikari 40 por replica y limite local `APPOINTMENT_CREATE_MAX_CONCURRENT=48`.
+- `appointment-service`: precarga pacientes activos y slots disponibles una vez por replica para evitar una consulta PostgreSQL/Redis por cada cita durante pruebas preparadas.
+- `appointment-service`: outbox activo, pero con batch/intervalo moderado; confirmaciones de pago limitadas a 1 consumidor por replica.
+- `payment-service`: 3 replicas con pool 12 y consumidores RabbitMQ `4-8`, para no inundar appointment-service con confirmaciones durante el minuto de prueba.
+- `api-gateway`: rate limit opcionalmente deshabilitado para que la prueba mida backend, no Redis.
+
+Con 3 appointment-service, 3 payment-service y 2 replicas del resto, el consumo esperado queda alrededor de 200-220 conexiones, dejando margen frente a `max_connections=300`.

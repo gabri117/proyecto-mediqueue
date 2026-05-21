@@ -1,0 +1,25 @@
+          table_name           | count 
+-------------------------------+-------
+ appointment.appointment_holds |  5758
+ appointment.appointments      |  5758
+ appointment.outbox_events     | 11516
+ notification.notifications    | 11516
+ payment.payment_events_outbox |  5758
+ payment.payments              |  5758
+(6 rows)
+
+ appointment_status | count 
+--------------------+-------
+ CONFIRMED          |  5758
+(1 row)
+
+ publication_status | count 
+--------------------+-------
+ PUBLISHED          | 11516
+(1 row)
+
+ publication_status | count 
+--------------------+-------
+ PUBLISHED          |  5758
+(1 row)
+

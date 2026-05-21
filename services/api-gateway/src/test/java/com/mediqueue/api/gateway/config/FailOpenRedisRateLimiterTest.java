@@ -30,7 +30,7 @@ class FailOpenRedisRateLimiterTest {
 	private static final class FailingRateLimiter extends FailOpenRedisRateLimiter {
 
 		private FailingRateLimiter() {
-			super(mock(ReactiveStringRedisTemplate.class), mock(RedisScript.class), mock(ConfigurationService.class), "localhost");
+			super(mock(ReactiveStringRedisTemplate.class), mock(RedisScript.class), mock(ConfigurationService.class), "localhost", true);
 		}
 
 		@Override

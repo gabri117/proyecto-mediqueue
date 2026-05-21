@@ -24,8 +24,9 @@ public class RateLimiterConfig {
 			ReactiveStringRedisTemplate redisTemplate,
 			@Qualifier(RedisRateLimiter.REDIS_SCRIPT_NAME) RedisScript<List<Long>> redisScript,
 			ConfigurationService configurationService,
-			@Value("${spring.data.redis.host}") String redisHost) {
-		return new FailOpenRedisRateLimiter(redisTemplate, redisScript, configurationService, redisHost);
+			@Value("${spring.data.redis.host}") String redisHost,
+			@Value("${mediqueue.gateway.rate-limit.enabled:true}") boolean rateLimitEnabled) {
+		return new FailOpenRedisRateLimiter(redisTemplate, redisScript, configurationService, redisHost, rateLimitEnabled);
 	}
 
 	@Bean

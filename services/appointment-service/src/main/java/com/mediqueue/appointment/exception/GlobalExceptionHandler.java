@@ -7,7 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -35,6 +38,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleServiceValidation(ServiceValidationException ex) {
         log.warn("service_validation_failed: {}", ex.getMessage());
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, "SERVICE_VALIDATION_FAILED", ex.getMessage());
+    }
+
+    @ExceptionHandler(ServiceCapacityException.class)
+    public ResponseEntity<ErrorResponse> handleServiceCapacity(ServiceCapacityException ex) {
+        log.warn("service_capacity_exceeded: {}", ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_CAPACITY_EXCEEDED",
+                "Servicio temporalmente saturado, reintente en unos segundos");
     }
 
     @ExceptionHandler(IllegalStateTransitionException.class)
@@ -74,6 +84,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Void> handleClientAbort(AsyncRequestNotUsableException ex) {
         log.debug("client_aborted_response: {}", ex.getMessage());
         return ResponseEntity.status(499).build();
+    }
+
+    @ExceptionHandler({
+            CannotCreateTransactionException.class,
+            CannotGetJdbcConnectionException.class,
+            DataAccessResourceFailureException.class
+    })
+    public ResponseEntity<ErrorResponse> handleDatabaseUnavailable(Exception ex) {
+        log.warn("database_unavailable exception={} message={}",
+                ex.getClass().getSimpleName(), ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE",
+                "Base de datos temporalmente no disponible");
     }
 
     @ExceptionHandler(Exception.class)

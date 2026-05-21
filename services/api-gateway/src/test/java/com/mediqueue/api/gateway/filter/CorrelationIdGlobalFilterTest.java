@@ -15,7 +15,7 @@ import reactor.test.StepVerifier;
 
 class CorrelationIdGlobalFilterTest {
 
-	private final CorrelationIdGlobalFilter filter = new CorrelationIdGlobalFilter();
+	private final CorrelationIdGlobalFilter filter = new CorrelationIdGlobalFilter(false);
 
 	@Test
 	void addsCorrelationIdWhenMissing() {

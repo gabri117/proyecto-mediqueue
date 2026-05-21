@@ -1,0 +1,42 @@
+===== container=000f9fa9238b7fc9561b4499c918d93773076a54ee01cfe9a4f642944e560146 service=appointment-service =====
+--- metric=hikaricp.connections.active ---
+{"name":"hikaricp.connections.active","description":"Active connections","measurements":[{"statistic":"VALUE","value":0.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.idle ---
+{"name":"hikaricp.connections.idle","description":"Idle connections","measurements":[{"statistic":"VALUE","value":6.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.pending ---
+{"name":"hikaricp.connections.pending","description":"Pending threads","measurements":[{"statistic":"VALUE","value":0.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.max ---
+{"name":"hikaricp.connections.max","description":"Max connections","measurements":[{"statistic":"VALUE","value":24.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.timeout ---
+{"name":"hikaricp.connections.timeout","description":"Connection timeout total count","measurements":[{"statistic":"COUNT","value":119.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=tomcat.threads.busy ---
+FAILED metric=tomcat.threads.busy error=wget: server returned error: HTTP/1.1 404 
+--- metric=tomcat.threads.current ---
+FAILED metric=tomcat.threads.current error=wget: server returned error: HTTP/1.1 404 
+--- metric=tomcat.threads.config.max ---
+FAILED metric=tomcat.threads.config.max error=wget: server returned error: HTTP/1.1 404 
+--- metric=jvm.memory.used ---
+{"name":"jvm.memory.used","description":"The amount of used memory","baseUnit":"bytes","measurements":[{"statistic":"VALUE","value":3.497032E8}],"availableTags":[{"tag":"area","values":["heap","nonheap"]},{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"id","values":["CodeHeap 'profiled nmethods'","G1 Old Gen","G1 Survivor Space","CodeHeap 'non-profiled nmethods'","Compressed Class Space","Metaspace","G1 Eden Space","CodeHeap 'non-nmethods'"]}]}
+--- metric=process.cpu.usage ---
+{"name":"process.cpu.usage","description":"The \"recent cpu usage\" for the Java Virtual Machine process","measurements":[{"statistic":"VALUE","value":0.0017440733802725921}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]}]}
+===== container=80053bdb6069b2d73b100c88464ead0efe622c266295fa0d99b09622e2f11ec0 service=appointment-service =====
+--- metric=hikaricp.connections.active ---
+{"name":"hikaricp.connections.active","description":"Active connections","measurements":[{"statistic":"VALUE","value":0.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.idle ---
+{"name":"hikaricp.connections.idle","description":"Idle connections","measurements":[{"statistic":"VALUE","value":6.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.pending ---
+{"name":"hikaricp.connections.pending","description":"Pending threads","measurements":[{"statistic":"VALUE","value":0.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.max ---
+{"name":"hikaricp.connections.max","description":"Max connections","measurements":[{"statistic":"VALUE","value":24.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=hikaricp.connections.timeout ---
+{"name":"hikaricp.connections.timeout","description":"Connection timeout total count","measurements":[{"statistic":"COUNT","value":85.0}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"pool","values":["HikariPool-1"]}]}
+--- metric=tomcat.threads.busy ---
+FAILED metric=tomcat.threads.busy error=wget: server returned error: HTTP/1.1 404 
+--- metric=tomcat.threads.current ---
+FAILED metric=tomcat.threads.current error=wget: server returned error: HTTP/1.1 404 
+--- metric=tomcat.threads.config.max ---
+FAILED metric=tomcat.threads.config.max error=wget: server returned error: HTTP/1.1 404 
+--- metric=jvm.memory.used ---
+{"name":"jvm.memory.used","description":"The amount of used memory","baseUnit":"bytes","measurements":[{"statistic":"VALUE","value":3.5925856E8}],"availableTags":[{"tag":"area","values":["heap","nonheap"]},{"tag":"application","values":["mediqueue-appointment-service"]},{"tag":"id","values":["CodeHeap 'profiled nmethods'","G1 Old Gen","G1 Survivor Space","CodeHeap 'non-profiled nmethods'","Compressed Class Space","Metaspace","G1 Eden Space","CodeHeap 'non-nmethods'"]}]}
+--- metric=process.cpu.usage ---
+{"name":"process.cpu.usage","description":"The \"recent cpu usage\" for the Java Virtual Machine process","measurements":[{"statistic":"VALUE","value":9.810333551340746E-4}],"availableTags":[{"tag":"application","values":["mediqueue-appointment-service"]}]}

@@ -1,0 +1,6 @@
+  locktype  |      mode       | granted | count 
+------------+-----------------+---------+-------
+ virtualxid | ExclusiveLock   | t       |     1
+ relation   | AccessShareLock | t       |     1
+(2 rows)
+

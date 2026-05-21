@@ -1,0 +1,9 @@
+ pid  |  usename  | state  | wait_event_type | wait_event |   age    |                                                     query                                                      
+------+-----------+--------+-----------------+------------+----------+----------------------------------------------------------------------------------------------------------------
+ 5221 | mediqueue | active |                 |            | 00:00:00 | select pid, usename, state, wait_event_type, wait_event, now() - query_start as age, left(query, 240) as query+
+      |           |        |                 |            |          | from pg_stat_activity                                                                                         +
+      |           |        |                 |            |          | where datname = 'mediqueue' and state <> 'idle'                                                               +
+      |           |        |                 |            |          | order by age desc                                                                                             +
+      |           |        |                 |            |          | limit 60;
+(1 row)
+
