@@ -181,23 +181,25 @@ $env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
 $env:LOADTEST_DIRECT_VALIDATION_PRELOAD_ENABLED="true"
 $env:APPOINTMENT_HIKARI_MAX_POOL_SIZE="48"
 $env:APPOINTMENT_HIKARI_MIN_IDLE="12"
-$env:APPOINTMENT_CREATE_MAX_CONCURRENT="72"
-$env:APPOINTMENT_TOMCAT_MAX_THREADS="144"
+$env:APPOINTMENT_CREATE_MAX_CONCURRENT="32"
+$env:APPOINTMENT_CREATE_MAX_WAIT_MS="25000"
+$env:APPOINTMENT_CREATE_JDBC_FAST_PATH_ENABLED="true"
+$env:APPOINTMENT_TOMCAT_MAX_THREADS="96"
 $env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="1000"
 $env:APPOINTMENT_OUTBOX_BATCH_SIZE="75"
 $env:APPOINTMENT_PAYMENT_EVENT_PREFETCH="1"
 $env:APPOINTMENT_PAYMENT_EVENT_CONCURRENCY="1"
 $env:APPOINTMENT_PAYMENT_EVENT_MAX_CONCURRENCY="1"
-$env:PAYMENT_SIM_MIN_DELAY_MS="25"
-$env:PAYMENT_SIM_MAX_DELAY_MS="100"
+$env:PAYMENT_SIM_MIN_DELAY_MS="0"
+$env:PAYMENT_SIM_MAX_DELAY_MS="50"
 $env:PAYMENT_SIM_APPROVAL_RATE="1.0"
-$env:PAYMENT_RABBITMQ_PREFETCH="20"
-$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="4"
-$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="8"
+$env:PAYMENT_RABBITMQ_PREFETCH="10"
+$env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="2"
+$env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="4"
 $env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="1000"
 $env:PAYMENT_OUTBOX_BATCH_SIZE="75"
 $env:GATEWAY_ACCESS_LOG_ENABLED="false"
-$env:GATEWAY_SLOW_REQUEST_THRESHOLD_MS="10000"
+$env:GATEWAY_SLOW_REQUEST_THRESHOLD_MS="60000"
 
 Despues de definir variables, levantar con replicas en PostgreSQL simple:
 
@@ -251,6 +253,24 @@ Preparar 50,000 slots:
   -TotalSlots 50000 `
   -Amount 1500.00 `
   -Mode sql
+
+Preparar 50,000 slots en Patroni:
+
+.\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -TotalPatients 100 `
+  -TotalDentists 20 `
+  -TotalSlots 50000 `
+  -Amount 1500.00 `
+  -Mode sql `
+  -DatabaseTarget patroni
+
+Para una prueba E2E aislada con Patroni, limpiar runtime antes de preparar datos:
+
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 `
+  -DatabaseTarget patroni `
+  -PurgeRabbitMqQueues `
+  -ConfirmClean
 
 Preparar 100,000 slots:
 

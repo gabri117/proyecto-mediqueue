@@ -29,16 +29,22 @@ import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,11 +76,14 @@ public class AppointmentService {
     private final PatientValidationService patientValidationService;
     private final SlotValidationService slotValidationService;
     private final TransactionTemplate transactionTemplate;
+    private final JdbcTemplate jdbcTemplate;
     private final Map<String, Timer> createStageTimers;
     private final int holdTtlMinutes;
     private final long createTimingSlowThresholdMs;
     private final boolean createTimingLogEnabled;
     private final Semaphore createSemaphore;
+    private final long createCapacityWaitMs;
+    private final boolean jdbcFastPathEnabled;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                               AppointmentHoldRepository holdRepository,
@@ -86,11 +95,14 @@ public class AppointmentService {
                               PatientValidationService patientValidationService,
                               SlotValidationService slotValidationService,
                               TransactionTemplate transactionTemplate,
+                              JdbcTemplate jdbcTemplate,
                               MeterRegistry meterRegistry,
                               @Value("${mediqueue.hold.ttl-minutes:5}") int holdTtlMinutes,
                               @Value("${mediqueue.create.slow-threshold-ms:10000}") long createTimingSlowThresholdMs,
                               @Value("${mediqueue.create.timing-log-enabled:false}") boolean createTimingLogEnabled,
-                              @Value("${mediqueue.create.max-concurrent:0}") int createMaxConcurrent) {
+                              @Value("${mediqueue.create.max-concurrent:0}") int createMaxConcurrent,
+                              @Value("${mediqueue.create.capacity-wait-ms:0}") long createCapacityWaitMs,
+                              @Value("${mediqueue.create.jdbc-fast-path-enabled:false}") boolean jdbcFastPathEnabled) {
         this.appointmentRepository = appointmentRepository;
         this.holdRepository = holdRepository;
         this.auditRepository = auditRepository;
@@ -101,11 +113,14 @@ public class AppointmentService {
         this.patientValidationService = patientValidationService;
         this.slotValidationService = slotValidationService;
         this.transactionTemplate = transactionTemplate;
+        this.jdbcTemplate = jdbcTemplate;
         this.createStageTimers = buildCreateStageTimers(meterRegistry);
         this.holdTtlMinutes = holdTtlMinutes;
         this.createTimingSlowThresholdMs = createTimingSlowThresholdMs;
         this.createTimingLogEnabled = createTimingLogEnabled;
         this.createSemaphore = createMaxConcurrent > 0 ? new Semaphore(createMaxConcurrent) : null;
+        this.createCapacityWaitMs = Math.max(0, createCapacityWaitMs);
+        this.jdbcFastPathEnabled = jdbcFastPathEnabled;
     }
 
     // =========================================================================
@@ -137,8 +152,12 @@ public class AppointmentService {
             slotValidationService.validateSlotExists(request.slotId());
             recordCreateStage("schedule_slot_validation_ms", stageStart, timing);
 
-            AppointmentResponse response = transactionTemplate.execute(status ->
-                    createAppointmentInTransaction(request, idempotencyKey, requestStart, timing));
+            AppointmentResponse response = transactionTemplate.execute(status -> {
+                if (jdbcFastPathEnabled) {
+                    return createAppointmentWithJdbcFastPath(request, idempotencyKey, requestStart, timing);
+                }
+                return createAppointmentInTransaction(request, idempotencyKey, requestStart, timing);
+            });
             if (response == null) {
                 throw new IllegalStateException("Appointment creation transaction returned no response");
             }
@@ -269,6 +288,155 @@ public class AppointmentService {
         recordCreateStage("response_mapping_ms", stageStart, timing);
         recordCreateStage("total_create_appointment_ms", requestStart, timing);
         logCreateTimingIfNeeded(appointment, request, timing);
+        return response;
+    }
+
+    private AppointmentResponse createAppointmentWithJdbcFastPath(AppointmentRequest request,
+                                                                  String idempotencyKey,
+                                                                  long requestStart,
+                                                                  CreateAppointmentTiming timing) {
+        long stageStart = System.nanoTime();
+        IdempotencySnapshot existing = findIdempotencySnapshot(idempotencyKey);
+        recordCreateStage("idempotency_lookup_ms", stageStart, timing);
+
+        if (existing != null) {
+            if (existing.status() == IdempotencyStatus.SUCCEEDED && existing.responseReference() != null) {
+                stageStart = System.nanoTime();
+                AppointmentResponse response = findAppointmentResponse(UUID.fromString(existing.responseReference()));
+                recordCreateStage("response_mapping_ms", stageStart, timing);
+                recordCreateStage("total_create_appointment_ms", requestStart, timing);
+                logCreateTimingIfNeeded(response, request, timing);
+                return response;
+            }
+            if (existing.status() == IdempotencyStatus.PROCESSING) {
+                throw new BusinessException("Solicitud en proceso");
+            }
+        }
+
+        UUID appointmentId = UUID.randomUUID();
+        UUID holdId = UUID.randomUUID();
+        UUID auditId = UUID.randomUUID();
+        UUID outboxId = UUID.randomUUID();
+        UUID idemId = UUID.randomUUID();
+        Instant now = Instant.now();
+        Instant holdExpiry = now.plus(holdTtlMinutes, ChronoUnit.MINUTES);
+        Instant idempotencyExpiry = now.plus(24, ChronoUnit.HOURS);
+
+        stageStart = System.nanoTime();
+        jdbcTemplate.update("""
+                INSERT INTO idempotency_keys (
+                    idempotency_id, operation_type, idempotency_key, request_hash,
+                    status, created_at, expires_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                idemId, CREATE_OPERATION, idempotencyKey, computeHash(idempotencyKey),
+                IdempotencyStatus.PROCESSING.name(), Timestamp.from(now), Timestamp.from(idempotencyExpiry));
+        recordCreateStage("idempotency_processing_save_ms", stageStart, timing);
+
+        stageStart = System.nanoTime();
+        Boolean holdExists = jdbcTemplate.queryForObject("""
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM appointment_holds
+                    WHERE slot_id = ?
+                      AND hold_status = ?
+                )
+                """, Boolean.class, request.slotId(), HoldStatus.ACTIVE.name());
+        if (Boolean.TRUE.equals(holdExists)) {
+            throw new BusinessException("Slot no disponible: ya tiene una reserva activa");
+        }
+        recordCreateStage("slot_hold_or_lock_ms", stageStart, timing);
+
+        stageStart = System.nanoTime();
+        jdbcTemplate.update("""
+                INSERT INTO appointments (
+                    appointment_id, patient_id, dentist_id, slot_id, appointment_date,
+                    start_time, end_time, appointment_status, notes, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                appointmentId, request.patientId(), request.dentistId(), request.slotId(),
+                request.appointmentDate(), request.startTime(), request.endTime(),
+                AppointmentStatus.PENDING_PAYMENT.name(), request.notes(),
+                Timestamp.from(now), Timestamp.from(now));
+        recordCreateStage("appointment_save_ms", stageStart, timing);
+
+        stageStart = System.nanoTime();
+        jdbcTemplate.update("""
+                INSERT INTO appointment_holds (
+                    hold_id, appointment_id, slot_id, hold_status, expires_at, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                holdId, appointmentId, request.slotId(), HoldStatus.ACTIVE.name(),
+                Timestamp.from(holdExpiry), Timestamp.from(now));
+        recordCreateStage("hold_save_ms", stageStart, timing);
+
+        stageStart = System.nanoTime();
+        jdbcTemplate.update("""
+                INSERT INTO appointment_audit (
+                    audit_id, appointment_id, previous_status, new_status, change_reason, changed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                auditId, appointmentId, null, AppointmentStatus.PENDING_PAYMENT.name(),
+                "Cita creada", Timestamp.from(now));
+        recordCreateStage("audit_save_ms", stageStart, timing);
+
+        stageStart = System.nanoTime();
+        AppointmentHeldEvent event = new AppointmentHeldEvent(
+                UUID.randomUUID().toString(),
+                "APPOINTMENT_HELD",
+                now.toString(),
+                new AppointmentHeldEvent.AppointmentHeldPayload(
+                        appointmentId,
+                        request.patientId(),
+                        request.dentistId(),
+                        request.slotId(),
+                        request.appointmentDate(),
+                        request.startTime(),
+                        request.endTime(),
+                        holdExpiry,
+                        request.amount()
+                )
+        );
+        jdbcTemplate.update("""
+                INSERT INTO outbox_events (
+                    event_id, aggregate_type, aggregate_id, event_type, payload,
+                    publication_status, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                outboxId, "appointments-exchange", appointmentId, "appointment.held",
+                serializeEventPayload(event), OutboxPublicationStatus.PENDING.name(), Timestamp.from(now));
+        recordCreateStage("outbox_save_ms", stageStart, timing);
+
+        stageStart = System.nanoTime();
+        jdbcTemplate.update("""
+                UPDATE idempotency_keys
+                SET status = ?, response_reference = ?
+                WHERE idempotency_id = ?
+                """,
+                IdempotencyStatus.SUCCEEDED.name(), appointmentId.toString(), idemId);
+        recordCreateStage("idempotency_success_save_ms", stageStart, timing);
+
+        stageStart = System.nanoTime();
+        AppointmentResponse response = new AppointmentResponse(
+                appointmentId,
+                request.patientId(),
+                request.dentistId(),
+                request.slotId(),
+                request.appointmentDate(),
+                request.startTime(),
+                request.endTime(),
+                AppointmentStatus.PENDING_PAYMENT.name(),
+                request.notes(),
+                now
+        );
+        recordCreateStage("response_mapping_ms", stageStart, timing);
+        recordCreateStage("total_create_appointment_ms", requestStart, timing);
+        logCreateTimingIfNeeded(response, request, timing);
         return response;
     }
 
@@ -434,6 +602,46 @@ public class AppointmentService {
         );
     }
 
+    private IdempotencySnapshot findIdempotencySnapshot(String idempotencyKey) {
+        List<IdempotencySnapshot> matches = jdbcTemplate.query("""
+                SELECT status, response_reference
+                FROM idempotency_keys
+                WHERE operation_type = ?
+                  AND idempotency_key = ?
+                LIMIT 1
+                """,
+                (rs, rowNum) -> new IdempotencySnapshot(
+                        IdempotencyStatus.valueOf(rs.getString("status")),
+                        rs.getString("response_reference")),
+                CREATE_OPERATION, idempotencyKey);
+        return matches.isEmpty() ? null : matches.getFirst();
+    }
+
+    private AppointmentResponse findAppointmentResponse(UUID appointmentId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT appointment_id, patient_id, dentist_id, slot_id, appointment_date,
+                       start_time, end_time, appointment_status, notes, created_at
+                FROM appointments
+                WHERE appointment_id = ?
+                """, this::mapAppointmentResponse, appointmentId);
+    }
+
+    private AppointmentResponse mapAppointmentResponse(ResultSet rs, int rowNum) throws SQLException {
+        Timestamp createdAt = rs.getTimestamp("created_at");
+        return new AppointmentResponse(
+                rs.getObject("appointment_id", UUID.class),
+                rs.getObject("patient_id", UUID.class),
+                rs.getObject("dentist_id", UUID.class),
+                rs.getObject("slot_id", UUID.class),
+                rs.getObject("appointment_date", LocalDate.class),
+                rs.getObject("start_time", LocalTime.class),
+                rs.getObject("end_time", LocalTime.class),
+                rs.getString("appointment_status"),
+                rs.getString("notes"),
+                createdAt != null ? createdAt.toInstant() : null
+        );
+    }
+
     private void saveAudit(UUID appointmentId, AppointmentStatus previous,
                            AppointmentStatus newStatus, String reason) {
         AppointmentAudit audit = new AppointmentAudit();
@@ -461,6 +669,14 @@ public class AppointmentService {
         outboxEventRepository.save(outbox);
     }
 
+    private String serializeEventPayload(Object eventPayload) {
+        try {
+            return objectMapper.writeValueAsString(eventPayload);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to serialize outbox event payload", ex);
+        }
+    }
+
     private void recordCreateStage(String stage, long startNanos, CreateAppointmentTiming timing) {
         long elapsedNanos = System.nanoTime() - startNanos;
         createStageTimers.get(stage).record(elapsedNanos, TimeUnit.NANOSECONDS);
@@ -471,7 +687,16 @@ public class AppointmentService {
         if (createSemaphore == null) {
             return false;
         }
-        if (!createSemaphore.tryAcquire()) {
+        boolean acquired;
+        try {
+            acquired = createCapacityWaitMs > 0
+                    ? createSemaphore.tryAcquire(createCapacityWaitMs, TimeUnit.MILLISECONDS)
+                    : createSemaphore.tryAcquire();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new ServiceCapacityException("Appointment create interrupted while waiting for capacity");
+        }
+        if (!acquired) {
             throw new ServiceCapacityException("Appointment create concurrency limit reached");
         }
         return true;
@@ -510,6 +735,24 @@ public class AppointmentService {
                     appointment.getAppointmentId(), request.patientId(), request.dentistId(), request.slotId(),
                     totalMs, timing.stageDurationsMs());
         }
+    }
+
+    private void logCreateTimingIfNeeded(AppointmentResponse appointment,
+                                         AppointmentRequest request,
+                                         CreateAppointmentTiming timing) {
+        long totalMs = timing.totalMs();
+        if (createTimingLogEnabled || totalMs >= createTimingSlowThresholdMs) {
+            log.info("appointment_create_timing appointmentId={} patientId={} dentistId={} slotId={} totalMs={} stages={}",
+                    appointment.appointmentId(),
+                    request.patientId(),
+                    request.dentistId(),
+                    request.slotId(),
+                    totalMs,
+                    timing.stageDurationsMs());
+        }
+    }
+
+    private record IdempotencySnapshot(IdempotencyStatus status, String responseReference) {
     }
 
     private static class CreateAppointmentTiming {

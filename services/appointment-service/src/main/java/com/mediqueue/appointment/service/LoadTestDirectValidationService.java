@@ -32,7 +32,8 @@ public class LoadTestDirectValidationService {
 
     public boolean activePatientExists(UUID patientId) {
         if (preloadEnabled) {
-            return getActivePatientIds().contains(patientId);
+            Set<UUID> patientIds = getActivePatientIds();
+            return patientIds.contains(patientId) || reloadActivePatientIdsIfMissing(patientIds, patientId);
         }
 
         Boolean exists = jdbcTemplate.queryForObject("""
@@ -48,7 +49,8 @@ public class LoadTestDirectValidationService {
 
     public boolean availableSlotExists(UUID slotId) {
         if (preloadEnabled) {
-            return getAvailableSlotIds().contains(slotId);
+            Set<UUID> slotIds = getAvailableSlotIds();
+            return slotIds.contains(slotId) || reloadAvailableSlotIdsIfMissing(slotIds, slotId);
         }
 
         Boolean exists = jdbcTemplate.queryForObject("""
@@ -85,6 +87,26 @@ public class LoadTestDirectValidationService {
         }
     }
 
+    private boolean reloadActivePatientIdsIfMissing(Set<UUID> observed, UUID patientId) {
+        synchronized (patientLoadLock) {
+            Set<UUID> current = activePatientIds.get();
+            if (current != observed) {
+                return current != null && current.contains(patientId);
+            }
+
+            Set<UUID> reloaded = loadUuidSet("""
+                    select patient_id
+                    from patient.patients
+                    where status = 'ACTIVE'::patient.patient_status
+                    """, "patients");
+            activePatientIds.set(reloaded);
+            boolean found = reloaded.contains(patientId);
+            log.warn("loadtest_direct_validation_cache_miss label=patients patientId={} reloadedCount={} found={}",
+                    patientId, reloaded.size(), found);
+            return found;
+        }
+    }
+
     private Set<UUID> getAvailableSlotIds() {
         Set<UUID> current = availableSlotIds.get();
         if (current != null) {
@@ -101,6 +123,26 @@ public class LoadTestDirectValidationService {
                 availableSlotIds.set(current);
             }
             return current;
+        }
+    }
+
+    private boolean reloadAvailableSlotIdsIfMissing(Set<UUID> observed, UUID slotId) {
+        synchronized (slotLoadLock) {
+            Set<UUID> current = availableSlotIds.get();
+            if (current != observed) {
+                return current != null && current.contains(slotId);
+            }
+
+            Set<UUID> reloaded = loadUuidSet("""
+                    select slot_id
+                    from schedule.dentist_slots
+                    where display_status = 'AVAILABLE'::schedule.slot_display_status
+                    """, "slots");
+            availableSlotIds.set(reloaded);
+            boolean found = reloaded.contains(slotId);
+            log.warn("loadtest_direct_validation_cache_miss label=slots slotId={} reloadedCount={} found={}",
+                    slotId, reloaded.size(), found);
+            return found;
         }
     }
 
