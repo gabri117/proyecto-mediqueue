@@ -148,6 +148,9 @@ mediqueue:
       appointment:
         max-concurrent-calls: ${GATEWAY_BULKHEAD_APPOINTMENT_MAX_CONCURRENT_CALLS:3000}
       max-wait-millis: ${GATEWAY_BULKHEAD_MAX_WAIT_MILLIS:0}
+    access-log:
+      enabled: ${GATEWAY_ACCESS_LOG_ENABLED:false}
+      slow-threshold-ms: ${GATEWAY_SLOW_REQUEST_THRESHOLD_MS:10000}
 
 logging:
   level:

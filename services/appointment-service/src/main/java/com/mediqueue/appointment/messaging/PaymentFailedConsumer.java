@@ -29,9 +29,9 @@ public class PaymentFailedConsumer {
      *
      * @param event the inbound payment failed event
      */
-    @RabbitListener(queues = "payment.failed")
+    @RabbitListener(queues = "payment.failed", containerFactory = "paymentEventsListenerContainerFactory")
     public void handlePaymentFailed(PaymentFailedEvent event) {
-        log.info("PaymentFailed recibido para appointmentId: {}", event.payload().appointmentId());
+        log.debug("PaymentFailed recibido para appointmentId: {}", event.payload().appointmentId());
 
         try {
             appointmentService.compensateAppointment(event.payload().appointmentId());

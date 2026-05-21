@@ -1,25 +1,43 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE TYPE payment_status AS ENUM (
-    'PENDING',
-    'APPROVED',
-    'REJECTED',
-    'TIMEOUT'
-);
+DO $$
+BEGIN
+    CREATE TYPE payment_status AS ENUM (
+        'PENDING',
+        'APPROVED',
+        'REJECTED',
+        'TIMEOUT'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END
+$$;
 
-CREATE TYPE idempotency_status AS ENUM (
-    'PROCESSING',
-    'SUCCEEDED',
-    'FAILED'
-);
+DO $$
+BEGIN
+    CREATE TYPE idempotency_status AS ENUM (
+        'PROCESSING',
+        'SUCCEEDED',
+        'FAILED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END
+$$;
 
-CREATE TYPE outbox_publication_status AS ENUM (
-    'PENDING',
-    'PUBLISHED',
-    'FAILED'
-);
+DO $$
+BEGIN
+    CREATE TYPE outbox_publication_status AS ENUM (
+        'PENDING',
+        'PUBLISHED',
+        'FAILED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END
+$$;
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     payment_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     appointment_id UUID NOT NULL,
     patient_id UUID NOT NULL,
@@ -30,13 +48,13 @@ CREATE TABLE payments (
     resolved_at TIMESTAMP
 );
 
-CREATE INDEX idx_payments_appointment ON payments(appointment_id);
-CREATE INDEX idx_payments_status ON payments(payment_status);
-CREATE UNIQUE INDEX uq_payments_appointment_approved
+CREATE INDEX IF NOT EXISTS idx_payments_appointment ON payments(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(payment_status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payments_appointment_approved
     ON payments(appointment_id)
     WHERE payment_status = 'APPROVED';
 
-CREATE TABLE payment_idempotency (
+CREATE TABLE IF NOT EXISTS payment_idempotency (
     payment_idempotency_id UUID PRIMARY KEY,
     idempotency_key VARCHAR(120) UNIQUE NOT NULL,
     request_hash VARCHAR(128) NOT NULL,
@@ -46,7 +64,7 @@ CREATE TABLE payment_idempotency (
     expires_at TIMESTAMP NOT NULL
 );
 
-CREATE TABLE payment_events_outbox (
+CREATE TABLE IF NOT EXISTS payment_events_outbox (
     event_id UUID PRIMARY KEY,
     payment_id UUID NOT NULL,
     event_type VARCHAR(80) NOT NULL,

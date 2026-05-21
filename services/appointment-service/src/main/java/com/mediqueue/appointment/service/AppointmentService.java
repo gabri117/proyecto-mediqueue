@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -65,6 +66,7 @@ public class AppointmentService {
     private final ObjectMapper objectMapper;
     private final PatientValidationService patientValidationService;
     private final SlotValidationService slotValidationService;
+    private final TransactionTemplate transactionTemplate;
     private final Map<String, Timer> createStageTimers;
     private final int holdTtlMinutes;
 
@@ -77,6 +79,7 @@ public class AppointmentService {
                               ObjectMapper objectMapper,
                               PatientValidationService patientValidationService,
                               SlotValidationService slotValidationService,
+                              TransactionTemplate transactionTemplate,
                               MeterRegistry meterRegistry,
                               @Value("${mediqueue.hold.ttl-minutes:5}") int holdTtlMinutes) {
         this.appointmentRepository = appointmentRepository;
@@ -88,6 +91,7 @@ public class AppointmentService {
         this.objectMapper = objectMapper;
         this.patientValidationService = patientValidationService;
         this.slotValidationService = slotValidationService;
+        this.transactionTemplate = transactionTemplate;
         this.createStageTimers = buildCreateStageTimers(meterRegistry);
         this.holdTtlMinutes = holdTtlMinutes;
     }
@@ -104,12 +108,12 @@ public class AppointmentService {
      * @return the created appointment
      * @throws BusinessException if the request is already processing or the slot is taken
      */
-    @Transactional
     @SuppressWarnings("null")
     public AppointmentResponse createAppointment(AppointmentRequest request, String idempotencyKey) {
         long requestStart = System.nanoTime();
 
-        // (0) Synchronous validation against external services
+        // Keep external validation outside the database transaction so slow
+        // downstream services do not pin scarce PostgreSQL connections.
         long stageStart = System.nanoTime();
         patientValidationService.validatePatientExists(request.patientId());
         recordCreateStage("patient_validation", stageStart);
@@ -118,8 +122,20 @@ public class AppointmentService {
         slotValidationService.validateSlotExists(request.slotId());
         recordCreateStage("slot_validation", stageStart);
 
+        AppointmentResponse response = transactionTemplate.execute(status ->
+                createAppointmentInTransaction(request, idempotencyKey, requestStart));
+        if (response == null) {
+            throw new IllegalStateException("Appointment creation transaction returned no response");
+        }
+        return response;
+    }
+
+    @SuppressWarnings("null")
+    private AppointmentResponse createAppointmentInTransaction(AppointmentRequest request,
+                                                              String idempotencyKey,
+                                                              long requestStart) {
         // (a) Idempotency check
-        stageStart = System.nanoTime();
+        long stageStart = System.nanoTime();
         var existing = idempotencyKeyRepository
                 .findByOperationTypeAndIdempotencyKey(CREATE_OPERATION, idempotencyKey);
         recordCreateStage("idempotency_lookup", stageStart);
@@ -130,7 +146,11 @@ public class AppointmentService {
                 UUID savedId = UUID.fromString(key.getResponseReference());
                 Appointment saved = appointmentRepository.findById(savedId)
                         .orElseThrow(() -> new EntityNotFoundException("Appointment not found: " + savedId));
-                return toResponse(saved);
+                stageStart = System.nanoTime();
+                AppointmentResponse response = toResponse(saved);
+                recordCreateStage("response_mapping", stageStart);
+                recordCreateStage("total", requestStart);
+                return response;
             }
             if (key.getStatus() == IdempotencyStatus.PROCESSING) {
                 throw new BusinessException("Solicitud en proceso");
@@ -246,7 +266,11 @@ public class AppointmentService {
         try {
             stateMachine.validate(appointment.getAppointmentStatus(), AppointmentStatus.CONFIRMED);
         } catch (IllegalStateTransitionException ex) {
-            log.warn("confirm_skipped appointmentId={} reason={}", appointmentId, ex.getMessage());
+            if (appointment.getAppointmentStatus() == AppointmentStatus.CONFIRMED) {
+                log.debug("confirm_duplicate_skipped appointmentId={}", appointmentId);
+            } else {
+                log.warn("confirm_skipped appointmentId={} reason={}", appointmentId, ex.getMessage());
+            }
             return;
         }
 
@@ -297,7 +321,11 @@ public class AppointmentService {
         try {
             stateMachine.validate(appointment.getAppointmentStatus(), AppointmentStatus.CANCELLED);
         } catch (IllegalStateTransitionException ex) {
-            log.warn("compensate_skipped appointmentId={} reason={}", appointmentId, ex.getMessage());
+            if (appointment.getAppointmentStatus() == AppointmentStatus.CANCELLED) {
+                log.debug("compensate_duplicate_skipped appointmentId={}", appointmentId);
+            } else {
+                log.warn("compensate_skipped appointmentId={} reason={}", appointmentId, ex.getMessage());
+            }
             return;
         }
 
