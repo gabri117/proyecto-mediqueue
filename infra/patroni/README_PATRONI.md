@@ -195,6 +195,108 @@ Validar que writer apunta al primario y reader a replica:
 .\infra\patroni\scripts\patroni-db-connection-test.ps1
 ```
 
+## Microservicios usando Patroni
+
+El modo Patroni para aplicaciones se activa con un overlay separado:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml -f docker-compose.patroni-apps.yml up -d
+```
+
+En este modo, los microservicios usan:
+
+```text
+jdbc:postgresql://patroni-postgres-lb:5432/mediqueue
+```
+
+Cada servicio mantiene su schema:
+
+```text
+patient-service       -> schema patient
+schedule-service      -> schema schedule
+appointment-service   -> schema appointment
+payment-service       -> schema payment
+notification-service  -> schema notification
+```
+
+Actualmente MediQueue usa una base compartida `mediqueue` con schemas separados por microservicio. A futuro podria evaluarse una base separada por servicio, pero no se cambia en esta fase para no romper migraciones ni contratos existentes.
+
+Antes de levantar apps contra Patroni, preparar schemas tecnicos para Flyway:
+
+```powershell
+.\infra\patroni\scripts\prepare-patroni-app-schemas.ps1
+```
+
+Este script crea los schemas de cada microservicio, habilita `uuid-ossp` en `public` para las migraciones que usan `public.uuid_generate_v4()` y elimina solamente tablas `flyway_schema_history` vacias que hayan quedado por un arranque fallido previo contra Patroni.
+
+Validar que el overlay Patroni no apunte al PostgreSQL simple:
+
+```powershell
+.\infra\patroni\scripts\app-db-routing-check.ps1
+```
+
+Smoke test sin carga:
+
+```powershell
+.\infra\patroni\scripts\app-smoke-test-patroni.ps1
+```
+
+Si hubo un arranque fallido previo por migraciones o configuracion, recrear solo contenedores de aplicacion:
+
+```powershell
+.\infra\patroni\scripts\app-smoke-test-patroni.ps1 -ForceRecreate
+```
+
+### Volver a modo PostgreSQL simple
+
+Usar solo el compose principal:
+
+```powershell
+docker compose -f docker-compose.yml up -d
+```
+
+Si habia contenedores de apps creados con el overlay Patroni, recrearlos con el compose simple:
+
+```powershell
+docker compose -f docker-compose.yml up -d --force-recreate patient-service schedule-service appointment-service payment-service notification-service api-gateway
+```
+
+No es necesario borrar volumenes para alternar el routing.
+
+### Validar con DBeaver
+
+Modo Patroni writer:
+
+```text
+Host: localhost
+Port: 55432
+Database: mediqueue
+User: mediqueue
+Password: mediqueue
+```
+
+Modo PostgreSQL simple actual:
+
+```text
+Host: localhost
+Port: 55461
+Database: mediqueue
+User: mediqueue
+Password: mediqueue
+```
+
+### Validar con Postman
+
+Con Patroni apps levantado:
+
+```text
+GET http://localhost:8080/actuator/health
+GET http://localhost:8080/api/patients
+GET http://localhost:8080/api/schedules
+```
+
+No ejecutar pruebas de carga para esta validacion; solo smoke tests.
+
 ## Validar replicacion
 
 Ver lider y replicas:
