@@ -1004,23 +1004,22 @@ Review the generated SQL before running it. It deletes test appointments by `not
 Use this profile when the target is E2E appointment creation through Patroni, RabbitMQ, payment and notification. It keeps the connection budget below Patroni `max_connections=300` while giving appointment-service enough pool capacity for 5k/min validation:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.patroni.yml -f docker-compose.patroni-apps.yml -f docker-compose.patroni-e2e.yml up -d --build `
-  --scale api-gateway=2 `
-  --scale appointment-service=3 `
-  --scale patient-service=2 `
-  --scale schedule-service=2 `
-  --scale payment-service=3 `
-  --scale notification-service=2
+.\infra\load-tests\appointments\tools\start-patroni-e2e-backend.ps1 `
+  -Build `
+  -ForceRecreate
 ```
+
+The script applies `docker-compose.yml`, `docker-compose.patroni.yml`, `docker-compose.patroni-apps.yml` and `docker-compose.patroni-e2e.yml`, sets the stable E2E defaults, starts etcd/Patroni/RabbitMQ/Redis first, prepares application schemas, recreates the app/LB containers without deleting volumes, and waits for `http://localhost:8080/actuator/health`.
 
 Important defaults in `docker-compose.patroni-e2e.yml`:
 
-- `appointment-service`: Hikari `40`, Tomcat `96`, `APPOINTMENT_CREATE_MAX_CONCURRENT=48`.
+- `appointment-service`: Hikari `48`, Tomcat `144`, `APPOINTMENT_CREATE_MAX_CONCURRENT=72`.
 - `appointment-service`: `LOADTEST_DIRECT_VALIDATION_PRELOAD_ENABLED=true` preloads active patients and available slots once per replica, avoiding one PostgreSQL/Redis lookup per appointment while keeping the transactional hold/unique-index protection against double booking.
 - `appointment-service`: payment-event consumers limited to `1` per replica so async confirmations do not starve HTTP creation.
 - `payment-service`: Hikari `12`, RabbitMQ consumers `4-8`, payment simulation `25-100ms`.
 - `patient-service`, `schedule-service`, `notification-service`: Hikari `8`.
 - `api-gateway`: rate limit disabled for load tests, larger Netty client pool, diagnostic circuit breaker window.
+- HAProxy app load balancers suppress normal per-request access logs during load tests and keep error logs, reducing Docker Desktop stdout pressure.
 
 The appointment create transaction is intentionally short. Patient and slot validations run before the write transaction, while idempotency, hold, appointment, audit and outbox stay transactional.
 

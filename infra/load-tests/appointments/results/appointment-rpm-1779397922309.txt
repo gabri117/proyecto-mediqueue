@@ -1,0 +1,32 @@
+MediQueue appointment-rpm summary
+base_url=http://localhost:8080
+data_file=../data/appointments-50000.json
+rate_per_minute=7500
+duration=1m
+total_limit=7500
+data_offset=9000
+client_mode=per-vu
+debug_responses=false
+
+appointment_attempts=4524
+appointments_created=1649
+appointments_conflict=0
+appointments_validation_error=0
+appointments_rate_limited=0
+appointments_server_error=2740
+appointments_503=2740
+appointments_503_json_gateway=2740
+appointments_503_html_haproxy=0
+appointments_connection_refused=135
+appointments_timeout=0
+appointments_unexpected=0
+appointments_dataset_exhausted=0
+appointments_skipped_after_limit=0
+dropped_iterations=2977
+checks_rate=0.8411251105216623
+http_reqs=4524
+http_req_failed_rate=0.029840848806366047
+http_req_duration_p95=34548.46412499999
+http_req_duration_p99=0
+
+PowerShell tip: en --summary-export los counters viven en metrics.<name>.values.count.

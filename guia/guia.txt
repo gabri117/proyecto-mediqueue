@@ -179,8 +179,10 @@ $env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
 $env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="true"
 $env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
 $env:LOADTEST_DIRECT_VALIDATION_PRELOAD_ENABLED="true"
-$env:APPOINTMENT_HIKARI_MAX_POOL_SIZE="40"
-$env:APPOINTMENT_CREATE_MAX_CONCURRENT="48"
+$env:APPOINTMENT_HIKARI_MAX_POOL_SIZE="48"
+$env:APPOINTMENT_HIKARI_MIN_IDLE="12"
+$env:APPOINTMENT_CREATE_MAX_CONCURRENT="72"
+$env:APPOINTMENT_TOMCAT_MAX_THREADS="144"
 $env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="1000"
 $env:APPOINTMENT_OUTBOX_BATCH_SIZE="75"
 $env:APPOINTMENT_PAYMENT_EVENT_PREFETCH="1"
@@ -197,7 +199,7 @@ $env:PAYMENT_OUTBOX_BATCH_SIZE="75"
 $env:GATEWAY_ACCESS_LOG_ENABLED="false"
 $env:GATEWAY_SLOW_REQUEST_THRESHOLD_MS="10000"
 
-Despues de definir variables, levantar con replicas:
+Despues de definir variables, levantar con replicas en PostgreSQL simple:
 
 docker compose up -d --build `
   --scale api-gateway=2 `
@@ -207,6 +209,33 @@ docker compose up -d --build `
   --scale payment-service=2 `
   --scale notification-service=2 `
   api-gateway appointment-service patient-service schedule-service payment-service notification-service
+
+Para Patroni E2E usar el script recomendado. Este aplica docker-compose.yml,
+docker-compose.patroni.yml, docker-compose.patroni-apps.yml y
+docker-compose.patroni-e2e.yml con las replicas correctas:
+
+.\infra\load-tests\appointments\tools\start-patroni-e2e-backend.ps1 `
+  -Build `
+  -ForceRecreate
+
+El script levanta primero etcd/Patroni/RabbitMQ/Redis, valida el writer de
+Patroni, prepara schemas de aplicacion y despues levanta apps y balanceadores.
+Tambien levanta observabilidad:
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000
+- RabbitMQ Management: http://localhost:15672
+- Redis exporter y PostgreSQL exporters de Patroni.
+
+Si quieres levantar sin observabilidad:
+
+.\infra\load-tests\appointments\tools\start-patroni-e2e-backend.ps1 `
+  -Build `
+  -ForceRecreate `
+  -SkipObservability
+
+Si Docker Desktop queda con errores de pipe o connection refused en localhost:8080,
+reinicia Docker Desktop y vuelve a ejecutar el script anterior. No uses down -v
+para esta recuperacion.
 
 
 ============================================================
