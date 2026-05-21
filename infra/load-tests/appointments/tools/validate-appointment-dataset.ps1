@@ -4,7 +4,9 @@ param(
     [int]$StartIndex = 0,
     [int]$Limit = 20,
     [int]$ExpectedCount = 0,
-    [string]$ClientId = "block2-dataset-validator"
+    [string]$ClientId = "block2-dataset-validator",
+    [ValidateSet("http", "single", "patroni")]
+    [string]$DatabaseTarget = "http"
 )
 
 $ErrorActionPreference = "Stop"
@@ -101,8 +103,70 @@ function Test-RequiredText {
     return $null -ne $Value -and ([string]$Value).Trim().Length -gt 0
 }
 
+function Test-SafeUuid {
+    param([object]$Value)
+
+    if (-not (Test-RequiredText $Value)) { return $false }
+    return ([string]$Value) -match '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+}
+
+function Normalize-TimeText {
+    param([string]$Value)
+
+    if ($Value.Length -eq 5) {
+        return "$Value`:00"
+    }
+    return $Value
+}
+
+function Invoke-DatabaseRows {
+    param([string]$Sql)
+
+    if ($DatabaseTarget -eq "patroni") {
+        $output = $Sql | docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T -e PGPASSWORD=mediqueue patroni-postgres-1 psql -h patroni-postgres-lb -p 5432 -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q -t -A -F "`t"
+    } elseif ($DatabaseTarget -eq "single") {
+        $output = $Sql | docker compose exec -T postgres psql -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q -t -A -F "`t"
+    } else {
+        throw "Invoke-DatabaseRows solo se usa con DatabaseTarget single o patroni."
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "psql query fallo con exit code $LASTEXITCODE"
+    }
+    return @($output | Where-Object { $_ -and $_.Trim().Length -gt 0 })
+}
+
+function Invoke-DatabaseScalar {
+    param([string]$Sql)
+
+    $rows = @(Invoke-DatabaseRows -Sql $Sql)
+    if ($rows.Count -lt 1) { return "" }
+    return $rows[0].Trim()
+}
+
+function Assert-DatabaseValidationReady {
+    if ($DatabaseTarget -eq "http") {
+        return
+    }
+
+    if ($DatabaseTarget -eq "patroni") {
+        $recovery = Invoke-DatabaseScalar -Sql "select pg_is_in_recovery();"
+        $value = $recovery.Trim().ToLowerInvariant()
+        if ($value -ne "f" -and $value -ne "false") {
+            throw "Patroni writer no esta listo para validar dataset. pg_is_in_recovery()=$recovery"
+        }
+        Write-Host "PATRONI_WRITER_PG_IS_IN_RECOVERY=false"
+    }
+
+    $missing = @(Invoke-DatabaseRows -Sql "select table_name from (values ('patient.patients'),('schedule.dentists'),('schedule.dentist_slots')) as required(table_name) where to_regclass(required.table_name) is null order by table_name;")
+    if ($missing.Count -gt 0) {
+        throw "Faltan tablas para validar dataset: $($missing -join ', ')."
+    }
+}
+
 $json = Read-JsonNoBom -Path $DataFile
 $appointments = Get-Appointments -Json $json
+Assert-DatabaseValidationReady
 
 if ($appointments.Count -lt 1) {
     throw "El dataset no contiene items. Regenera $DataFile."
@@ -122,6 +186,7 @@ $seenSlots = New-Object "System.Collections.Generic.HashSet[string]"
 $summary = [ordered]@{
     data_file = (Resolve-Path $DataFile).Path
     base_url = $BaseUrl
+    database_target = $DatabaseTarget
     start_index = $StartIndex
     limit = $Limit
     expected_count = $ExpectedCount
@@ -171,48 +236,106 @@ for ($i = $StartIndex; $i -lt $endExclusive; $i++) {
         }
     }
 
-    if (Test-RequiredText $item.patientId) {
-        $patient = Invoke-JsonRequest -Method Get -Path "/api/patients/$($item.patientId)"
-        if (-not $patient.ok) {
-            $summary.missing_patients++
-            $errors.Add("patient_not_found_status_$($patient.status)")
+    if ($DatabaseTarget -eq "http") {
+        if (Test-RequiredText $item.patientId) {
+            $patient = Invoke-JsonRequest -Method Get -Path "/api/patients/$($item.patientId)"
+            if (-not $patient.ok) {
+                $summary.missing_patients++
+                $errors.Add("patient_not_found_status_$($patient.status)")
+            }
         }
-    }
 
-    if (Test-RequiredText $item.dentistId) {
-        $dentist = Invoke-JsonRequest -Method Get -Path "/api/dentists/$($item.dentistId)"
-        if (-not $dentist.ok) {
-            $summary.missing_dentists++
-            $errors.Add("dentist_not_found_status_$($dentist.status)")
+        if (Test-RequiredText $item.dentistId) {
+            $dentist = Invoke-JsonRequest -Method Get -Path "/api/dentists/$($item.dentistId)"
+            if (-not $dentist.ok) {
+                $summary.missing_dentists++
+                $errors.Add("dentist_not_found_status_$($dentist.status)")
+            }
         }
-    }
 
-    if (Test-RequiredText $item.slotId) {
-        $slot = Invoke-JsonRequest -Method Get -Path "/api/slots/$($item.slotId)"
-        if (-not $slot.ok) {
-            $summary.missing_slots++
-            $errors.Add("slot_not_found_status_$($slot.status)")
-        } else {
-            $status = [string]$slot.json.status
-            if ($status -and $status -ne "AVAILABLE") {
-                $summary.unavailable_slots++
-                $errors.Add("slot_status_$status")
+        if (Test-RequiredText $item.slotId) {
+            $slot = Invoke-JsonRequest -Method Get -Path "/api/slots/$($item.slotId)"
+            if (-not $slot.ok) {
+                $summary.missing_slots++
+                $errors.Add("slot_not_found_status_$($slot.status)")
+            } else {
+                $status = [string]$slot.json.status
+                if ($status -and $status -ne "AVAILABLE") {
+                    $summary.unavailable_slots++
+                    $errors.Add("slot_status_$status")
+                }
+                if ([string]$slot.json.dentistId -ne [string]$item.dentistId) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_dentist_mismatch")
+                }
+                if ([string]$slot.json.slotDate -ne [string]$item.appointmentDate) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_date_mismatch")
+                }
+                if ([string]$slot.json.startTime -ne [string]$item.startTime) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_start_time_mismatch")
+                }
+                if ([string]$slot.json.endTime -ne [string]$item.endTime) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_end_time_mismatch")
+                }
             }
-            if ([string]$slot.json.dentistId -ne [string]$item.dentistId) {
-                $summary.invalid_contract_fields++
-                $errors.Add("slot_dentist_mismatch")
+        }
+    } else {
+        if ((Test-RequiredText $item.patientId) -and -not (Test-SafeUuid $item.patientId)) {
+            $summary.invalid_contract_fields++
+            $errors.Add("invalid_patient_uuid")
+        } elseif (Test-RequiredText $item.patientId) {
+            $patientCount = Invoke-DatabaseScalar -Sql "select count(*) from patient.patients where patient_id = '$($item.patientId)'::uuid;"
+            if ([int]$patientCount -lt 1) {
+                $summary.missing_patients++
+                $errors.Add("patient_not_found_sql")
             }
-            if ([string]$slot.json.slotDate -ne [string]$item.appointmentDate) {
-                $summary.invalid_contract_fields++
-                $errors.Add("slot_date_mismatch")
+        }
+
+        if ((Test-RequiredText $item.dentistId) -and -not (Test-SafeUuid $item.dentistId)) {
+            $summary.invalid_contract_fields++
+            $errors.Add("invalid_dentist_uuid")
+        } elseif (Test-RequiredText $item.dentistId) {
+            $dentistCount = Invoke-DatabaseScalar -Sql "select count(*) from schedule.dentists where dentist_id = '$($item.dentistId)'::uuid;"
+            if ([int]$dentistCount -lt 1) {
+                $summary.missing_dentists++
+                $errors.Add("dentist_not_found_sql")
             }
-            if ([string]$slot.json.startTime -ne [string]$item.startTime) {
-                $summary.invalid_contract_fields++
-                $errors.Add("slot_start_time_mismatch")
-            }
-            if ([string]$slot.json.endTime -ne [string]$item.endTime) {
-                $summary.invalid_contract_fields++
-                $errors.Add("slot_end_time_mismatch")
+        }
+
+        if ((Test-RequiredText $item.slotId) -and -not (Test-SafeUuid $item.slotId)) {
+            $summary.invalid_contract_fields++
+            $errors.Add("invalid_slot_uuid")
+        } elseif (Test-RequiredText $item.slotId) {
+            $slotRows = @(Invoke-DatabaseRows -Sql "select dentist_id::text, slot_date::text, start_time::text, end_time::text, display_status::text from schedule.dentist_slots where slot_id = '$($item.slotId)'::uuid;")
+            if ($slotRows.Count -lt 1) {
+                $summary.missing_slots++
+                $errors.Add("slot_not_found_sql")
+            } else {
+                $slotParts = $slotRows[0] -split "`t"
+                $status = [string]$slotParts[4]
+                if ($status -ne "AVAILABLE") {
+                    $summary.unavailable_slots++
+                    $errors.Add("slot_status_$status")
+                }
+                if ([string]$slotParts[0] -ne [string]$item.dentistId) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_dentist_mismatch")
+                }
+                if ([string]$slotParts[1] -ne [string]$item.appointmentDate) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_date_mismatch")
+                }
+                if ((Normalize-TimeText ([string]$slotParts[2])) -ne [string]$item.startTime) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_start_time_mismatch")
+                }
+                if ((Normalize-TimeText ([string]$slotParts[3])) -ne [string]$item.endTime) {
+                    $summary.invalid_contract_fields++
+                    $errors.Add("slot_end_time_mismatch")
+                }
             }
         }
     }

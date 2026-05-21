@@ -267,6 +267,31 @@ Smoke test sin carga:
 .\infra\patroni\scripts\app-smoke-test-patroni.ps1
 ```
 
+Preparar datos E2E rapidamente en Patroni por SQL, usando el writer `patroni-postgres-lb`:
+
+```powershell
+.\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -TotalPatients 100 `
+  -TotalDentists 20 `
+  -TotalSlots 50000 `
+  -Amount 1500.00 `
+  -Mode sql `
+  -DatabaseTarget patroni
+```
+
+Este modo valida que el writer no este en recovery, revisa que existan las tablas de los schemas de aplicacion y solo inserta datos base en `patient.patients`, `schedule.dentists` y `schedule.dentist_slots`. Las citas reales siguen entrando por `POST /api/appointments` durante k6.
+
+Validar el dataset generado contra Patroni:
+
+```powershell
+.\infra\load-tests\appointments\tools\validate-appointment-dataset.ps1 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -ExpectedCount 50000 `
+  -Limit 20 `
+  -DatabaseTarget patroni
+```
+
 Si hubo un arranque fallido previo por migraciones o configuracion, recrear solo contenedores de aplicacion:
 
 ```powershell

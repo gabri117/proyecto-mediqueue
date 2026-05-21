@@ -194,7 +194,8 @@ It does **not** insert rows into `appointment.appointments`. k6 must still creat
   -TotalDentists 20 `
   -TotalSlots 50000 `
   -Amount 1500.00 `
-  -Mode sql
+  -Mode sql `
+  -DatabaseTarget single
 ```
 
 SQL mode uses the real schemas detected in the running stack:
@@ -204,6 +205,31 @@ SQL mode uses the real schemas detected in the running stack:
 - `schedule.dentist_slots`
 
 Use SQL mode only for load testing. It does not validate the patient/dentist/slot creation endpoints.
+
+For Patroni/PostgreSQL HA E2E runs, point SQL mode at the Patroni writer through HAProxy:
+
+```powershell
+.\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -TotalPatients 100 `
+  -TotalDentists 20 `
+  -TotalSlots 50000 `
+  -Amount 1500.00 `
+  -Mode sql `
+  -DatabaseTarget patroni
+```
+
+`-DatabaseTarget patroni` validates `pg_is_in_recovery()=false`, verifies required tables, inserts only base data, and generates the appointment JSON datasets. It does not insert appointments by SQL.
+
+Validate a generated dataset against Patroni with:
+
+```powershell
+.\infra\load-tests\appointments\tools\validate-appointment-dataset.ps1 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -ExpectedCount 50000 `
+  -Limit 20 `
+  -DatabaseTarget patroni
+```
 
 ### C. Dump/Restore
 
