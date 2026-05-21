@@ -307,6 +307,22 @@ Ver lider y replicas:
 
 El estado esperado es 1 nodo con rol `primary` o `master`, y 2 nodos con rol `replica`.
 
+## Migrar datos desde PostgreSQL simple
+
+El procedimiento seguro esta documentado en:
+
+```text
+infra/patroni/docs/MIGRATION_RUNBOOK.md
+```
+
+Plan sin restaurar:
+
+```powershell
+.\infra\patroni\scripts\migrate-single-postgres-to-patroni.ps1 -PlanOnly -UseLatestDump
+```
+
+Restaurar en Patroni requiere `-Execute`. Si se recrea la base destino, tambien requiere `-ConfirmRecreateDestination`.
+
 Ver logs:
 
 ```powershell
