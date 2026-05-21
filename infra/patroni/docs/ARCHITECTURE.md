@@ -3,7 +3,7 @@
 ## Diagrama textual
 
 ```text
-Aplicaciones futuras
+Aplicaciones en modo Patroni
        |
        | escritura: 127.0.0.1:55432 / patroni-postgres-lb:5432
        v
@@ -35,7 +35,7 @@ DB_HOST=postgres-lb
 DB_PORT=5432
 ```
 
-El stack Patroni queda en paralelo y listo para pruebas controladas. La activacion para microservicios se hara en una fase posterior cambiando `DB_HOST` hacia `patroni-postgres-lb` y validando migracion/restauracion.
+El stack Patroni queda en paralelo al PostgreSQL simple. La activacion de microservicios se controla con `docker-compose.patroni-apps.yml`, que apunta los datasource hacia `patroni-postgres-lb` sin tocar codigo de negocio.
 
 ## Componentes
 
@@ -48,7 +48,7 @@ El stack Patroni queda en paralelo y listo para pruebas controladas. La activaci
 
 - Writer local: `55432 -> patroni-postgres-lb:5432`.
 - Reader local: `55433 -> patroni-postgres-lb:5433`.
-- HAProxy stats: `57000 -> patroni-postgres-lb:7000`.
+- HAProxy stats: `7000 -> patroni-postgres-lb:7000`.
 - Patroni REST local: `18008`, `18009`, `18010`.
 - etcd client local: `23791`, `23792`, `23793`.
 

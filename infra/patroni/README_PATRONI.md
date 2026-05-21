@@ -377,7 +377,7 @@ Dry run:
 Ejecutar:
 
 ```powershell
-.\infra\patroni\scripts\patroni-switchover.ps1 -Candidate patroni-postgres-2 -ConfirmSwitchover
+.\infra\patroni\scripts\patroni-switchover.ps1 -Candidate patroni-postgres-2 -Execute
 ```
 
 ## Failover test
@@ -391,7 +391,7 @@ Dry run:
 Ejecutar prueba deteniendo temporalmente el primario:
 
 ```powershell
-.\infra\patroni\scripts\patroni-failover-test.ps1 -Execute -RestartStoppedPrimary
+.\infra\patroni\scripts\patroni-failover-test.ps1 -Execute
 ```
 
 ## Limpieza

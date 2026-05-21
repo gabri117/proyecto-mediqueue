@@ -1,49 +1,98 @@
-# Integracion con backups
+# Integracion Patroni con backups
 
-## Estado actual
+La implementacion de backups en `infra/backups/` soporta dos modos:
 
-La implementacion de backups en `infra/backups/` se conserva sin cambios en esta fase. El PostgreSQL principal actual sigue siendo el origen de datos activo.
-
-El stack Patroni se crea en paralelo, por lo que no se debe asumir que los backups actuales cubren Patroni hasta completar una fase de activacion.
-
-## Cuando Patroni sea activado
-
-Los backups deben apuntar al endpoint writer:
-
-```text
-host: patroni-postgres-lb
-port: 5432
+```powershell
+$BackupMode = "single"
+$BackupMode = "patroni"
 ```
 
-O desde el host:
+El modo por defecto sigue siendo `single`, por lo que el PostgreSQL actual no se rompe.
+
+## Modo single
+
+Usa el PostgreSQL simple actual:
 
 ```text
-127.0.0.1:55432
+postgres -> mediqueue-postgres
+postgres-lb -> 127.0.0.1:55461
 ```
 
-Para `pg_basebackup`, se debe conectar contra el lider o contra el endpoint writer. Para `pg_dump`, tambien conviene usar writer mientras no exista una politica clara de backups desde replicas.
+Scripts principales:
+
+```powershell
+.\infra\backups\scripts\backup-base.ps1
+.\infra\backups\scripts\backup-pgdump.ps1
+.\infra\backups\scripts\verify-backups.ps1
+.\infra\backups\scripts\run-daily-backup-pipeline.ps1
+```
+
+## Modo patroni
+
+Usa el writer de HAProxy:
+
+```text
+patroni-postgres-lb:5432
+localhost:55432
+```
+
+`backup-pgdump.ps1` valida antes de generar el dump:
+
+```sql
+SELECT pg_is_in_recovery();
+```
+
+Si el writer devuelve `true`, el script falla porque no debe hacer dump desde una replica cuando se espera el primario.
+
+`backup-base.ps1` detecta nodos con Patroni REST API y prefiere una replica sana para reducir carga sobre el lider. Si no hay replica sana, puede usar el lider en ambiente local y deja advertencia en log.
+
+## Configuracion local
+
+Archivo local:
+
+```text
+infra/backups/config/backup.local.ps1
+```
+
+Ejemplo:
+
+```powershell
+$BackupMode = "patroni"
+$PatroniWriterHost = "localhost"
+$PatroniWriterPort = 55432
+$PatroniDockerServicePrefix = "patroni-postgres"
+$PatroniScope = "mediqueue-postgres-ha"
+$PatroniBackupNode = ""
+```
+
+Si `$PatroniBackupNode` queda vacio, el backup base prefiere una replica sana.
 
 ## WAL archive
 
-Los nodos Patroni montan `./infra/backups/wal-archive` en:
+Los nodos Patroni montan:
 
 ```text
-/var/lib/postgresql/wal-archive
+./infra/backups/wal-archive -> /var/lib/postgresql/wal-archive
 ```
 
-Esto mantiene una ruta local coherente con el esquema actual, pero antes de produccion hay que revisar:
+El WAL de Patroni se separa en:
 
-- Retencion de WAL.
-- Colisiones entre clusters.
-- Permisos de escritura.
-- Restauracion a punto en el tiempo.
-- Separacion entre backups del PostgreSQL actual y del cluster Patroni.
+```text
+infra/backups/wal-archive/patroni
+```
 
-## Pendientes antes de migrar microservicios
+Esto evita mezclar WAL del PostgreSQL simple con WAL del cluster Patroni durante verificaciones.
 
-- Crear o migrar la base `mediqueue` en Patroni.
-- Restaurar datos desde backup validado.
-- Ejecutar migraciones Flyway contra Patroni.
-- Probar restore en ambiente aislado.
-- Actualizar variables `DB_HOST` y `DB_PORT` solo despues de validar.
-- Monitorear lag de replicas y failover durante pruebas funcionales.
+## Recomendacion
+
+- `pg_dump`: usar writer de HAProxy.
+- Backup fisico/base: preferir replica sana.
+- PITR: requiere WAL consistente del cluster y pruebas de restore.
+- No mezclar backups `single` y `patroni` para una restauracion PITR.
+
+## Riesgos pendientes
+
+- Las credenciales actuales son de desarrollo local.
+- En produccion se necesita usuario dedicado para backups, cifrado y gestion de secretos.
+- El archivado WAL debe validarse con restore PITR real antes de considerarlo completo.
+- La retencion debe dimensionarse para el volumen de escritura real.
