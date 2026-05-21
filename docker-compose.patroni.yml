@@ -19,7 +19,7 @@ services:
     ports:
       - "127.0.0.1:${ETCD_1_CLIENT_PORT:-23791}:2379"
     healthcheck:
-      test: ["CMD-SHELL", "ETCDCTL_API=3 etcdctl --endpoints=http://127.0.0.1:2379 endpoint health"]
+      test: ["CMD", "etcdctl", "--endpoints=http://127.0.0.1:2379", "endpoint", "health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -46,7 +46,7 @@ services:
     ports:
       - "127.0.0.1:${ETCD_2_CLIENT_PORT:-23792}:2379"
     healthcheck:
-      test: ["CMD-SHELL", "ETCDCTL_API=3 etcdctl --endpoints=http://127.0.0.1:2379 endpoint health"]
+      test: ["CMD", "etcdctl", "--endpoints=http://127.0.0.1:2379", "endpoint", "health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -73,7 +73,7 @@ services:
     ports:
       - "127.0.0.1:${ETCD_3_CLIENT_PORT:-23793}:2379"
     healthcheck:
-      test: ["CMD-SHELL", "ETCDCTL_API=3 etcdctl --endpoints=http://127.0.0.1:2379 endpoint health"]
+      test: ["CMD", "etcdctl", "--endpoints=http://127.0.0.1:2379", "endpoint", "health"]
       interval: 10s
       timeout: 5s
       retries: 10

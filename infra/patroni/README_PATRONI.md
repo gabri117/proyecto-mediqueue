@@ -8,6 +8,24 @@ Esta carpeta prepara una arquitectura paralela de PostgreSQL HA para desarrollo 
 - `patroni-postgres-1`, `patroni-postgres-2`, `patroni-postgres-3`: nodos PostgreSQL administrados por Patroni.
 - `patroni-postgres-lb`: HAProxy para entrada unica.
 
+## etcd dentro de Patroni
+
+Patroni usa etcd como Distributed Configuration Store. En ese almacenamiento guarda el estado del cluster, el lock del lider, la configuracion compartida y la informacion necesaria para decidir si un nodo puede promocionarse.
+
+Se usan 3 nodos etcd para tener quorum. Con 3 nodos, el cluster puede tolerar la caida de 1 nodo y seguir tomando decisiones. Con 1 solo nodo no hay alta disponibilidad real del DCS, y sin DCS sano Patroni no debe promocionar lideres de forma segura.
+
+Los puertos client de etcd se publican solo en `127.0.0.1` para desarrollo local:
+
+- `etcd-1`: `127.0.0.1:23791`
+- `etcd-2`: `127.0.0.1:23792`
+- `etcd-3`: `127.0.0.1:23793`
+
+Dentro de Docker, Patroni usa:
+
+```text
+etcd-1:2379,etcd-2:2379,etcd-3:2379
+```
+
 ## Puertos locales
 
 - Writer: `127.0.0.1:55432`, enruta siempre al lider.
@@ -44,10 +62,40 @@ docker compose -f docker-compose.yml -f docker-compose.patroni.yml up -d
 
 Esto levanta el stack Patroni junto al compose actual. En esta fase, los microservicios siguen usando `postgres-lb` del PostgreSQL actual porque sus variables continuan apuntando a `DB_HOST=postgres-lb` y `DB_PORT=5432`.
 
+## Levantar solo etcd
+
+Para validar unicamente el DCS, sin levantar PostgreSQL Patroni:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml up -d etcd-1 etcd-2 etcd-3
+```
+
+Esto no modifica ni detiene el PostgreSQL principal.
+
 ## Validar configuracion sin levantar
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.patroni.yml config --quiet
+```
+
+## Validar etcd
+
+Healthcheck completo:
+
+```powershell
+.\infra\patroni\scripts\etcd-healthcheck.ps1
+```
+
+Comando manual de endpoint health:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T etcd-1 etcdctl --endpoints=http://etcd-1:2379,http://etcd-2:2379,http://etcd-3:2379 endpoint health
+```
+
+Listar miembros:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T etcd-1 etcdctl --endpoints=http://etcd-1:2379,http://etcd-2:2379,http://etcd-3:2379 member list
 ```
 
 ## Estado y salud
