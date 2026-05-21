@@ -1,0 +1,212 @@
+services:
+  etcd-1:
+    image: quay.io/coreos/etcd:v3.5.15
+    container_name: mediqueue-etcd-1
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd-1
+      - --data-dir=/etcd-data
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-advertise-peer-urls=http://etcd-1:2380
+      - --advertise-client-urls=http://etcd-1:2379
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-token=mediqueue-etcd-cluster
+      - --initial-cluster-state=new
+      - --enable-v2=false
+    volumes:
+      - etcd-1-data:/etcd-data
+    ports:
+      - "127.0.0.1:${ETCD_1_CLIENT_PORT:-23791}:2379"
+    healthcheck:
+      test: ["CMD-SHELL", "ETCDCTL_API=3 etcdctl --endpoints=http://127.0.0.1:2379 endpoint health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mediqueue-net
+
+  etcd-2:
+    image: quay.io/coreos/etcd:v3.5.15
+    container_name: mediqueue-etcd-2
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd-2
+      - --data-dir=/etcd-data
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-advertise-peer-urls=http://etcd-2:2380
+      - --advertise-client-urls=http://etcd-2:2379
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-token=mediqueue-etcd-cluster
+      - --initial-cluster-state=new
+      - --enable-v2=false
+    volumes:
+      - etcd-2-data:/etcd-data
+    ports:
+      - "127.0.0.1:${ETCD_2_CLIENT_PORT:-23792}:2379"
+    healthcheck:
+      test: ["CMD-SHELL", "ETCDCTL_API=3 etcdctl --endpoints=http://127.0.0.1:2379 endpoint health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mediqueue-net
+
+  etcd-3:
+    image: quay.io/coreos/etcd:v3.5.15
+    container_name: mediqueue-etcd-3
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd-3
+      - --data-dir=/etcd-data
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-advertise-peer-urls=http://etcd-3:2380
+      - --advertise-client-urls=http://etcd-3:2379
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-token=mediqueue-etcd-cluster
+      - --initial-cluster-state=new
+      - --enable-v2=false
+    volumes:
+      - etcd-3-data:/etcd-data
+    ports:
+      - "127.0.0.1:${ETCD_3_CLIENT_PORT:-23793}:2379"
+    healthcheck:
+      test: ["CMD-SHELL", "ETCDCTL_API=3 etcdctl --endpoints=http://127.0.0.1:2379 endpoint health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mediqueue-net
+
+  patroni-postgres-1:
+    image: patroni/patroni:3.3.2
+    container_name: mediqueue-patroni-postgres-1
+    command: ["patroni", "/etc/patroni/patroni.yml"]
+    depends_on:
+      etcd-1:
+        condition: service_healthy
+      etcd-2:
+        condition: service_healthy
+      etcd-3:
+        condition: service_healthy
+    environment:
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-mediqueue}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-mediqueue}
+      POSTGRES_APP_DB: ${POSTGRES_APP_DB:-mediqueue}
+      PATRONI_SUPERUSER_USERNAME: ${PATRONI_SUPERUSER_USERNAME:-postgres}
+      PATRONI_SUPERUSER_PASSWORD: ${PATRONI_SUPERUSER_PASSWORD:-postgres}
+      PATRONI_REPLICATION_USERNAME: ${PATRONI_REPLICATION_USERNAME:-replicator}
+      PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
+    volumes:
+      - patroni-postgres-1-data:/var/lib/postgresql/data
+      - ./infra/patroni/patroni/patroni-postgres-1.yml:/etc/patroni/patroni.yml:ro
+      - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
+    ports:
+      - "127.0.0.1:${PATRONI_NODE1_REST_PORT:-18008}:8008"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8008/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - mediqueue-net
+
+  patroni-postgres-2:
+    image: patroni/patroni:3.3.2
+    container_name: mediqueue-patroni-postgres-2
+    command: ["patroni", "/etc/patroni/patroni.yml"]
+    depends_on:
+      etcd-1:
+        condition: service_healthy
+      etcd-2:
+        condition: service_healthy
+      etcd-3:
+        condition: service_healthy
+    environment:
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-mediqueue}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-mediqueue}
+      POSTGRES_APP_DB: ${POSTGRES_APP_DB:-mediqueue}
+      PATRONI_SUPERUSER_USERNAME: ${PATRONI_SUPERUSER_USERNAME:-postgres}
+      PATRONI_SUPERUSER_PASSWORD: ${PATRONI_SUPERUSER_PASSWORD:-postgres}
+      PATRONI_REPLICATION_USERNAME: ${PATRONI_REPLICATION_USERNAME:-replicator}
+      PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
+    volumes:
+      - patroni-postgres-2-data:/var/lib/postgresql/data
+      - ./infra/patroni/patroni/patroni-postgres-2.yml:/etc/patroni/patroni.yml:ro
+      - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
+    ports:
+      - "127.0.0.1:${PATRONI_NODE2_REST_PORT:-18009}:8008"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8008/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - mediqueue-net
+
+  patroni-postgres-3:
+    image: patroni/patroni:3.3.2
+    container_name: mediqueue-patroni-postgres-3
+    command: ["patroni", "/etc/patroni/patroni.yml"]
+    depends_on:
+      etcd-1:
+        condition: service_healthy
+      etcd-2:
+        condition: service_healthy
+      etcd-3:
+        condition: service_healthy
+    environment:
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-mediqueue}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-mediqueue}
+      POSTGRES_APP_DB: ${POSTGRES_APP_DB:-mediqueue}
+      PATRONI_SUPERUSER_USERNAME: ${PATRONI_SUPERUSER_USERNAME:-postgres}
+      PATRONI_SUPERUSER_PASSWORD: ${PATRONI_SUPERUSER_PASSWORD:-postgres}
+      PATRONI_REPLICATION_USERNAME: ${PATRONI_REPLICATION_USERNAME:-replicator}
+      PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
+    volumes:
+      - patroni-postgres-3-data:/var/lib/postgresql/data
+      - ./infra/patroni/patroni/patroni-postgres-3.yml:/etc/patroni/patroni.yml:ro
+      - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
+    ports:
+      - "127.0.0.1:${PATRONI_NODE3_REST_PORT:-18010}:8008"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8008/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - mediqueue-net
+
+  patroni-postgres-lb:
+    image: haproxy:2.9-alpine
+    container_name: mediqueue-patroni-postgres-lb
+    depends_on:
+      patroni-postgres-1:
+        condition: service_healthy
+      patroni-postgres-2:
+        condition: service_healthy
+      patroni-postgres-3:
+        condition: service_healthy
+    volumes:
+      - ./infra/patroni/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "127.0.0.1:${PATRONI_WRITER_PORT:-55432}:5432"
+      - "127.0.0.1:${PATRONI_READER_PORT:-55433}:5433"
+      - "127.0.0.1:${PATRONI_HAPROXY_STATS_PORT:-57000}:7000"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - mediqueue-net
+
+volumes:
+  etcd-1-data:
+  etcd-2-data:
+  etcd-3-data:
+  patroni-postgres-1-data:
+  patroni-postgres-2-data:
+  patroni-postgres-3-data:
