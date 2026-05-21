@@ -186,7 +186,7 @@ services:
       - mediqueue-net
 
   patroni-postgres-lb:
-    image: haproxy:2.9-alpine
+    image: haproxy:alpine
     container_name: mediqueue-patroni-postgres-lb
     depends_on:
       patroni-postgres-1:
@@ -200,7 +200,7 @@ services:
     ports:
       - "127.0.0.1:${PATRONI_WRITER_PORT:-55432}:5432"
       - "127.0.0.1:${PATRONI_READER_PORT:-55433}:5433"
-      - "127.0.0.1:${PATRONI_HAPROXY_STATS_PORT:-57000}:7000"
+      - "127.0.0.1:${PATRONI_HAPROXY_STATS_PORT:-7000}:7000"
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 5432"]
       interval: 10s

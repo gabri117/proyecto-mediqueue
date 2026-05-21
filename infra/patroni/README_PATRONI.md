@@ -30,7 +30,7 @@ etcd-1:2379,etcd-2:2379,etcd-3:2379
 
 - Writer: `127.0.0.1:55432`, enruta siempre al lider.
 - Reader: `127.0.0.1:55433`, enruta a replicas.
-- HAProxy stats: `http://127.0.0.1:57000/`
+- HAProxy stats: `http://127.0.0.1:7000/`
 - Patroni REST:
   - nodo 1: `http://127.0.0.1:18008/`
   - nodo 2: `http://127.0.0.1:18009/`
@@ -115,10 +115,52 @@ docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T etcd-
 
 ## Conectarse al lider
 
-Cuando HAProxy este levantado, usar el writer:
+Cuando HAProxy este levantado, usar el writer. Todas las escrituras de aplicaciones deben ir por este puerto, porque HAProxy lo enruta al nodo lider actual:
 
 ```powershell
 psql -h 127.0.0.1 -p 55432 -U postgres -d mediqueue
+```
+
+Con el usuario de aplicacion:
+
+```powershell
+psql -h 127.0.0.1 -p 55432 -U mediqueue -d mediqueue
+```
+
+Para lecturas de prueba contra replicas:
+
+```powershell
+psql -h 127.0.0.1 -p 55433 -U mediqueue -d mediqueue
+```
+
+## DBeaver
+
+Conexion de escritura:
+
+```text
+Driver: PostgreSQL
+Host: localhost
+Port: 55432
+Database: mediqueue
+User: mediqueue
+Password: mediqueue
+```
+
+Conexion de lectura opcional:
+
+```text
+Driver: PostgreSQL
+Host: localhost
+Port: 55433
+Database: mediqueue
+User: mediqueue
+Password: mediqueue
+```
+
+Stats de HAProxy:
+
+```text
+http://localhost:7000/
 ```
 
 Sin HAProxy, usar el script SQL check para detectar el lider por REST y ejecutar la consulta dentro del contenedor correcto:
@@ -131,6 +173,26 @@ Para crear una tabla tecnica de salud en un schema no relacionado con negocio:
 
 ```powershell
 .\infra\patroni\scripts\patroni-sql-check.ps1 -CreateHealthTable
+```
+
+## Validar HAProxy
+
+Levantar HAProxy sobre el cluster Patroni:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml up -d patroni-postgres-lb
+```
+
+Validar puertos writer, reader y stats:
+
+```powershell
+.\infra\patroni\scripts\haproxy-db-healthcheck.ps1
+```
+
+Validar que writer apunta al primario y reader a replica:
+
+```powershell
+.\infra\patroni\scripts\patroni-db-connection-test.ps1
 ```
 
 ## Validar replicacion

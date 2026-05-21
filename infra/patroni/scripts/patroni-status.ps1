@@ -70,7 +70,7 @@ try {
 
     Write-Host "WRITER_ENDPOINT=127.0.0.1:55432"
     Write-Host "READER_ENDPOINT=127.0.0.1:55433"
-    Write-Host "HAPROXY_STATS=http://127.0.0.1:57000/"
+    Write-Host "HAPROXY_STATS=http://127.0.0.1:7000/"
 }
 finally {
     Pop-Location
