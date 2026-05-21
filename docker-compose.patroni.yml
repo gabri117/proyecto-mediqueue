@@ -209,6 +209,66 @@ services:
     networks:
       - mediqueue-net
 
+  patroni-postgres-exporter-1:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: mediqueue-patroni-postgres-exporter-1
+    restart: unless-stopped
+    command:
+      - "--extend.query-path=/etc/postgres_exporter/queries.yml"
+    environment:
+      DATA_SOURCE_URI: "patroni-postgres-1:5432/${POSTGRES_APP_DB:-mediqueue}?sslmode=disable"
+      DATA_SOURCE_USER: ${PATRONI_SUPERUSER_USERNAME:-postgres}
+      DATA_SOURCE_PASS: ${PATRONI_SUPERUSER_PASSWORD:-postgres}
+    volumes:
+      - ./infra/patroni/postgres-exporter/queries.yml:/etc/postgres_exporter/queries.yml:ro
+    expose:
+      - "9187"
+    depends_on:
+      patroni-postgres-1:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+
+  patroni-postgres-exporter-2:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: mediqueue-patroni-postgres-exporter-2
+    restart: unless-stopped
+    command:
+      - "--extend.query-path=/etc/postgres_exporter/queries.yml"
+    environment:
+      DATA_SOURCE_URI: "patroni-postgres-2:5432/${POSTGRES_APP_DB:-mediqueue}?sslmode=disable"
+      DATA_SOURCE_USER: ${PATRONI_SUPERUSER_USERNAME:-postgres}
+      DATA_SOURCE_PASS: ${PATRONI_SUPERUSER_PASSWORD:-postgres}
+    volumes:
+      - ./infra/patroni/postgres-exporter/queries.yml:/etc/postgres_exporter/queries.yml:ro
+    expose:
+      - "9187"
+    depends_on:
+      patroni-postgres-2:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+
+  patroni-postgres-exporter-3:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: mediqueue-patroni-postgres-exporter-3
+    restart: unless-stopped
+    command:
+      - "--extend.query-path=/etc/postgres_exporter/queries.yml"
+    environment:
+      DATA_SOURCE_URI: "patroni-postgres-3:5432/${POSTGRES_APP_DB:-mediqueue}?sslmode=disable"
+      DATA_SOURCE_USER: ${PATRONI_SUPERUSER_USERNAME:-postgres}
+      DATA_SOURCE_PASS: ${PATRONI_SUPERUSER_PASSWORD:-postgres}
+    volumes:
+      - ./infra/patroni/postgres-exporter/queries.yml:/etc/postgres_exporter/queries.yml:ro
+    expose:
+      - "9187"
+    depends_on:
+      patroni-postgres-3:
+        condition: service_healthy
+    networks:
+      - mediqueue-net
+
 volumes:
   etcd-1-data:
   etcd-2-data:

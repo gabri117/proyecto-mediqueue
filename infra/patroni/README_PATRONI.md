@@ -113,6 +113,32 @@ docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T etcd-
 
 `patroni-status.ps1` muestra el lider actual, las replicas y el estado REST de cada nodo.
 
+## Observabilidad
+
+Prometheus y Grafana pueden monitorear Patroni, PostgreSQL HA, HAProxy y etcd con el dashboard:
+
+```text
+MediQueue Patroni Cluster Status
+```
+
+Levantar exporters junto al stack:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.patroni.yml up -d prometheus grafana patroni-postgres-lb patroni-postgres-exporter-1 patroni-postgres-exporter-2 patroni-postgres-exporter-3
+```
+
+Abrir targets:
+
+```text
+http://localhost:9090/targets
+```
+
+Detalle de metricas, queries y paneles:
+
+```text
+infra/patroni/docs/OBSERVABILITY.md
+```
+
 ## Conectarse al lider
 
 Cuando HAProxy este levantado, usar el writer. Todas las escrituras de aplicaciones deben ir por este puerto, porque HAProxy lo enruta al nodo lider actual:
