@@ -1,0 +1,1289 @@
+{
+  "info": {
+    "_postman_id": "mediqueue-patroni-e2e-auto-20p-5d-60",
+    "name": "MediQueue Patroni E2E Auto 20P 5D 60 Citas Pagos Notificaciones",
+    "description": "Coleccion automatica para ejecutar contra el API Gateway de MediQueue levantado con Patroni:\n`start-patroni-e2e-backend.ps1 -Build -ForceRecreate`.\n\nFlujo automatico:\n- POST 20 pacientes.\n- POST 5 odontologos.\n- POST 60 slots.\n- POST 60 citas.\n- Los 60 pagos aprobados se generan por el flujo E2E real: appointment.held -> payment-service -> payment.succeeded.\n- Las 60 notificaciones se generan por los eventos payment.succeeded publicados por payment-service.\n\nImportante: esta coleccion no crea notificaciones manualmente. Tampoco fuerza pagos manuales para evitar conflictos con el flujo asincrono automatico de Patroni E2E.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "postman-patroni-e2e-auto",
+      "type": "string"
+    },
+    {
+      "key": "runStamp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "totalPatients",
+      "value": "20",
+      "type": "string"
+    },
+    {
+      "key": "totalDentists",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "totalSlots",
+      "value": "60",
+      "type": "string"
+    },
+    {
+      "key": "totalAppointments",
+      "value": "60",
+      "type": "string"
+    },
+    {
+      "key": "expectedApprovedPayments",
+      "value": "60",
+      "type": "string"
+    },
+    {
+      "key": "expectedPaymentNotifications",
+      "value": "60",
+      "type": "string"
+    },
+    {
+      "key": "amount",
+      "value": "1500.00",
+      "type": "string"
+    },
+    {
+      "key": "currency",
+      "value": "GTQ",
+      "type": "string"
+    },
+    {
+      "key": "asyncWaitMs",
+      "value": "3000",
+      "type": "string"
+    },
+    {
+      "key": "maxAsyncCycles",
+      "value": "30",
+      "type": "string"
+    },
+    {
+      "key": "patientIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "patientEmails",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "dentistIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "dentistEmails",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "slotIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "slotPayloads",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "appointmentIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "approvedPaymentIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "paymentNotificationIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "paymentPageIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "notificationPageIndex",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "maxAsyncPages",
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "approvedPaymentScanIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "paymentNotificationScanIds",
+      "value": "[]",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Init y Health",
+      "item": [
+        {
+          "name": "00 - Init Run Variables",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Backend health 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { console.error('Backend no saludable. Deteniendo coleccion.'); postman.setNextRequest(null); return; }",
+                  "const stamp = String(Date.now());",
+                  "pm.collectionVariables.set('runStamp', stamp);",
+                  "['patientIndex','dentistIndex','slotIndex','appointmentIndex','getPatientIndex','getDentistIndex','getAppointmentIndex','asyncPaymentCycles','asyncNotificationCycles','paymentPageIndex','notificationPageIndex'].forEach(k => pm.collectionVariables.set(k, '0'));",
+                  "['patientIds','patientEmails','dentistIds','dentistEmails','slotIds','slotPayloads','appointmentIds','approvedPaymentIds','paymentNotificationIds','approvedPaymentScanIds','paymentNotificationScanIds'].forEach(k => pm.collectionVariables.set(k, '[]'));",
+                  "['patientNumber','patientNumberPadded','dentistNumber','dentistNumberPadded','currentPatientId','currentPatientEmail','currentDentistId','currentDentistEmail','currentSlotId','currentSlotDate','currentStartTime','currentEndTime','currentAppointmentId','firstPatientId','firstDentistId','firstDentistEmail'].forEach(k => pm.collectionVariables.unset(k));",
+                  "console.log('MediQueue Patroni E2E Auto runStamp=' + stamp);",
+                  "postman.setNextRequest('01 - Create Patient Loop');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - POST Pacientes",
+      "item": [
+        {
+          "name": "01 - Create Patient Loop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "patients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Patient{{patientNumber}}\",\n  \"lastName\": \"PatroniE2E\",\n  \"email\": \"{{currentPatientEmail}}\",\n  \"phone\": \"+5025555{{patientNumberPadded}}\",\n  \"documentNumber\": \"PAT-{{runStamp}}-{{patientNumberPadded}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('patientIndex') || 0);",
+                  "const n = i + 1;",
+                  "const padded = String(n).padStart(4, '0');",
+                  "pm.collectionVariables.set('patientNumber', String(n));",
+                  "pm.collectionVariables.set('patientNumberPadded', padded);",
+                  "pm.collectionVariables.set('currentPatientEmail', `patient${n}.${pm.collectionVariables.get('runStamp')}@mediqueue.test`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text();",
+                  "pm.test('Paciente creado 201/200', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('Sin 5xx', function () { pm.expect(pm.response.code).to.be.below(500); });",
+                  "if (![200,201].includes(pm.response.code)) { console.error('Fallo creando paciente', pm.response.code, body); postman.setNextRequest(null); return; }",
+                  "const json = pm.response.json(); const id = json.patientId || json.id;",
+                  "if (!id) { throw new Error('La respuesta no trae patientId'); }",
+                  "const ids = JSON.parse(pm.collectionVariables.get('patientIds') || '[]'); ids.push(id); pm.collectionVariables.set('patientIds', JSON.stringify(ids));",
+                  "const emails = JSON.parse(pm.collectionVariables.get('patientEmails') || '[]'); emails.push(pm.collectionVariables.get('currentPatientEmail')); pm.collectionVariables.set('patientEmails', JSON.stringify(emails));",
+                  "if (ids.length === 1) pm.collectionVariables.set('firstPatientId', id);",
+                  "let i = Number(pm.collectionVariables.get('patientIndex') || 0) + 1; pm.collectionVariables.set('patientIndex', String(i));",
+                  "console.log(`Paciente ${i}/${pm.collectionVariables.get('totalPatients')} id=${id}`);",
+                  "postman.setNextRequest(i < Number(pm.collectionVariables.get('totalPatients')) ? '01 - Create Patient Loop' : '02 - Create Dentist Loop');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - POST Odontologos",
+      "item": [
+        {
+          "name": "02 - Create Dentist Loop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dentists",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dentists"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Dentist{{dentistNumber}}\",\n  \"lastName\": \"PatroniE2E\",\n  \"specialty\": \"Odontologia General\",\n  \"email\": \"{{currentDentistEmail}}\",\n  \"licenseNumber\": \"DEN-{{runStamp}}-{{dentistNumberPadded}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('dentistIndex') || 0); const n = i + 1; const padded = String(n).padStart(3, '0');",
+                  "pm.collectionVariables.set('dentistNumber', String(n)); pm.collectionVariables.set('dentistNumberPadded', padded);",
+                  "pm.collectionVariables.set('currentDentistEmail', `dentist${n}.${pm.collectionVariables.get('runStamp')}@mediqueue.test`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); pm.test('Odontologo creado 201/200', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('Sin 5xx', function () { pm.expect(pm.response.code).to.be.below(500); });",
+                  "if (![200,201].includes(pm.response.code)) { console.error('Fallo creando odontologo', pm.response.code, body); postman.setNextRequest(null); return; }",
+                  "const json = pm.response.json(); const id = json.dentistId || json.id; if (!id) { throw new Error('La respuesta no trae dentistId'); }",
+                  "const ids = JSON.parse(pm.collectionVariables.get('dentistIds') || '[]'); ids.push(id); pm.collectionVariables.set('dentistIds', JSON.stringify(ids));",
+                  "const emails = JSON.parse(pm.collectionVariables.get('dentistEmails') || '[]'); emails.push(pm.collectionVariables.get('currentDentistEmail')); pm.collectionVariables.set('dentistEmails', JSON.stringify(emails));",
+                  "if (ids.length === 1) { pm.collectionVariables.set('firstDentistId', id); pm.collectionVariables.set('firstDentistEmail', pm.collectionVariables.get('currentDentistEmail')); }",
+                  "let i = Number(pm.collectionVariables.get('dentistIndex') || 0) + 1; pm.collectionVariables.set('dentistIndex', String(i));",
+                  "console.log(`Odontologo ${i}/${pm.collectionVariables.get('totalDentists')} id=${id}`);",
+                  "postman.setNextRequest(i < Number(pm.collectionVariables.get('totalDentists')) ? '02 - Create Dentist Loop' : '03 - Create Slot Loop');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - POST Slots",
+      "item": [
+        {
+          "name": "03 - Create Slot Loop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/slots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "slots"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dentistId\": \"{{currentDentistId}}\",\n  \"slotDate\": \"{{currentSlotDate}}\",\n  \"startTime\": \"{{currentStartTime}}\",\n  \"endTime\": \"{{currentEndTime}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('slotIndex') || 0); const dentists = JSON.parse(pm.collectionVariables.get('dentistIds') || '[]');",
+                  "if (dentists.length === 0) { throw new Error('No hay odontologos para crear slots'); }",
+                  "const dentistId = dentists[i % dentists.length];",
+                  "const slotNumberForDentist = Math.floor(i / dentists.length);",
+                  "const dayOffset = Math.floor(slotNumberForDentist / 16);",
+                  "const slotInDay = slotNumberForDentist % 16;",
+                  "const date = new Date(Date.UTC(2026, 8, 1 + dayOffset)); const slotDate = date.toISOString().slice(0,10);",
+                  "const startMinutes = 8 * 60 + slotInDay * 30; const endMinutes = startMinutes + 30;",
+                  "function hm(total) { return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0') + ':00'; }",
+                  "pm.collectionVariables.set('currentDentistId', dentistId); pm.collectionVariables.set('currentSlotDate', slotDate); pm.collectionVariables.set('currentStartTime', hm(startMinutes)); pm.collectionVariables.set('currentEndTime', hm(endMinutes));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); pm.test('Slot creado 201/200', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('Sin 5xx', function () { pm.expect(pm.response.code).to.be.below(500); });",
+                  "if (![200,201].includes(pm.response.code)) { console.error('Fallo creando slot', pm.response.code, body); postman.setNextRequest(null); return; }",
+                  "const json = pm.response.json(); const id = json.slotId || json.id; if (!id) { throw new Error('La respuesta no trae slotId'); }",
+                  "const slotIds = JSON.parse(pm.collectionVariables.get('slotIds') || '[]'); slotIds.push(id); pm.collectionVariables.set('slotIds', JSON.stringify(slotIds));",
+                  "const payloads = JSON.parse(pm.collectionVariables.get('slotPayloads') || '[]'); payloads.push({ slotId: id, dentistId: pm.collectionVariables.get('currentDentistId'), slotDate: pm.collectionVariables.get('currentSlotDate'), startTime: pm.collectionVariables.get('currentStartTime'), endTime: pm.collectionVariables.get('currentEndTime') }); pm.collectionVariables.set('slotPayloads', JSON.stringify(payloads));",
+                  "let i = Number(pm.collectionVariables.get('slotIndex') || 0) + 1; pm.collectionVariables.set('slotIndex', String(i));",
+                  "console.log(`Slot ${i}/${pm.collectionVariables.get('totalSlots')} id=${id}`);",
+                  "postman.setNextRequest(i < Number(pm.collectionVariables.get('totalSlots')) ? '03 - Create Slot Loop' : '04 - Create Appointment Loop');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - POST Citas",
+      "item": [
+        {
+          "name": "04 - Create Appointment Loop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "postman-appointment-{{runStamp}}-{{appointmentIndex}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{currentPatientId}}\",\n  \"dentistId\": \"{{currentDentistId}}\",\n  \"slotId\": \"{{currentSlotId}}\",\n  \"appointmentDate\": \"{{currentSlotDate}}\",\n  \"startTime\": \"{{currentStartTime}}\",\n  \"endTime\": \"{{currentEndTime}}\",\n  \"amount\": {{amount}},\n  \"notes\": \"Postman Patroni E2E appointment {{appointmentNumber}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('appointmentIndex') || 0); const patients = JSON.parse(pm.collectionVariables.get('patientIds') || '[]'); const slots = JSON.parse(pm.collectionVariables.get('slotPayloads') || '[]');",
+                  "if (patients.length === 0 || !slots[i]) { throw new Error('Faltan pacientes o slots para cita index ' + i); }",
+                  "const slot = slots[i]; const patientId = patients[i % patients.length];",
+                  "pm.collectionVariables.set('currentPatientId', patientId); pm.collectionVariables.set('currentDentistId', slot.dentistId); pm.collectionVariables.set('currentSlotId', slot.slotId); pm.collectionVariables.set('currentSlotDate', slot.slotDate); pm.collectionVariables.set('currentStartTime', slot.startTime); pm.collectionVariables.set('currentEndTime', slot.endTime); pm.collectionVariables.set('appointmentNumber', String(i + 1));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.text(); pm.test('Cita creada 201/200/202', function () { pm.expect([200,201,202]).to.include(pm.response.code); });",
+                  "pm.test('Sin 5xx', function () { pm.expect(pm.response.code).to.be.below(500); });",
+                  "if (![200,201,202].includes(pm.response.code)) { console.error('Fallo creando cita', pm.response.code, body); postman.setNextRequest(null); return; }",
+                  "const json = pm.response.json(); const id = json.appointmentId || json.id; if (!id) { throw new Error('La respuesta no trae appointmentId'); }",
+                  "const ids = JSON.parse(pm.collectionVariables.get('appointmentIds') || '[]'); ids.push(id); pm.collectionVariables.set('appointmentIds', JSON.stringify(ids));",
+                  "let i = Number(pm.collectionVariables.get('appointmentIndex') || 0) + 1; pm.collectionVariables.set('appointmentIndex', String(i));",
+                  "console.log(`Cita ${i}/${pm.collectionVariables.get('totalAppointments')} id=${id}`);",
+                  "postman.setNextRequest(i < Number(pm.collectionVariables.get('totalAppointments')) ? '04 - Create Appointment Loop' : '05 - Wait Until 60 Approved Payments');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Esperar pagos y notificaciones asincronas",
+      "item": [
+        {
+          "name": "05 - Wait Until 60 Approved Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments?status=APPROVED&page={{paymentPageIndex}}&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "APPROVED"
+                },
+                {
+                  "key": "page",
+                  "value": "{{paymentPageIndex}}"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const page = Number(pm.collectionVariables.get('paymentPageIndex') || 0);",
+                  "if (page === 0) { const waitMs = Number(pm.collectionVariables.get('asyncWaitMs') || 3000); const until = Date.now() + waitMs; while (Date.now() < until) {} console.log('Esperando pagos aprobados ' + waitMs + ' ms'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Consulta pagos aprobados 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { console.error(pm.response.text()); postman.setNextRequest(null); return; }",
+                  "const json = pm.response.json(); const content = json.content || []; const appointmentIds = JSON.parse(pm.collectionVariables.get('appointmentIds') || '[]');",
+                  "const existing = new Set(JSON.parse(pm.collectionVariables.get('approvedPaymentScanIds') || '[]'));",
+                  "content.filter(p => appointmentIds.includes(p.appointmentId) && p.paymentStatus === 'APPROVED').forEach(p => { if (p.paymentId || p.id) existing.add(p.paymentId || p.id); });",
+                  "const ids = Array.from(existing); pm.collectionVariables.set('approvedPaymentScanIds', JSON.stringify(ids)); pm.collectionVariables.set('approvedPaymentIds', JSON.stringify(ids));",
+                  "const expected = Number(pm.collectionVariables.get('expectedApprovedPayments') || 60); const page = Number(pm.collectionVariables.get('paymentPageIndex') || 0); const totalPages = Number(json.totalPages || 1); const maxPages = Number(pm.collectionVariables.get('maxAsyncPages') || 10);",
+                  "console.log(`Pagos aprobados de esta corrida=${ids.length}/${expected}, page=${page + 1}/${totalPages}`);",
+                  "if (ids.length < expected && page + 1 < totalPages && page + 1 < maxPages) { pm.collectionVariables.set('paymentPageIndex', String(page + 1)); postman.setNextRequest('05 - Wait Until 60 Approved Payments'); return; }",
+                  "let cycles = Number(pm.collectionVariables.get('asyncPaymentCycles') || 0) + 1; pm.collectionVariables.set('asyncPaymentCycles', String(cycles));",
+                  "if (ids.length < expected && cycles < Number(pm.collectionVariables.get('maxAsyncCycles') || 30)) { pm.collectionVariables.set('paymentPageIndex', '0'); pm.collectionVariables.set('approvedPaymentScanIds', '[]'); postman.setNextRequest('05 - Wait Until 60 Approved Payments'); return; }",
+                  "pm.test('Hay 60 pagos APPROVED para las citas creadas', function () { pm.expect(ids.length).to.be.at.least(expected); });",
+                  "pm.collectionVariables.set('notificationPageIndex', '0'); pm.collectionVariables.set('paymentNotificationScanIds', '[]');",
+                  "postman.setNextRequest('06 - Wait Until 60 Payment Notifications');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Wait Until 60 Payment Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?page={{notificationPageIndex}}&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "{{notificationPageIndex}}"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const page = Number(pm.collectionVariables.get('notificationPageIndex') || 0);",
+                  "if (page === 0) { const waitMs = Number(pm.collectionVariables.get('asyncWaitMs') || 3000); const until = Date.now() + waitMs; while (Date.now() < until) {} console.log('Esperando notificaciones de pagos ' + waitMs + ' ms'); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Consulta notificaciones 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { console.error(pm.response.text()); postman.setNextRequest(null); return; }",
+                  "const json = pm.response.json(); const content = json.content || []; const appointmentIds = JSON.parse(pm.collectionVariables.get('appointmentIds') || '[]');",
+                  "const existing = new Set(JSON.parse(pm.collectionVariables.get('paymentNotificationScanIds') || '[]'));",
+                  "content.filter(n => appointmentIds.includes(n.appointmentId) && (n.routingKey === 'payment.succeeded' || n.sourceEventType === 'PAYMENT_SUCCEEDED' || n.eventType === 'PAYMENT_SUCCEEDED')).forEach(n => { if (n.notificationId || n.id) existing.add(n.notificationId || n.id); });",
+                  "const ids = Array.from(existing); pm.collectionVariables.set('paymentNotificationScanIds', JSON.stringify(ids)); pm.collectionVariables.set('paymentNotificationIds', JSON.stringify(ids));",
+                  "const expected = Number(pm.collectionVariables.get('expectedPaymentNotifications') || 60); const page = Number(pm.collectionVariables.get('notificationPageIndex') || 0); const totalPages = Number(json.totalPages || 1); const maxPages = Number(pm.collectionVariables.get('maxAsyncPages') || 10);",
+                  "console.log(`Notificaciones payment.succeeded de esta corrida=${ids.length}/${expected}, page=${page + 1}/${totalPages}`);",
+                  "if (ids.length < expected && page + 1 < totalPages && page + 1 < maxPages) { pm.collectionVariables.set('notificationPageIndex', String(page + 1)); postman.setNextRequest('06 - Wait Until 60 Payment Notifications'); return; }",
+                  "let cycles = Number(pm.collectionVariables.get('asyncNotificationCycles') || 0) + 1; pm.collectionVariables.set('asyncNotificationCycles', String(cycles));",
+                  "if (ids.length < expected && cycles < Number(pm.collectionVariables.get('maxAsyncCycles') || 30)) { pm.collectionVariables.set('notificationPageIndex', '0'); pm.collectionVariables.set('paymentNotificationScanIds', '[]'); postman.setNextRequest('06 - Wait Until 60 Payment Notifications'); return; }",
+                  "pm.test('Hay 60 notificaciones de pagos aprobados para las citas creadas', function () { pm.expect(ids.length).to.be.at.least(expected); });",
+                  "postman.setNextRequest('07 - GET Backend Health');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 - GET Estado y Consultas",
+      "item": [
+        {
+          "name": "07 - GET Backend Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Backend health 200', function () { pm.response.to.have.status(200); });",
+                  "postman.setNextRequest('08 - GET Gateway Routes');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - GET Gateway Routes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/gateway/routes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "gateway",
+                "routes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Gateway routes 200', function () { pm.response.to.have.status(200); });",
+                  "postman.setNextRequest('09 - GET Created Patient Loop');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - GET Created Patient Loop",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/patients/{{currentPatientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "patients",
+                "{{currentPatientId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('getPatientIndex') || 0); const ids = JSON.parse(pm.collectionVariables.get('patientIds') || '[]'); if (!ids[i]) throw new Error('No patient id for GET index ' + i); pm.collectionVariables.set('currentPatientId', ids[i]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Paciente creado consultable', function () { pm.response.to.have.status(200); });",
+                  "let i = Number(pm.collectionVariables.get('getPatientIndex') || 0) + 1; pm.collectionVariables.set('getPatientIndex', String(i));",
+                  "postman.setNextRequest(i < Number(pm.collectionVariables.get('totalPatients')) ? '09 - GET Created Patient Loop' : '10 - GET Created Dentist Loop');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - GET Created Dentist Loop",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dentists/{{currentDentistId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dentists",
+                "{{currentDentistId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('getDentistIndex') || 0); const ids = JSON.parse(pm.collectionVariables.get('dentistIds') || '[]'); if (!ids[i]) throw new Error('No dentist id for GET index ' + i); pm.collectionVariables.set('currentDentistId', ids[i]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Odontologo creado consultable', function () { pm.response.to.have.status(200); });",
+                  "let i = Number(pm.collectionVariables.get('getDentistIndex') || 0) + 1; pm.collectionVariables.set('getDentistIndex', String(i));",
+                  "postman.setNextRequest(i < Number(pm.collectionVariables.get('totalDentists')) ? '10 - GET Created Dentist Loop' : '11 - GET Slots By First Dentist');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 - GET Slots By First Dentist",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/slots/dentist/{{firstDentistId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "slots",
+                "dentist",
+                "{{firstDentistId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Slots por odontologo 200', function () { pm.response.to.have.status(200); });",
+                  "postman.setNextRequest('12 - GET Available Slots');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 - GET Available Slots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/slots/available",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "slots",
+                "available"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Slots disponibles 200', function () { pm.response.to.have.status(200); });",
+                  "postman.setNextRequest('13 - GET Created Appointment Loop');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 - GET Created Appointment Loop",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{currentAppointmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{currentAppointmentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('getAppointmentIndex') || 0); const ids = JSON.parse(pm.collectionVariables.get('appointmentIds') || '[]'); if (!ids[i]) throw new Error('No appointment id for GET index ' + i); pm.collectionVariables.set('currentAppointmentId', ids[i]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cita creada consultable', function () { pm.response.to.have.status(200); });",
+                  "let i = Number(pm.collectionVariables.get('getAppointmentIndex') || 0) + 1; pm.collectionVariables.set('getAppointmentIndex', String(i));",
+                  "postman.setNextRequest(i < Number(pm.collectionVariables.get('totalAppointments')) ? '13 - GET Created Appointment Loop' : '14 - GET Appointments By First Patient');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 - GET Appointments By First Patient",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments?patientId={{firstPatientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "patientId",
+                  "value": "{{firstPatientId}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Citas por paciente 200', function () { pm.response.to.have.status(200); });",
+                  "postman.setNextRequest('15 - GET Approved Payments Page');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 - GET Approved Payments Page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments?status=APPROVED&page=0&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "APPROVED"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Pagos aprobados 200', function () { pm.response.to.have.status(200); });",
+                  "const j = pm.response.json(); console.log('Pagos aprobados totalElements=' + j.totalElements + ', content=' + (j.content || []).length);",
+                  "postman.setNextRequest('16 - GET All Payments Page');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 - GET All Payments Page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments?page=0&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Todos los pagos 200', function () { pm.response.to.have.status(200); });",
+                  "postman.setNextRequest('17 - GET Payment Notifications Page');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 - GET Payment Notifications Page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?status=SENT&page=0&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SENT"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Notificaciones SENT 200', function () { pm.response.to.have.status(200); });",
+                  "const j = pm.response.json(); console.log('Notificaciones SENT totalElements=' + j.totalElements + ', content=' + (j.content || []).length);",
+                  "postman.setNextRequest('18 - GET Notifications By First Patient');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 - GET Notifications By First Patient",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/patient/{{firstPatientId}}?page=0&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "patient",
+                "{{firstPatientId}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Notificaciones por paciente 200', function () { pm.response.to.have.status(200); });",
+                  "postman.setNextRequest('19 - Summary');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 - Resumen",
+      "item": [
+        {
+          "name": "19 - Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Resumen final del flujo automatico."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Backend health final 200', function () { pm.response.to.have.status(200); });",
+                  "const summary = { patients: JSON.parse(pm.collectionVariables.get('patientIds') || '[]').length, dentists: JSON.parse(pm.collectionVariables.get('dentistIds') || '[]').length, slots: JSON.parse(pm.collectionVariables.get('slotIds') || '[]').length, appointments: JSON.parse(pm.collectionVariables.get('appointmentIds') || '[]').length, approvedPayments: JSON.parse(pm.collectionVariables.get('approvedPaymentIds') || '[]').length, paymentNotifications: JSON.parse(pm.collectionVariables.get('paymentNotificationIds') || '[]').length, runStamp: pm.collectionVariables.get('runStamp') };",
+                  "console.log('MediQueue Patroni E2E summary', JSON.stringify(summary));",
+                  "pm.test('Resumen tiene 20 pacientes', function () { pm.expect(summary.patients).to.equal(20); });",
+                  "pm.test('Resumen tiene 5 odontologos', function () { pm.expect(summary.dentists).to.equal(5); });",
+                  "pm.test('Resumen tiene 60 citas', function () { pm.expect(summary.appointments).to.equal(60); });",
+                  "pm.test('Resumen tiene 60 pagos aprobados', function () { pm.expect(summary.approvedPayments).to.be.at.least(60); });",
+                  "pm.test('Resumen tiene 60 notificaciones payment.succeeded', function () { pm.expect(summary.paymentNotifications).to.be.at.least(60); });",
+                  "postman.setNextRequest(null);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "99 - POST pago manual opcional",
+      "item": [
+        {
+          "name": "99 - Optional Manual Payment POST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{clientId}}"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "manual-payment-{{runStamp}}-{{currentAppointmentId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": \"{{currentAppointmentId}}\",\n  \"patientId\": \"{{currentPatientId}}\",\n  \"amount\": {{amount}},\n  \"currency\": \"{{currency}}\"\n}"
+            },
+            "description": "Opcional. Usar manualmente solo si desactivas el flujo asincrono de pagos, porque en Patroni E2E cada cita ya genera un pago aprobado por evento appointment.held."
+          }
+        }
+      ]
+    }
+  ]
+}
