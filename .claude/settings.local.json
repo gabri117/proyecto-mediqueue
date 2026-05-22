@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m json.tool)",
+      "Bash(docker compose *)",
+      "Read(//Users/galindo/**)",
+      "Bash(env)",
+      "Bash(chmod +x infra/patroni/patroni/entrypoint.sh)",
+      "Bash(docker run *)",
+      "Bash(k6 version *)",
+      "Bash(sed -n '9,13p' /Users/galindo/Documents/proyects/proyectoGrup/proyecto-mediqueue/infra/load-tests/appointments/scripts/appointment-fixed-total.js)",
+      "Bash(sed -n '9,13p' /Users/galindo/Documents/proyects/proyectoGrup/proyecto-mediqueue/infra/load-tests/appointments/scripts/appointment-smoke.js)",
+      "Bash(sed -n '9,13p' /Users/galindo/Documents/proyects/proyectoGrup/proyecto-mediqueue/infra/load-tests/appointments/scripts/appointment-hostile-same-slot.js)",
+      "Bash(k6 run *)",
+      "Bash(sed -n '163,165p' /Users/galindo/Documents/proyects/proyectoGrup/proyecto-mediqueue/infra/load-tests/appointments/scripts/appointment-rpm.js)",
+      "Bash(sed -n '100,102p' /Users/galindo/Documents/proyects/proyectoGrup/proyecto-mediqueue/infra/load-tests/appointments/scripts/appointment-fixed-total.js)",
+      "Bash(sed -n '94,96p' /Users/galindo/Documents/proyects/proyectoGrup/proyecto-mediqueue/infra/load-tests/appointments/scripts/appointment-smoke.js)",
+      "Bash(sed -n '100,102p' /Users/galindo/Documents/proyects/proyectoGrup/proyecto-mediqueue/infra/load-tests/appointments/scripts/appointment-hostile-same-slot.js)",
+      "Bash(DATA_FILE=infra/load-tests/appointments/data/appointments-50000.json k6 run ./infra/load-tests/appointments/scripts/appointment-rpm.js --env DURATION=3s --env RATE_PER_MINUTE=5 --env PRE_ALLOCATED_VUS=1 --env MAX_VUS=2)"
+    ]
+  }
+}

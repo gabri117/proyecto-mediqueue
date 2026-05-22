@@ -98,7 +98,23 @@ function normalizeAppointment(row) {
 }
 
 function readJsonFile(path) {
-  return JSON.parse(open(path).replace(/^\uFEFF/, '').replace(/^\u00EF\u00BB\u00BF/, ''));
+  let content;
+  try {
+    content = open(path);
+  } catch (e) {
+    if (path.startsWith('/')) throw e;
+    const filename = path.split('/').pop();
+    const fallback = `../data/${filename}`;
+    try {
+      content = open(fallback);
+    } catch (e2) {
+      throw new Error(
+        `Cannot open data file. Tried: "${path}" and "${fallback}". ` +
+        `Pass DATA_FILE as absolute path: --env DATA_FILE=$(pwd)/${path}`
+      );
+    }
+  }
+  return JSON.parse(content.replace(/^\uFEFF/, '').replace(/^\u00EF\u00BB\u00BF/, ''));
 }
 
 function normalizeTime(value) {

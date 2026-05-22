@@ -87,7 +87,7 @@ services:
     image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-1
     restart: unless-stopped
-    user: postgres
+    entrypoint: ["/bin/bash", "/etc/patroni/entrypoint.sh"]
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
       etcd-1:
@@ -106,6 +106,7 @@ services:
       PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
     volumes:
       - patroni-postgres-1-data:/home/postgres/pgdata
+      - ./infra/patroni/patroni/entrypoint.sh:/etc/patroni/entrypoint.sh:ro
       - ./infra/patroni/patroni/patroni-postgres-1.yml:/etc/patroni/patroni.yml:ro
       - ./infra/patroni/patroni/create-mediqueue-db.sh:/etc/patroni/initdb/create-mediqueue-db.sh:ro
       - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
@@ -123,7 +124,7 @@ services:
     image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-2
     restart: unless-stopped
-    user: postgres
+    entrypoint: ["/bin/bash", "/etc/patroni/entrypoint.sh"]
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
       etcd-1:
@@ -142,6 +143,7 @@ services:
       PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
     volumes:
       - patroni-postgres-2-data:/home/postgres/pgdata
+      - ./infra/patroni/patroni/entrypoint.sh:/etc/patroni/entrypoint.sh:ro
       - ./infra/patroni/patroni/patroni-postgres-2.yml:/etc/patroni/patroni.yml:ro
       - ./infra/patroni/patroni/create-mediqueue-db.sh:/etc/patroni/initdb/create-mediqueue-db.sh:ro
       - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
@@ -159,7 +161,7 @@ services:
     image: ghcr.io/zalando/spilo-16:3.2-p3
     container_name: mediqueue-patroni-postgres-3
     restart: unless-stopped
-    user: postgres
+    entrypoint: ["/bin/bash", "/etc/patroni/entrypoint.sh"]
     command: ["patroni", "/etc/patroni/patroni.yml"]
     depends_on:
       etcd-1:
@@ -178,6 +180,7 @@ services:
       PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-replicator}
     volumes:
       - patroni-postgres-3-data:/home/postgres/pgdata
+      - ./infra/patroni/patroni/entrypoint.sh:/etc/patroni/entrypoint.sh:ro
       - ./infra/patroni/patroni/patroni-postgres-3.yml:/etc/patroni/patroni.yml:ro
       - ./infra/patroni/patroni/create-mediqueue-db.sh:/etc/patroni/initdb/create-mediqueue-db.sh:ro
       - ./infra/backups/wal-archive:/var/lib/postgresql/wal-archive
