@@ -40,9 +40,61 @@ $DatabaseName = "mediqueue"
 $DatabaseUser = "mediqueue"
 $PostgresService = "postgres"
 $PostgresContainer = "mediqueue-postgres"
+$BackupMode = "single"
 ```
 
 `backup.local.ps1` is ignored by git. The scheduled tasks read this file directly, so they do not depend on temporary `$env:GOOGLE_DRIVE_BACKUP_PATH` values from an interactive PowerShell session.
+
+## BackupMode: single vs patroni
+
+MediQueue soporta dos modos de backup:
+
+```powershell
+$BackupMode = "single"
+```
+
+Usa el PostgreSQL simple actual:
+
+```text
+postgres -> mediqueue-postgres
+postgres-lb -> localhost:55461
+```
+
+```powershell
+$BackupMode = "patroni"
+$PatroniWriterHost = "localhost"
+$PatroniWriterPort = 55432
+$PatroniDockerServicePrefix = "patroni-postgres"
+$PatroniScope = "mediqueue-postgres-ha"
+```
+
+Usa el cluster Patroni:
+
+```text
+patroni-postgres-lb writer -> localhost:55432
+patroni-postgres-1/2/3    -> nodos administrados por Patroni
+```
+
+Recomendacion en modo Patroni:
+
+- `pg_dump`: ejecutar contra el writer de HAProxy. El script valida `pg_is_in_recovery=false` antes de generar el dump.
+- Backup fisico/base: preferiblemente desde una replica sana para no cargar el lider. Si no hay replica sana, el script puede usar el lider en ambiente local y deja advertencia en log.
+- PITR: requiere WAL consistente del cluster. En Patroni, el archivo WAL se guarda bajo `infra/backups/wal-archive/patroni`.
+
+Riesgos:
+
+- Un backup fisico tomado desde el lider agrega carga al nodo que recibe escrituras.
+- En replicacion asincrona, una replica puede tener lag; revisar `patroni-status.ps1` antes de elegirla.
+- No mezclar WAL del modo `single` con WAL del modo `patroni` para PITR.
+- No usar passwords de ejemplo en produccion.
+
+Opcionalmente se puede fijar el nodo para backup fisico:
+
+```powershell
+$PatroniBackupNode = "patroni-postgres-3"
+```
+
+Si queda vacio, `backup-base.ps1` prefiere una replica sana.
 
 Optional encryption for pg_dump:
 

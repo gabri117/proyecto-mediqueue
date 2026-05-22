@@ -16,6 +16,7 @@ if (-not $DatabaseName) { $DatabaseName = $cfg.DatabaseName }
 if (-not $DatabaseUser) { $DatabaseUser = $cfg.DatabaseUser }
 if (-not $BackupRoot) { $BackupRoot = $cfg.BackupRoot }
 if (-not $GoogleDrivePath) { $GoogleDrivePath = $cfg.GoogleDriveBackupPath }
+$BackupMode = $cfg.BackupMode
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $logDir = Join-Path $BackupRoot "logs"
@@ -33,8 +34,15 @@ function Write-Log {
 function Invoke-Checked {
     param([string]$Label, [scriptblock]$Block)
     Write-Log "START $Label"
-    & $Block 2>&1 | Tee-Object -FilePath $logFile -Append
-    $code = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $Block 2>&1 | Tee-Object -FilePath $logFile -Append
+        $code = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     Write-Log "EXIT $Label code=$code"
     if ($null -ne $code -and $code -ne 0) {
         throw "$Label fallo con exit code $code"
@@ -42,17 +50,43 @@ function Invoke-Checked {
 }
 
 try {
+    Write-Log "BACKUP_MODE=$BackupMode"
     Invoke-Checked "docker info" { docker info }
-    Invoke-Checked "docker compose ps" { docker compose ps }
-    Invoke-Checked "postgres readiness" { docker compose exec -T $PostgresService pg_isready -U $DatabaseUser -d $DatabaseName }
+    if ($BackupMode -eq "patroni") {
+        Invoke-Checked "docker compose patroni ps" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml ps }
+    } else {
+        Invoke-Checked "docker compose ps" { docker compose ps }
+    }
 
     $containerDump = "/tmp/mediqueue_dump_$stamp.dump"
     $localDump = Join-Path $dumpDir "mediqueue_dump_$stamp.dump"
-    $cmd = "set -euo pipefail; rm -f '$containerDump'; export PGPASSWORD=`"`$POSTGRES_PASSWORD`"; pg_dump -U '$DatabaseUser' -d '$DatabaseName' -Fc -f '$containerDump'; test -s '$containerDump'; pg_restore -l '$containerDump' >/tmp/mediqueue_dump_$stamp.list"
 
-    Invoke-Checked "pg_dump custom format" { docker compose exec -T $PostgresService bash -lc $cmd }
-    Invoke-Checked "copy pg_dump to host" { docker compose cp "${PostgresService}:$containerDump" $localDump }
-    Invoke-Checked "cleanup container temp dump" { docker compose exec -T $PostgresService bash -lc "rm -f '$containerDump' /tmp/mediqueue_dump_$stamp.list" }
+    if ($BackupMode -eq "patroni") {
+        $patroniRunnerService = "$($cfg.PatroniDockerServicePrefix)-1"
+        $writerRecovery = docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T -e "PGPASSWORD=$($cfg.PatroniAdminPassword)" $patroniRunnerService `
+            psql -h patroni-postgres-lb -p 5432 -U $($cfg.PatroniAdminUser) -d $DatabaseName -At -v ON_ERROR_STOP=1 -c "SELECT pg_is_in_recovery();"
+        if ($LASTEXITCODE -ne 0) {
+            throw "No se pudo validar Patroni writer."
+        }
+        $writerRecovery = ([string]$writerRecovery).Trim()
+        Write-Log "PATRONI_WRITER_PG_IS_IN_RECOVERY=$writerRecovery"
+        if ($writerRecovery -ne "f") {
+            throw "Patroni writer apunta a una replica; se aborta pg_dump."
+        }
+
+        $cmd = "set -euo pipefail; rm -f '$containerDump'; export PGPASSWORD='$($cfg.PatroniAdminPassword)'; pg_dump -h patroni-postgres-lb -p 5432 -U '$($cfg.PatroniAdminUser)' -d '$DatabaseName' -Fc -f '$containerDump'; test -s '$containerDump'; pg_restore -l '$containerDump' >/tmp/mediqueue_dump_$stamp.list"
+        Invoke-Checked "patroni pg_dump custom format via writer" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T $patroniRunnerService bash -lc $cmd }
+        Invoke-Checked "copy patroni pg_dump to host" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml cp "${patroniRunnerService}:$containerDump" $localDump }
+        Invoke-Checked "cleanup patroni temp dump" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T $patroniRunnerService bash -lc "rm -f '$containerDump' /tmp/mediqueue_dump_$stamp.list" }
+    } elseif ($BackupMode -eq "single") {
+        Invoke-Checked "postgres readiness" { docker compose exec -T $PostgresService pg_isready -U $DatabaseUser -d $DatabaseName }
+        $cmd = "set -euo pipefail; rm -f '$containerDump'; export PGPASSWORD=`"`$POSTGRES_PASSWORD`"; pg_dump -U '$DatabaseUser' -d '$DatabaseName' -Fc -f '$containerDump'; test -s '$containerDump'; pg_restore -l '$containerDump' >/tmp/mediqueue_dump_$stamp.list"
+        Invoke-Checked "pg_dump custom format" { docker compose exec -T $PostgresService bash -lc $cmd }
+        Invoke-Checked "copy pg_dump to host" { docker compose cp "${PostgresService}:$containerDump" $localDump }
+        Invoke-Checked "cleanup container temp dump" { docker compose exec -T $PostgresService bash -lc "rm -f '$containerDump' /tmp/mediqueue_dump_$stamp.list" }
+    } else {
+        throw "BackupMode invalido: $BackupMode. Use single o patroni."
+    }
 
     if (-not (Test-Path -LiteralPath $localDump) -or (Get-Item -LiteralPath $localDump).Length -le 0) {
         throw "pg_dump no fue creado o esta vacio: $localDump"

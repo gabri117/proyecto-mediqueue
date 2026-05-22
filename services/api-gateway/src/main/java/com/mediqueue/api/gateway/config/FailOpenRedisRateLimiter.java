@@ -30,21 +30,28 @@ public class FailOpenRedisRateLimiter extends RedisRateLimiter {
 	private final ReactiveStringRedisTemplate redisTemplate;
 	private final RedisScript<List<Long>> script;
 	private final String redisHost;
+	private final boolean enabled;
 	private final AtomicLong redisUnavailableUntilEpochMillis = new AtomicLong();
 
 	public FailOpenRedisRateLimiter(
 			ReactiveStringRedisTemplate redisTemplate,
 			RedisScript<List<Long>> script,
 			ConfigurationService configurationService,
-			String redisHost) {
+			String redisHost,
+			boolean enabled) {
 		super(redisTemplate, script, configurationService);
 		this.redisTemplate = redisTemplate;
 		this.script = script;
 		this.redisHost = redisHost;
+		this.enabled = enabled;
 	}
 
 	@Override
 	public Mono<Response> isAllowed(String routeId, String id) {
+		if (!enabled) {
+			return Mono.just(new Response(true, Map.of()));
+		}
+
 		Config config;
 		try {
 			config = routeConfig(routeId);

@@ -23,7 +23,8 @@ public class PatientValidationService {
         this.directDbValidationEnabled = directDbValidationEnabled;
     }
 
-    @Cacheable(value = "patients", key = "#patientId", unless = "#result == false")
+    @Cacheable(value = "patients", key = "#patientId", unless = "#result == false",
+            condition = "!@loadTestDirectValidationService.isPreloadEnabled()")
     public boolean validatePatientExists(UUID patientId) {
         if (directDbValidationEnabled) {
             if (!directValidationService.activePatientExists(patientId)) {

@@ -1,0 +1,5 @@
+DatabaseTarget=patroni
+Since=20m
+Tail=600
+Compose=docker compose -f docker-compose.yml -f docker-compose.patroni.yml -f docker-compose.patroni-apps.yml
+SummaryFile=.\infra\load-tests\appointments\results\appointment-rpm-5000-patroni-clean-summary.json

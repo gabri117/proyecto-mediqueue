@@ -1,0 +1,70 @@
+services:
+  patient-service:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=patient,public
+      DB_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=patient,public
+      SPRING_DATASOURCE_USERNAME: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      DB_USER: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+    depends_on: !override
+      patroni-postgres-lb:
+        condition: service_healthy
+
+  schedule-service:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=schedule,public
+      SCHEDULE_DB_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=schedule,public
+      SPRING_DATASOURCE_USERNAME: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      DB_USER: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+    depends_on: !override
+      patroni-postgres-lb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  appointment-service:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=appointment,public
+      DB_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=appointment,public
+      SPRING_DATASOURCE_USERNAME: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      DB_USER: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+    depends_on: !override
+      patroni-postgres-lb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  payment-service:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=payment,public
+      DB_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=payment,public
+      SPRING_DATASOURCE_USERNAME: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      DB_USER: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+    depends_on: !override
+      patroni-postgres-lb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=notification,public
+      DB_URL: jdbc:postgresql://patroni-postgres-lb:5432/mediqueue?currentSchema=notification,public
+      SPRING_DATASOURCE_USERNAME: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      DB_USER: ${PATRONI_APP_DB_USERNAME:-mediqueue}
+      SPRING_DATASOURCE_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+      DB_PASSWORD: ${PATRONI_APP_DB_PASSWORD:-mediqueue}
+    depends_on: !override
+      patroni-postgres-lb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy

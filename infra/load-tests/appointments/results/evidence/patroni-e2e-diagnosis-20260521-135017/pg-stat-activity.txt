@@ -1,0 +1,11 @@
+  datname  |  usename   | state  | wait_event_type | wait_event | count 
+-----------+------------+--------+-----------------+------------+-------
+ mediqueue | mediqueue  | idle   | Client          | ClientRead |    34
+           |            |        |                 |            |     5
+ postgres  | postgres   |        |                 |            |     2
+           | replicator |        |                 |            |     2
+           | postgres   |        |                 |            |     1
+ mediqueue | postgres   |        |                 |            |     1
+ mediqueue | mediqueue  | active |                 |            |     1
+(7 rows)
+

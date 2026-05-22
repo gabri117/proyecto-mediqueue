@@ -55,8 +55,9 @@ public class FallbackController {
 		String correlationId = exchange.getRequest().getHeaders().getFirst(CorrelationIdGlobalFilter.CORRELATION_ID_HEADER);
 		String exceptionName = exception != null ? exception.getClass().getSimpleName() : "none";
 		String exceptionMessage = exception != null ? exception.getMessage() : "none";
+		String failureKind = classifyFailure(exception);
 
-		log.warn("gateway_fallback service={} routeId={} routeUri={} upstream={} originalRequestUrls={} correlationId={} status={} exception={} message={}",
+		log.warn("gateway_fallback service={} routeId={} routeUri={} upstream={} originalRequestUrls={} correlationId={} status={} failureKind={} exception={} message={}",
 				serviceName,
 				route != null ? route.getId() : "unknown",
 				route != null ? route.getUri() : "unknown",
@@ -64,10 +65,52 @@ public class FallbackController {
 				originalRequestUrls != null ? originalRequestUrls : "unknown",
 				correlationId,
 				HttpStatus.SERVICE_UNAVAILABLE.value(),
+				failureKind,
 				exceptionName,
 				exceptionMessage);
 
 		return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
 				.body(ErrorResponse.serviceUnavailable(serviceName + " is temporarily unavailable")));
+	}
+
+	private String classifyFailure(Throwable exception) {
+		if (exception == null) {
+			return "unknown";
+		}
+
+		String text = exceptionText(exception);
+		if (text.contains("bulkheadfullexception") || text.contains("bulkhead")) {
+			return "bulkhead_full";
+		}
+		if (text.contains("callnotpermittedexception")) {
+			return "circuit_open";
+		}
+		if (text.contains("timeoutexception") || text.contains("timeout")) {
+			return "timeout";
+		}
+		if (text.contains("circuitbreakerstatuscodeexception") && text.contains("500")) {
+			return "upstream_500";
+		}
+		if (text.contains("circuitbreakerstatuscodeexception") && text.contains("503")) {
+			return "upstream_503";
+		}
+		if (text.contains("connectexception") || text.contains("connection refused")) {
+			return "connect_error";
+		}
+		return "unknown";
+	}
+
+	private String exceptionText(Throwable exception) {
+		StringBuilder builder = new StringBuilder();
+		Throwable current = exception;
+		while (current != null) {
+			builder.append(current.getClass().getSimpleName()).append(':');
+			if (current.getMessage() != null) {
+				builder.append(current.getMessage());
+			}
+			builder.append('|');
+			current = current.getCause();
+		}
+		return builder.toString().toLowerCase();
 	}
 }

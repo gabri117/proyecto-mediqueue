@@ -194,7 +194,8 @@ It does **not** insert rows into `appointment.appointments`. k6 must still creat
   -TotalDentists 20 `
   -TotalSlots 50000 `
   -Amount 1500.00 `
-  -Mode sql
+  -Mode sql `
+  -DatabaseTarget single
 ```
 
 SQL mode uses the real schemas detected in the running stack:
@@ -204,6 +205,31 @@ SQL mode uses the real schemas detected in the running stack:
 - `schedule.dentist_slots`
 
 Use SQL mode only for load testing. It does not validate the patient/dentist/slot creation endpoints.
+
+For Patroni/PostgreSQL HA E2E runs, point SQL mode at the Patroni writer through HAProxy:
+
+```powershell
+.\infra\load-tests\appointments\tools\prepare-appointment-load-data.ps1 `
+  -BaseUrl http://localhost:8080 `
+  -TotalPatients 100 `
+  -TotalDentists 20 `
+  -TotalSlots 50000 `
+  -Amount 1500.00 `
+  -Mode sql `
+  -DatabaseTarget patroni
+```
+
+`-DatabaseTarget patroni` validates `pg_is_in_recovery()=false`, verifies required tables, inserts only base data, and generates the appointment JSON datasets. It does not insert appointments by SQL.
+
+Validate a generated dataset against Patroni with:
+
+```powershell
+.\infra\load-tests\appointments\tools\validate-appointment-dataset.ps1 `
+  -DataFile .\infra\load-tests\appointments\data\appointments-50000.json `
+  -ExpectedCount 50000 `
+  -Limit 20 `
+  -DatabaseTarget patroni
+```
 
 ### C. Dump/Restore
 
@@ -227,19 +253,43 @@ docker compose up -d --build
   -InputFile .\infra\load-tests\appointments\data\appointment-load-seed.dump
 ```
 
-To rerun k6 without rebuilding base data, clear only runtime data:
+To rerun k6 without rebuilding base data, clear only runtime data in dry-run mode first:
 
 ```powershell
 .\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1
 ```
 
+Execute the cleanup only after reviewing the counts and truncate plan:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 -ConfirmClean
+```
+
+For Patroni/PostgreSQL HA E2E runs, clean through the Patroni writer:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 `
+  -DatabaseTarget patroni
+```
+
+Execute Patroni cleanup only when you intentionally want to remove test patients, dentists, slots, appointments, payments, notifications, idempotency, holds, audit/runtime rows, and outbox rows:
+
+```powershell
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 `
+  -DatabaseTarget patroni `
+  -ConfirmClean
+```
+
 If async queues still contain messages from the prior run and you intentionally want a clean async baseline:
 
 ```powershell
-.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 -PurgeRabbitMqQueues
+.\infra\load-tests\appointments\tools\clean-appointment-runtime-data.ps1 `
+  -DatabaseTarget patroni `
+  -PurgeRabbitMqQueues `
+  -ConfirmClean
 ```
 
-Purging queues deletes pending async test messages. Do it only between load-test runs.
+Purging queues deletes pending async test messages. Do it only between load-test runs. Without `-ConfirmClean`, the script is dry-run and only prints the planned database cleanup and RabbitMQ queues.
 
 This creates:
 
@@ -454,6 +504,21 @@ mediqueue_appointment_create_stage_duration_seconds{stage="patient_validation|sl
 
 Use this to identify whether pressure moves into validation, database writes, or outbox persistence.
 
+Current stage names for the Patroni/E2E profile are:
+
+```text
+mediqueue_appointment_create_stage_duration_seconds{stage="patient_validation_ms|schedule_slot_validation_ms|idempotency_lookup_ms|slot_hold_or_lock_ms|appointment_save_ms|outbox_save_ms|total_create_appointment_ms"}
+```
+
+For a failed Patroni E2E run, collect diagnostics immediately after k6:
+
+```powershell
+.\infra\load-tests\appointments\tools\diagnose-patroni-e2e-post-run.ps1 `
+  -DatabaseTarget patroni `
+  -Since 20m `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-10000-summary.json
+```
+
 Creation-only switches:
 
 ```powershell
@@ -468,17 +533,21 @@ E2E async switches:
 
 ```powershell
 $env:LOADTEST_DIRECT_DB_VALIDATION_ENABLED="true"
+$env:LOADTEST_DIRECT_VALIDATION_PRELOAD_ENABLED="true"
 $env:LOADTEST_HOLD_EXPIRATION_ENABLED="false"
 $env:LOADTEST_OUTBOX_PUBLISHER_ENABLED="true"
-$env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="500"
-$env:APPOINTMENT_OUTBOX_BATCH_SIZE="100"
-$env:PAYMENT_RABBITMQ_PREFETCH="50"
+$env:APPOINTMENT_OUTBOX_PUBLISH_INTERVAL_MS="1000"
+$env:APPOINTMENT_OUTBOX_BATCH_SIZE="75"
+$env:APPOINTMENT_PAYMENT_EVENT_PREFETCH="1"
+$env:APPOINTMENT_PAYMENT_EVENT_CONCURRENCY="1"
+$env:APPOINTMENT_PAYMENT_EVENT_MAX_CONCURRENCY="1"
+$env:PAYMENT_RABBITMQ_PREFETCH="20"
 $env:PAYMENT_RABBITMQ_LISTENER_CONCURRENCY="4"
 $env:PAYMENT_RABBITMQ_LISTENER_MAX_CONCURRENCY="8"
-$env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="500"
-$env:PAYMENT_OUTBOX_BATCH_SIZE="100"
-$env:PAYMENT_SIM_MIN_DELAY_MS="0"
-$env:PAYMENT_SIM_MAX_DELAY_MS="50"
+$env:PAYMENT_OUTBOX_PUBLISH_INTERVAL_MS="1000"
+$env:PAYMENT_OUTBOX_BATCH_SIZE="75"
+$env:PAYMENT_SIM_MIN_DELAY_MS="25"
+$env:PAYMENT_SIM_MAX_DELAY_MS="100"
 $env:PAYMENT_SIM_APPROVAL_RATE="1.0"
 $env:NOTIFICATION_RABBITMQ_PREFETCH="50"
 $env:NOTIFICATION_RABBITMQ_LISTENER_CONCURRENCY="2"
@@ -810,7 +879,7 @@ Failure source guide:
 - Dataset: validation errors, `409`, duplicate slot reports, or validator `invalid_items > 0`.
 - Gateway LB: `appointments_503_html_haproxy > 0`, api-gateway-lb logs showing backends `DOWN`, or health returning HAProxy HTML.
 - api-gateway: `appointments_503_json_gateway > 0`, fallback logs with exception class/message.
-- appointment-service: gateway JSON 503 plus appointment-service ERROR/WARN/Hikari or high `mediqueue_appointment_create_stage_duration_seconds{stage="total"}`.
+- appointment-service: gateway JSON 503 plus appointment-service ERROR/WARN/Hikari or high `mediqueue_appointment_create_stage_duration_seconds{stage="total_create_appointment_ms"}`.
 - PostgreSQL: Hikari pending/timeout, `pg_stat_activity` active/wait spikes, locks, or connections near `max_connections`.
 - Docker Desktop/host: Docker API 500, connection refused to localhost:8080, CPU/RAM pinned in `docker stats`, or broad container restarts.
 
@@ -929,3 +998,51 @@ Review the generated SQL before running it. It deletes test appointments by `not
 - Reusing a consumed dataset produces `409`.
 - Payment and notification work is asynchronous after appointment creation.
 - PostgreSQL connection limits, RabbitMQ queue depth, Redis latency, CPU, memory, and disk I/O can all become bottlenecks.
+
+## Patroni E2E Stable Profile
+
+Use this profile when the target is E2E appointment creation through Patroni, RabbitMQ, payment and notification. It keeps the connection budget below Patroni `max_connections=300` while giving appointment-service enough pool capacity for 5k/min validation:
+
+```powershell
+.\infra\load-tests\appointments\tools\start-patroni-e2e-backend.ps1 `
+  -Build `
+  -ForceRecreate
+```
+
+The script applies `docker-compose.yml`, `docker-compose.patroni.yml`, `docker-compose.patroni-apps.yml` and `docker-compose.patroni-e2e.yml`, sets the stable E2E defaults, starts etcd/Patroni/RabbitMQ/Redis first, prepares application schemas, recreates the app/LB containers without deleting volumes, and waits for `http://localhost:8080/actuator/health`.
+
+Important defaults in `docker-compose.patroni-e2e.yml`:
+
+- `appointment-service`: Hikari `48`, Tomcat `144`, `APPOINTMENT_CREATE_MAX_CONCURRENT=72`.
+- `appointment-service`: `LOADTEST_DIRECT_VALIDATION_PRELOAD_ENABLED=true` preloads active patients and available slots once per replica, avoiding one PostgreSQL/Redis lookup per appointment while keeping the transactional hold/unique-index protection against double booking.
+- `appointment-service`: payment-event consumers limited to `1` per replica so async confirmations do not starve HTTP creation.
+- `payment-service`: Hikari `12`, RabbitMQ consumers `4-8`, payment simulation `25-100ms`.
+- `patient-service`, `schedule-service`, `notification-service`: Hikari `8`.
+- `api-gateway`: rate limit disabled for load tests, larger Netty client pool, diagnostic circuit breaker window.
+- HAProxy app load balancers suppress normal per-request access logs during load tests and keep error logs, reducing Docker Desktop stdout pressure.
+
+The appointment create transaction is intentionally short. Patient and slot validations run before the write transaction, while idempotency, hold, appointment, audit and outbox stay transactional.
+
+After any failed run, collect evidence with:
+
+```powershell
+.\infra\load-tests\appointments\tools\diagnose-patroni-e2e-post-run.ps1 `
+  -DatabaseTarget patroni `
+  -UseE2EProfile `
+  -Since 30m `
+  -SummaryFile .\infra\load-tests\appointments\results\appointment-rpm-5000-summary.json
+```
+
+Interpretation:
+
+- `api-gateway-fallback-summary.txt`: `failureKind=upstream_500` means appointment-service failed before the gateway fallback.
+- `appointment-actuator-metrics.txt`: `hikaricp.connections.pending` and `hikaricp.connections.timeout` should stay near zero after a clean run.
+- `appointment-stage-metrics.txt`: compare `schedule_slot_validation_ms` with `appointment_save_ms` and `outbox_save_ms`; slot validation should not dominate the whole request.
+- `runtime-counts.txt`: appointments, payments, outbox and notifications should move together in E2E approval runs.
+
+Duplicate slot safety check:
+
+```powershell
+$sql = "SELECT slot_id, COUNT(*) FROM appointment.appointments WHERE appointment_status IN ('PENDING_PAYMENT','CONFIRMED') GROUP BY slot_id HAVING COUNT(*) > 1;"
+$sql | docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T -e PGPASSWORD=mediqueue patroni-postgres-1 psql -h patroni-postgres-lb -p 5432 -U mediqueue -d mediqueue -v ON_ERROR_STOP=1
+```

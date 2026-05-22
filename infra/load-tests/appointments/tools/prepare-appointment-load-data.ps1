@@ -8,6 +8,8 @@ param(
     [string]$RunStamp,
     [ValidateSet("api", "sql")]
     [string]$Mode = "api",
+    [ValidateSet("single", "patroni")]
+    [string]$DatabaseTarget = "single",
     [datetime]$StartDate = [datetime]"2026-08-01",
     [int]$SlotMinutes = 30,
     [int]$SlotsPerDentistPerDay = 20,
@@ -171,7 +173,11 @@ function Assert-SafeSqlToken {
 function Invoke-PostgresSql {
     param([string]$Sql)
 
-    $output = $Sql | docker compose exec -T postgres psql -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q
+    if ($DatabaseTarget -eq "patroni") {
+        $output = $Sql | docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T -e PGPASSWORD=mediqueue patroni-postgres-1 psql -h patroni-postgres-lb -p 5432 -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q
+    } else {
+        $output = $Sql | docker compose exec -T postgres psql -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "psql fallo con exit code $LASTEXITCODE"
     }
@@ -181,11 +187,80 @@ function Invoke-PostgresSql {
 function Invoke-PostgresRows {
     param([string]$Sql)
 
-    $output = $Sql | docker compose exec -T postgres psql -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q -t -A -F "`t"
+    if ($DatabaseTarget -eq "patroni") {
+        $output = $Sql | docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T -e PGPASSWORD=mediqueue patroni-postgres-1 psql -h patroni-postgres-lb -p 5432 -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q -t -A -F "`t"
+    } else {
+        $output = $Sql | docker compose exec -T postgres psql -U mediqueue -d mediqueue -v ON_ERROR_STOP=1 -q -t -A -F "`t"
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "psql query fallo con exit code $LASTEXITCODE"
     }
     return @($output | Where-Object { $_ -and $_.Trim().Length -gt 0 })
+}
+
+function Assert-PatroniWriterReady {
+    if ($DatabaseTarget -ne "patroni") {
+        return
+    }
+
+    $recovery = @(Invoke-PostgresRows -Sql "select pg_is_in_recovery();")
+    if ($recovery.Count -lt 1) {
+        throw "No se pudo validar pg_is_in_recovery() contra Patroni writer."
+    }
+
+    $value = $recovery[0].Trim().ToLowerInvariant()
+    if ($value -ne "f" -and $value -ne "false") {
+        throw "Patroni writer no esta listo para escritura. pg_is_in_recovery()=$($recovery[0])"
+    }
+
+    Write-Host "PATRONI_WRITER_PG_IS_IN_RECOVERY=false"
+}
+
+function Assert-RequiredSqlTables {
+    if ($DatabaseTarget -ne "patroni") {
+        return
+    }
+
+    $requiredTables = @(
+        "patient.patients",
+        "schedule.dentists",
+        "schedule.dentist_slots",
+        "appointment.appointments"
+    )
+    $values = ($requiredTables | ForEach-Object { "('$_')" }) -join ","
+    $missing = @(Invoke-PostgresRows -Sql "select table_name from (values $values) as required(table_name) where to_regclass(required.table_name) is null order by table_name;")
+
+    if ($missing.Count -gt 0) {
+        throw "Faltan tablas: $($missing -join ', '). Ejecuta prepare-patroni-app-schemas.ps1 y levanta apps con una replica para Flyway."
+    }
+
+    Write-Host "PATRONI_REQUIRED_TABLES_OK=True"
+}
+
+function Write-PostLoadCounts {
+    $runStampLiteral = $RunStamp
+    $countRows = Invoke-PostgresRows -Sql @"
+select 'patient.patients' as table_name, count(*)::text as total_count, count(*) filter (where email like 'block2.patient.$runStampLiteral.%@mediqueue.test')::text as runstamp_count from patient.patients
+union all
+select 'schedule.dentists', count(*)::text, count(*) filter (where email like 'block2.dentist.$runStampLiteral.%@mediqueue.test')::text from schedule.dentists
+union all
+select 'schedule.dentist_slots', count(*)::text, count(*) filter (where d.email like 'block2.dentist.$runStampLiteral.%@mediqueue.test')::text
+from schedule.dentist_slots s
+join schedule.dentists d on d.dentist_id = s.dentist_id
+order by table_name;
+"@
+
+    Write-Host "POST_LOAD_COUNTS database_target=$DatabaseTarget"
+    foreach ($row in $countRows) {
+        $parts = $row -split "`t"
+        $expected = switch ($parts[0]) {
+            "patient.patients" { $TotalPatients }
+            "schedule.dentists" { $TotalDentists }
+            "schedule.dentist_slots" { $TotalSlots }
+            default { 0 }
+        }
+        Write-Host "$($parts[0]) total=$($parts[1]) runstamp=$($parts[2]) expected_runstamp=$expected"
+    }
 }
 
 function Convert-PatientRows {
@@ -242,6 +317,8 @@ function Normalize-TimeText {
 
 function New-SqlLoadData {
     Assert-SafeSqlToken -Value $RunStamp -Name "RunStamp"
+    Assert-PatroniWriterReady
+    Assert-RequiredSqlTables
 
     $startDateText = $StartDate.ToString("yyyy-MM-dd")
     $sql = @"
@@ -299,6 +376,7 @@ COMMIT;
 "@
 
     Invoke-PostgresSql -Sql $sql | Out-Null
+    Write-PostLoadCounts
 
     $patientsRows = Invoke-PostgresRows -Sql "select patient_id, email, document_number from patient.patients where email like 'block2.patient.$RunStamp.%@mediqueue.test' order by email;"
     $dentistRows = Invoke-PostgresRows -Sql "select dentist_id, email, license_number from schedule.dentists where email like 'block2.dentist.$RunStamp.%@mediqueue.test' order by email;"
@@ -385,6 +463,7 @@ function Export-LoadDataOutputs {
         totalSlots = $Slots.Count
         amount = [decimal]$Amount
         mode = $Mode
+        databaseTarget = $DatabaseTarget
     }
 
     Export-Json -Value $manifest -Path (Join-Path $OutputDir "load-data-manifest-$RunStamp.json")
@@ -431,6 +510,7 @@ function Export-LoadDataOutputs {
 if ($Mode -eq "sql") {
     Write-Host "Preparing appointment load data via SQL"
     Write-Host "RunStamp=$RunStamp"
+    Write-Host "DatabaseTarget=$DatabaseTarget"
     Write-Host "SQL mode inserts only base data: patients, dentists, and available slots. It never inserts appointments."
 
     $sqlData = New-SqlLoadData

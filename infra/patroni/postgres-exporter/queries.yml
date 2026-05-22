@@ -1,0 +1,38 @@
+pg_patroni_role:
+  query: |
+    SELECT
+      CASE WHEN pg_is_in_recovery() THEN 0 ELSE 1 END AS is_primary,
+      CASE WHEN pg_is_in_recovery() THEN 1 ELSE 0 END AS is_replica
+  metrics:
+    - is_primary:
+        usage: "GAUGE"
+        description: "1 when this PostgreSQL node is writable primary, 0 otherwise."
+    - is_replica:
+        usage: "GAUGE"
+        description: "1 when this PostgreSQL node is in recovery as a replica, 0 otherwise."
+
+pg_patroni_replay_lag:
+  query: |
+    SELECT
+      CASE
+        WHEN pg_is_in_recovery()
+        THEN COALESCE(EXTRACT(EPOCH FROM now() - pg_last_xact_replay_timestamp()), 0)
+        ELSE 0
+      END AS seconds
+  metrics:
+    - seconds:
+        usage: "GAUGE"
+        description: "Approximate replay lag in seconds for replicas. Primary reports 0."
+
+pg_patroni_replay_lag_lsn:
+  query: |
+    SELECT
+      CASE
+        WHEN pg_is_in_recovery()
+        THEN COALESCE(pg_wal_lsn_diff(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()), 0)
+        ELSE 0
+      END AS bytes
+  metrics:
+    - bytes:
+        usage: "GAUGE"
+        description: "Replay lag in bytes between received and replayed WAL on replicas. Primary reports 0."

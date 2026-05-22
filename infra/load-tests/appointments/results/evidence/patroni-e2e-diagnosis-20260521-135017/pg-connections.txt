@@ -1,0 +1,10 @@
+ max_connections 
+-----------------
+ 300
+(1 row)
+
+ total_connections | active_connections | waiting_connections 
+-------------------+--------------------+---------------------
+                47 |                  1 |                  34
+(1 row)
+
