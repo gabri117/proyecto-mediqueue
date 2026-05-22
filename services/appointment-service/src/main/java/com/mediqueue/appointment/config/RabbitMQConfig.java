@@ -37,25 +37,6 @@ public class RabbitMQConfig {
     }
 
     // =========================================================================
-    // Queues — Appointment events (published by this service)
-    // =========================================================================
-
-    @Bean
-    public Queue appointmentConfirmedQueue() {
-        return QueueBuilder.durable("appointment.confirmed").build();
-    }
-
-    @Bean
-    public Queue appointmentCancelledQueue() {
-        return QueueBuilder.durable("appointment.cancelled").build();
-    }
-
-    @Bean
-    public Queue appointmentExpiredQueue() {
-        return QueueBuilder.durable("appointment.expired").build();
-    }
-
-    // =========================================================================
     // Queues — Payment events (consumed by this service)
     // =========================================================================
 
@@ -67,25 +48,6 @@ public class RabbitMQConfig {
     @Bean
     public Queue paymentFailedQueue() {
         return QueueBuilder.durable("payment.failed").build();
-    }
-
-    // =========================================================================
-    // Bindings — appointments-exchange
-    // =========================================================================
-
-    @Bean
-    public Binding bindingConfirmed(Queue appointmentConfirmedQueue, DirectExchange appointmentsExchange) {
-        return BindingBuilder.bind(appointmentConfirmedQueue).to(appointmentsExchange).with("appointment.confirmed");
-    }
-
-    @Bean
-    public Binding bindingCancelled(Queue appointmentCancelledQueue, DirectExchange appointmentsExchange) {
-        return BindingBuilder.bind(appointmentCancelledQueue).to(appointmentsExchange).with("appointment.cancelled");
-    }
-
-    @Bean
-    public Binding bindingExpired(Queue appointmentExpiredQueue, DirectExchange appointmentsExchange) {
-        return BindingBuilder.bind(appointmentExpiredQueue).to(appointmentsExchange).with("appointment.expired");
     }
 
     // =========================================================================

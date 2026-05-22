@@ -1,0 +1,16 @@
+ appointment_status | count 
+--------------------+-------
+ CANCELLED          |   988
+ PENDING_PAYMENT    |    12
+(2 rows)
+
+ slot_id | count 
+---------+-------
+(0 rows)
+
+ publication_status | count 
+--------------------+-------
+ PENDING            |    12
+ PUBLISHED          |  1988
+(2 rows)
+
