@@ -32,16 +32,18 @@ function Invoke-Step {
     param(
         [string]$Name,
         [string]$ScriptPath,
+        [string[]]$Arguments = @(),
         [switch]$AllowWarningExit
     )
-    Write-PipelineLog "START step=$Name script=$ScriptPath"
-    & $ScriptPath 2>&1 | Tee-Object -FilePath $pipelineLog -Append
+    Write-PipelineLog "START step=$Name script=$ScriptPath args=$($Arguments -join ' ')"
+    $powerShellArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $ScriptPath) + $Arguments
+    & powershell @powerShellArgs 2>&1 | Tee-Object -FilePath $pipelineLog -Append | ForEach-Object { Write-Host $_ }
     $code = $LASTEXITCODE
     Write-PipelineLog "EXIT step=$Name code=$code"
     if ($code -ne 0 -and -not $AllowWarningExit) {
         throw "$Name fallo con exit code $code"
     }
-    return $code
+    return [int]$code
 }
 
 try {
@@ -63,18 +65,23 @@ try {
         $status.SYNC_STATUS = "OK"
     }
 
-    Invoke-Step -Name "verify" -ScriptPath (Join-Path $PSScriptRoot "verify-backups.ps1") | Out-Null
+    $verifyScript = Join-Path $PSScriptRoot "verify-backups.ps1"
+    if ($SkipBaseBackup) {
+        Invoke-Step -Name "verify" -ScriptPath $verifyScript -Arguments @("-SkipBaseCheck") | Out-Null
+    } else {
+        Invoke-Step -Name "verify" -ScriptPath $verifyScript | Out-Null
+    }
     $status.VERIFY_STATUS = "OK"
     $status.PIPELINE_STATUS = "OK"
 
-    foreach ($key in $status.Keys) { Write-PipelineLog "$key=$($status[$key])" }
+    foreach ($key in @($status.Keys)) { Write-PipelineLog "$key=$($status[$key])" }
     exit 0
 } catch {
     Write-PipelineLog "ERROR $($_.Exception.Message)"
-    foreach ($key in $status.Keys) {
+    foreach ($key in @($status.Keys)) {
         if ($status[$key] -eq "PENDING") { $status[$key] = "NOT_RUN" }
     }
     $status.PIPELINE_STATUS = "ERROR"
-    foreach ($key in $status.Keys) { Write-PipelineLog "$key=$($status[$key])" }
+    foreach ($key in @($status.Keys)) { Write-PipelineLog "$key=$($status[$key])" }
     exit 1
 }

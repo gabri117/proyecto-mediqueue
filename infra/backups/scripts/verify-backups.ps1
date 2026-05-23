@@ -3,7 +3,8 @@ param(
     [string]$GoogleDriveBackupPath,
     [int]$MaxBaseAgeHours = 30,
     [int]$MaxDumpAgeHours = 30,
-    [int]$MaxWalAgeMinutes = 10
+    [int]$MaxWalAgeMinutes = 10,
+    [switch]$SkipBaseCheck
 )
 
 $ErrorActionPreference = "Stop"
@@ -62,25 +63,29 @@ try {
         $failures.Add("BackupMode invalido: $BackupMode")
     }
 
-    $base = Get-LatestDirectory -Path (Join-Path $BackupRoot "local") -Filter "mediqueue_base_*"
-    $baseTar = if ($null -ne $base) { Join-Path $base.FullName "base.tar.gz" } else { $null }
-    $walTar = if ($null -ne $base) { Join-Path $base.FullName "pg_wal.tar.gz" } else { $null }
-    $manifest = if ($null -ne $base) { Join-Path $base.FullName "backup_manifest" } else { $null }
-    $shaFile = if ($null -ne $base) { Join-Path $base.FullName "SHA256SUMS" } else { $null }
-    $markerFile = if ($null -ne $base) { Join-Path $base.FullName "BACKUP_BASE_OK.txt" } else { $null }
-    if ($null -eq $base -or
-        -not (Test-Path -LiteralPath $baseTar) -or
-        -not (Test-Path -LiteralPath $walTar) -or
-        -not (Test-Path -LiteralPath $manifest) -or
-        -not (Test-Path -LiteralPath $shaFile) -or
-        -not (Test-Path -LiteralPath $markerFile) -or
-        (Get-Item -LiteralPath $baseTar).Length -le 0 -or
-        (Get-Item -LiteralPath $walTar).Length -le 0) {
-        $failures.Add("No existe backup base valido.")
-    } elseif ($base.LastWriteTime -lt (Get-Date).AddHours(-$MaxBaseAgeHours)) {
-        $failures.Add("Backup base demasiado antiguo: $($base.FullName)")
+    if ($SkipBaseCheck) {
+        Write-Log "BASE_SKIPPED reason=SkipBaseCheck"
     } else {
-        Write-Log "BASE_OK dir=$($base.FullName) baseTarBytes=$((Get-Item -LiteralPath $baseTar).Length) pgWalTarBytes=$((Get-Item -LiteralPath $walTar).Length)"
+        $base = Get-LatestDirectory -Path (Join-Path $BackupRoot "local") -Filter "mediqueue_base_*"
+        $baseTar = if ($null -ne $base) { Join-Path $base.FullName "base.tar.gz" } else { $null }
+        $walTar = if ($null -ne $base) { Join-Path $base.FullName "pg_wal.tar.gz" } else { $null }
+        $manifest = if ($null -ne $base) { Join-Path $base.FullName "backup_manifest" } else { $null }
+        $shaFile = if ($null -ne $base) { Join-Path $base.FullName "SHA256SUMS" } else { $null }
+        $markerFile = if ($null -ne $base) { Join-Path $base.FullName "BACKUP_BASE_OK.txt" } else { $null }
+        if ($null -eq $base -or
+            -not (Test-Path -LiteralPath $baseTar) -or
+            -not (Test-Path -LiteralPath $walTar) -or
+            -not (Test-Path -LiteralPath $manifest) -or
+            -not (Test-Path -LiteralPath $shaFile) -or
+            -not (Test-Path -LiteralPath $markerFile) -or
+            (Get-Item -LiteralPath $baseTar).Length -le 0 -or
+            (Get-Item -LiteralPath $walTar).Length -le 0) {
+            $failures.Add("No existe backup base valido.")
+        } elseif ($base.LastWriteTime -lt (Get-Date).AddHours(-$MaxBaseAgeHours)) {
+            $failures.Add("Backup base demasiado antiguo: $($base.FullName)")
+        } else {
+            Write-Log "BASE_OK dir=$($base.FullName) baseTarBytes=$((Get-Item -LiteralPath $baseTar).Length) pgWalTarBytes=$((Get-Item -LiteralPath $walTar).Length)"
+        }
     }
 
     $dump = Get-LatestFile -Path (Join-Path $BackupRoot "dumps") -Filter "mediqueue_dump_*.dump"

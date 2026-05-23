@@ -47,46 +47,8 @@ function Invoke-Checked {
     }
 }
 
-function Get-PatroniNodes {
-    $definitions = @(
-        @{ Service = "$($cfg.PatroniDockerServicePrefix)-1"; Port = 18008 },
-        @{ Service = "$($cfg.PatroniDockerServicePrefix)-2"; Port = 18009 },
-        @{ Service = "$($cfg.PatroniDockerServicePrefix)-3"; Port = 18010 }
-    )
-
-    $nodes = @()
-    foreach ($definition in $definitions) {
-        try {
-            $status = Invoke-RestMethod -Uri "http://127.0.0.1:$($definition.Port)/patroni" -TimeoutSec 3
-            $name = if ($status.name) { $status.name } else { $definition.Service }
-            $nodes += [pscustomobject]@{
-                Service = $definition.Service
-                Name = $name
-                Port = $definition.Port
-                Role = $status.role
-                State = $status.state
-                Timeline = $status.timeline
-                Healthy = ($status.state -eq "running" -and $status.role -in @("master", "primary", "replica", "standby_leader"))
-            }
-        }
-        catch {
-            $nodes += [pscustomobject]@{
-                Service = $definition.Service
-                Name = $definition.Service
-                Port = $definition.Port
-                Role = "unreachable"
-                State = "unreachable"
-                Timeline = ""
-                Healthy = $false
-            }
-        }
-    }
-
-    return $nodes
-}
-
 function Select-PatroniBackupNode {
-    $nodes = Get-PatroniNodes
+    $nodes = Get-MediQueuePatroniNodes -Config $cfg
     Write-Log "PATRONI_NODES $($nodes | ConvertTo-Json -Compress)"
 
     if ($cfg.PatroniBackupNode) {
@@ -134,7 +96,7 @@ try {
         Write-Log "PATRONI_BASE_BACKUP_SOURCE scope=$($cfg.PatroniScope) node=$($patroniNode.Name) service=$($patroniNode.Service) role=$($patroniNode.Role) timeline=$($patroniNode.Timeline)"
         $cmd = "set -euo pipefail; rm -rf '$containerDir'; mkdir -p '$containerDir'; export PGPASSWORD='$($cfg.PatroniReplicationPassword)'; pg_basebackup -h 127.0.0.1 -p 5432 -U '$($cfg.PatroniReplicationUser)' -D '$containerDir' -Ft -z -X stream -c fast --manifest-checksums=SHA256; test -s '$containerDir/base.tar.gz'; test -s '$containerDir/pg_wal.tar.gz'; test -s '$containerDir/backup_manifest'; sha256sum '$containerDir'/base.tar.gz '$containerDir'/pg_wal.tar.gz > '$containerDir/SHA256SUMS'"
         Invoke-Checked "patroni pg_basebackup physical base backup" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T $($patroniNode.Service) bash -lc $cmd }
-        Invoke-Checked "copy patroni base backup to host" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml cp "$($patroniNode.Service):$containerDir" $localBackupDir }
+        Invoke-Checked "copy patroni base backup to host" { Copy-MediQueueBackupFromContainer -BackupMode $BackupMode -Service $($patroniNode.Service) -ContainerPath $containerDir -HostPath $localBackupDir }
         Invoke-Checked "cleanup patroni temp base backup" { docker compose -f docker-compose.yml -f docker-compose.patroni.yml exec -T $($patroniNode.Service) bash -lc "rm -rf '$containerDir'" }
     } elseif ($BackupMode -eq "single") {
         $cmd = "set -euo pipefail; rm -rf '$containerDir'; mkdir -p '$containerDir'; export PGPASSWORD=`"`$POSTGRES_PASSWORD`"; pg_basebackup -U '$DatabaseUser' -D '$containerDir' -Ft -z -X stream -c fast --manifest-checksums=SHA256; test -s '$containerDir/base.tar.gz'; test -s '$containerDir/pg_wal.tar.gz'; test -s '$containerDir/backup_manifest'; sha256sum '$containerDir'/base.tar.gz '$containerDir'/pg_wal.tar.gz > '$containerDir/SHA256SUMS'"
