@@ -81,3 +81,140 @@ function Get-DirectoryStats {
     if ($null -eq $bytes) { $bytes = 0 }
     return [ordered]@{ Count = @($files).Count; Bytes = [int64]$bytes }
 }
+
+function Get-MediQueueBackupComposeArgs {
+    param([Parameter(Mandatory = $true)][string]$BackupMode)
+
+    if ($BackupMode -eq "patroni") {
+        return @("-f", "docker-compose.yml", "-f", "docker-compose.patroni.yml")
+    }
+
+    return @()
+}
+
+function Invoke-MediQueueBackupDockerCompose {
+    param(
+        [Parameter(Mandatory = $true)][string]$BackupMode,
+        [Parameter(Mandatory = $true)][string[]]$CommandArgs
+    )
+
+    $composeArgs = Get-MediQueueBackupComposeArgs -BackupMode $BackupMode
+    docker compose @composeArgs @CommandArgs
+}
+
+function Get-MediQueuePatroniNodeDefinitions {
+    param([Parameter(Mandatory = $true)]$Config)
+
+    return @(
+        @{ Service = "$($Config.PatroniDockerServicePrefix)-1"; Port = 18008 },
+        @{ Service = "$($Config.PatroniDockerServicePrefix)-2"; Port = 18009 },
+        @{ Service = "$($Config.PatroniDockerServicePrefix)-3"; Port = 18010 }
+    )
+}
+
+function Get-MediQueuePatroniNodes {
+    param([Parameter(Mandatory = $true)]$Config)
+
+    $nodes = @()
+    foreach ($definition in (Get-MediQueuePatroniNodeDefinitions -Config $Config)) {
+        try {
+            $status = Invoke-RestMethod -Uri "http://127.0.0.1:$($definition.Port)/patroni" -TimeoutSec 3
+            $nodes += [pscustomobject]@{
+                Service = $definition.Service
+                Name = if ($status.name) { $status.name } else { $definition.Service }
+                Port = $definition.Port
+                Role = $status.role
+                State = $status.state
+                Timeline = $status.timeline
+                Healthy = ($status.state -eq "running" -and $status.role -in @("master", "primary", "replica", "standby_leader"))
+            }
+        }
+        catch {
+            $nodes += [pscustomobject]@{
+                Service = $definition.Service
+                Name = $definition.Service
+                Port = $definition.Port
+                Role = "unreachable"
+                State = "unreachable"
+                Timeline = ""
+                Healthy = $false
+            }
+        }
+    }
+
+    return $nodes
+}
+
+function Select-MediQueuePatroniRunnerService {
+    param([Parameter(Mandatory = $true)]$Config)
+
+    $nodes = Get-MediQueuePatroniNodes -Config $Config
+    $runner = $nodes |
+        Where-Object { $_.Healthy -and $_.Role -in @("master", "primary", "replica", "standby_leader") } |
+        Sort-Object @{ Expression = { if ($_.Role -in @("replica", "standby_leader")) { 0 } else { 1 } } }, Service |
+        Select-Object -First 1
+
+    if (-not $runner) {
+        throw "No hay nodos Patroni saludables para ejecutar herramientas PostgreSQL. Estado: $($nodes | ConvertTo-Json -Compress)"
+    }
+
+    return $runner.Service
+}
+
+function Select-MediQueuePatroniLeaderService {
+    param([Parameter(Mandatory = $true)]$Config)
+
+    $nodes = Get-MediQueuePatroniNodes -Config $Config
+    $leader = $nodes |
+        Where-Object { $_.Healthy -and $_.Role -in @("master", "primary") } |
+        Select-Object -First 1
+
+    if (-not $leader) {
+        throw "No se encontro lider Patroni. Estado: $($nodes | ConvertTo-Json -Compress)"
+    }
+
+    return $leader.Service
+}
+
+function Get-MediQueueBackupContainerId {
+    param(
+        [Parameter(Mandatory = $true)][string]$BackupMode,
+        [Parameter(Mandatory = $true)][string]$Service
+    )
+
+    $raw = Invoke-MediQueueBackupDockerCompose -BackupMode $BackupMode -CommandArgs @("ps", "-q", $Service)
+    if ($LASTEXITCODE -ne 0) {
+        throw "No se pudo resolver container id para service=$Service."
+    }
+
+    $containerId = ([string]$raw -split "\r?\n" | Where-Object { $_.Trim() } | Select-Object -First 1).Trim()
+    if (-not $containerId) {
+        throw "No hay contenedor activo para service=$Service."
+    }
+
+    return $containerId
+}
+
+function Copy-MediQueueBackupFromContainer {
+    param(
+        [Parameter(Mandatory = $true)][string]$BackupMode,
+        [Parameter(Mandatory = $true)][string]$Service,
+        [Parameter(Mandatory = $true)][string]$ContainerPath,
+        [Parameter(Mandatory = $true)][string]$HostPath
+    )
+
+    $containerId = Get-MediQueueBackupContainerId -BackupMode $BackupMode -Service $Service
+    docker cp "${containerId}:$ContainerPath" $HostPath
+}
+
+function Copy-MediQueueBackupToContainer {
+    param(
+        [Parameter(Mandatory = $true)][string]$BackupMode,
+        [Parameter(Mandatory = $true)][string]$Service,
+        [Parameter(Mandatory = $true)][string]$HostPath,
+        [Parameter(Mandatory = $true)][string]$ContainerPath
+    )
+
+    $containerId = Get-MediQueueBackupContainerId -BackupMode $BackupMode -Service $Service
+    docker cp $HostPath "${containerId}:$ContainerPath"
+}

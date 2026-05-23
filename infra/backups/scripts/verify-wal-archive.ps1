@@ -35,45 +35,24 @@ function Write-Log {
 function Invoke-Checked {
     param([string]$Label, [scriptblock]$Block)
     Write-Log "START $Label"
-    & $Block 2>&1 | Tee-Object -FilePath $logFile -Append
-    $code = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $Block 2>&1 | Tee-Object -FilePath $logFile -Append
+        $code = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     Write-Log "EXIT $Label code=$code"
     if ($null -ne $code -and $code -ne 0) {
         throw "$Label fallo con exit code $code"
     }
 }
 
-function Get-ComposeArgs {
-    if ($BackupMode -eq "patroni") {
-        return @("-f", "docker-compose.yml", "-f", "docker-compose.patroni.yml")
-    }
-    return @()
-}
-
-function Get-PatroniLeaderService {
-    $definitions = @(
-        @{ Service = "$($cfg.PatroniDockerServicePrefix)-1"; Port = 18008 },
-        @{ Service = "$($cfg.PatroniDockerServicePrefix)-2"; Port = 18009 },
-        @{ Service = "$($cfg.PatroniDockerServicePrefix)-3"; Port = 18010 }
-    )
-    foreach ($definition in $definitions) {
-        try {
-            $status = Invoke-RestMethod -Uri "http://127.0.0.1:$($definition.Port)/patroni" -TimeoutSec 3
-            if ($status.role -in @("master", "primary")) {
-                return $definition.Service
-            }
-        }
-        catch {
-            continue
-        }
-    }
-    throw "No se encontro lider Patroni para verificar WAL."
-}
-
 function Invoke-DockerCompose {
     param([string[]]$CommandArgs)
-    $composeArgs = Get-ComposeArgs
-    docker compose @composeArgs @CommandArgs
+    Invoke-MediQueueBackupDockerCompose -BackupMode $BackupMode -CommandArgs $CommandArgs
 }
 
 function Invoke-PsqlScalar {
@@ -137,7 +116,7 @@ function Test-RecentWal {
 try {
     Write-Log "BACKUP_MODE=$BackupMode"
     if ($BackupMode -eq "patroni") {
-        $PostgresService = Get-PatroniLeaderService
+        $PostgresService = Select-MediQueuePatroniLeaderService -Config $cfg
         Write-Log "PATRONI_WAL_LEADER_SERVICE=$PostgresService archive_dir=$ContainerWalArchiveDir"
     } elseif ($BackupMode -ne "single") {
         throw "BackupMode invalido: $BackupMode. Use single o patroni."
