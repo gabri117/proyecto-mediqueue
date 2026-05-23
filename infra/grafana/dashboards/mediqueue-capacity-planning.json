@@ -54,7 +54,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"patient-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"patient-service\"}",
           "legendFormat": "Activas",
           "refId": "A"
         }
@@ -97,7 +97,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"appointment-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"appointment-service\"}",
           "legendFormat": "Activas",
           "refId": "A"
         }
@@ -140,7 +140,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"schedule-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"schedule-service\"}",
           "legendFormat": "Activas",
           "refId": "A"
         }
@@ -183,7 +183,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"payment-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"payment-service\"}",
           "legendFormat": "Activas",
           "refId": "A"
         }
@@ -223,19 +223,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_pending{instance=~\"patient-service.*\"}",
+          "expr": "hikaricp_connections_pending{job=\"patient-service\"}",
           "legendFormat": "patient",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_pending{instance=~\"appointment-service.*\"}",
+          "expr": "hikaricp_connections_pending{job=\"appointment-service\"}",
           "legendFormat": "appointment",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_pending{instance=~\"schedule-service.*\"}",
+          "expr": "hikaricp_connections_pending{job=\"schedule-service\"}",
           "legendFormat": "schedule",
           "refId": "C"
         }
@@ -275,19 +275,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_timeout_total{instance=~\"patient-service.*\"}",
+          "expr": "hikaricp_connections_timeout_total{job=\"patient-service\"}",
           "legendFormat": "patient",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_timeout_total{instance=~\"appointment-service.*\"}",
+          "expr": "hikaricp_connections_timeout_total{job=\"appointment-service\"}",
           "legendFormat": "appointment",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_timeout_total{instance=~\"schedule-service.*\"}",
+          "expr": "hikaricp_connections_timeout_total{job=\"schedule-service\"}",
           "legendFormat": "schedule",
           "refId": "C"
         }
@@ -331,25 +331,25 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * hikaricp_connections_active{instance=~\"patient-service.*\"} / hikaricp_connections_max{instance=~\"patient-service.*\"}",
+          "expr": "100 * hikaricp_connections_active{job=\"patient-service\"} / hikaricp_connections_max{job=\"patient-service\"}",
           "legendFormat": "patient-service",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * hikaricp_connections_active{instance=~\"appointment-service.*\"} / hikaricp_connections_max{instance=~\"appointment-service.*\"}",
+          "expr": "100 * hikaricp_connections_active{job=\"appointment-service\"} / hikaricp_connections_max{job=\"appointment-service\"}",
           "legendFormat": "appointment-service",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * hikaricp_connections_active{instance=~\"schedule-service.*\"} / hikaricp_connections_max{instance=~\"schedule-service.*\"}",
+          "expr": "100 * hikaricp_connections_active{job=\"schedule-service\"} / hikaricp_connections_max{job=\"schedule-service\"}",
           "legendFormat": "schedule-service",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * hikaricp_connections_active{instance=~\"payment-service.*\"} / hikaricp_connections_max{instance=~\"payment-service.*\"}",
+          "expr": "100 * hikaricp_connections_active{job=\"payment-service\"} / hikaricp_connections_max{job=\"payment-service\"}",
           "legendFormat": "payment-service",
           "refId": "D"
         }
@@ -387,31 +387,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"patient-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"patient-service\"}",
           "legendFormat": "patient — activas",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_idle{instance=~\"patient-service.*\"}",
+          "expr": "hikaricp_connections_idle{job=\"patient-service\"}",
           "legendFormat": "patient — idle",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"appointment-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"appointment-service\"}",
           "legendFormat": "appointment — activas",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"schedule-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"schedule-service\"}",
           "legendFormat": "schedule — activas",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "hikaricp_connections_active{instance=~\"payment-service.*\"}",
+          "expr": "hikaricp_connections_active{job=\"payment-service\"}",
           "legendFormat": "payment — activas",
           "refId": "E"
         }
@@ -460,7 +460,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_memory_used_bytes{area=\"heap\", instance=~\"patient-service.*\"}",
+          "expr": "jvm_memory_used_bytes{area=\"heap\", job=\"patient-service\"}",
           "legendFormat": "Heap",
           "refId": "A"
         }
@@ -501,7 +501,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_memory_used_bytes{area=\"heap\", instance=~\"appointment-service.*\"}",
+          "expr": "jvm_memory_used_bytes{area=\"heap\", job=\"appointment-service\"}",
           "legendFormat": "Heap",
           "refId": "A"
         }
@@ -542,7 +542,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_memory_used_bytes{area=\"heap\", instance=~\"schedule-service.*\"}",
+          "expr": "jvm_memory_used_bytes{area=\"heap\", job=\"schedule-service\"}",
           "legendFormat": "Heap",
           "refId": "A"
         }
@@ -583,7 +583,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_memory_used_bytes{area=\"heap\", instance=~\"payment-service.*\"}",
+          "expr": "jvm_memory_used_bytes{area=\"heap\", job=\"payment-service\"}",
           "legendFormat": "Heap",
           "refId": "A"
         }
@@ -624,7 +624,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_memory_used_bytes{area=\"heap\", instance=~\"notification-service.*\"}",
+          "expr": "jvm_memory_used_bytes{area=\"heap\", job=\"notification-service\"}",
           "legendFormat": "Heap",
           "refId": "A"
         }
@@ -667,25 +667,25 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"patient-service.*\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", instance=~\"patient-service.*\"})",
+          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"patient-service\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", job=\"patient-service\"})",
           "legendFormat": "patient",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"appointment-service.*\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", instance=~\"appointment-service.*\"})",
+          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"appointment-service\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", job=\"appointment-service\"})",
           "legendFormat": "appointment",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"schedule-service.*\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", instance=~\"schedule-service.*\"})",
+          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"schedule-service\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", job=\"schedule-service\"})",
           "legendFormat": "schedule",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"payment-service.*\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", instance=~\"payment-service.*\"})",
+          "expr": "100 * sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"payment-service\"}) / sum by(instance) (jvm_memory_max_bytes{area=\"heap\", job=\"payment-service\"})",
           "legendFormat": "payment",
           "refId": "D"
         }
@@ -723,31 +723,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"patient-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"patient-service\"})",
           "legendFormat": "patient — usado",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"appointment-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"appointment-service\"})",
           "legendFormat": "appointment — usado",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"schedule-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"schedule-service\"})",
           "legendFormat": "schedule — usado",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"payment-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"payment-service\"})",
           "legendFormat": "payment — usado",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", instance=~\"notification-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"heap\", job=\"notification-service\"})",
           "legendFormat": "notification — usado",
           "refId": "E"
         }
@@ -785,31 +785,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", instance=~\"patient-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", job=\"patient-service\"})",
           "legendFormat": "patient",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", instance=~\"appointment-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", job=\"appointment-service\"})",
           "legendFormat": "appointment",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", instance=~\"schedule-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", job=\"schedule-service\"})",
           "legendFormat": "schedule",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", instance=~\"payment-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", job=\"payment-service\"})",
           "legendFormat": "payment",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", instance=~\"notification-service.*\"})",
+          "expr": "sum by(instance) (jvm_memory_used_bytes{area=\"nonheap\", job=\"notification-service\"})",
           "legendFormat": "notification",
           "refId": "E"
         }
@@ -855,31 +855,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{instance=~\"patient-service.*\"})",
+          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{job=\"patient-service\"})",
           "legendFormat": "patient",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{instance=~\"appointment-service.*\"})",
+          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{job=\"appointment-service\"})",
           "legendFormat": "appointment",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{instance=~\"schedule-service.*\"})",
+          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{job=\"schedule-service\"})",
           "legendFormat": "schedule",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{instance=~\"payment-service.*\"})",
+          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{job=\"payment-service\"})",
           "legendFormat": "payment",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{instance=~\"notification-service.*\"})",
+          "expr": "sum by(instance) (jvm_gc_pause_seconds_sum{job=\"notification-service\"})",
           "legendFormat": "notification",
           "refId": "E"
         }
@@ -969,31 +969,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_live_threads{instance=~\"patient-service.*\"}",
+          "expr": "jvm_threads_live_threads{job=\"patient-service\"}",
           "legendFormat": "patient — vivos",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_live_threads{instance=~\"appointment-service.*\"}",
+          "expr": "jvm_threads_live_threads{job=\"appointment-service\"}",
           "legendFormat": "appointment — vivos",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_live_threads{instance=~\"schedule-service.*\"}",
+          "expr": "jvm_threads_live_threads{job=\"schedule-service\"}",
           "legendFormat": "schedule — vivos",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_live_threads{instance=~\"payment-service.*\"}",
+          "expr": "jvm_threads_live_threads{job=\"payment-service\"}",
           "legendFormat": "payment — vivos",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_live_threads{instance=~\"notification-service.*\"}",
+          "expr": "jvm_threads_live_threads{job=\"notification-service\"}",
           "legendFormat": "notification — vivos",
           "refId": "E"
         }
@@ -1035,31 +1035,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_states_threads{state=\"blocked\", instance=~\"patient-service.*\"}",
+          "expr": "jvm_threads_states_threads{state=\"blocked\", job=\"patient-service\"}",
           "legendFormat": "patient-service",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_states_threads{state=\"blocked\", instance=~\"appointment-service.*\"}",
+          "expr": "jvm_threads_states_threads{state=\"blocked\", job=\"appointment-service\"}",
           "legendFormat": "appointment-service",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_states_threads{state=\"blocked\", instance=~\"schedule-service.*\"}",
+          "expr": "jvm_threads_states_threads{state=\"blocked\", job=\"schedule-service\"}",
           "legendFormat": "schedule-service",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_states_threads{state=\"blocked\", instance=~\"payment-service.*\"}",
+          "expr": "jvm_threads_states_threads{state=\"blocked\", job=\"payment-service\"}",
           "legendFormat": "payment-service",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "jvm_threads_states_threads{state=\"blocked\", instance=~\"notification-service.*\"}",
+          "expr": "jvm_threads_states_threads{state=\"blocked\", job=\"notification-service\"}",
           "legendFormat": "notification-service",
           "refId": "E"
         }
@@ -1107,31 +1107,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"patient-service.*\"}",
+          "expr": "process_cpu_usage{job=\"patient-service\"}",
           "legendFormat": "patient-service",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"appointment-service.*\"}",
+          "expr": "process_cpu_usage{job=\"appointment-service\"}",
           "legendFormat": "appointment-service",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"schedule-service.*\"}",
+          "expr": "process_cpu_usage{job=\"schedule-service\"}",
           "legendFormat": "schedule-service",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"payment-service.*\"}",
+          "expr": "process_cpu_usage{job=\"payment-service\"}",
           "legendFormat": "payment-service",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"notification-service.*\"}",
+          "expr": "process_cpu_usage{job=\"notification-service\"}",
           "legendFormat": "notification-service",
           "refId": "E"
         }
@@ -1175,31 +1175,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"patient-service.*\"}",
+          "expr": "process_cpu_usage{job=\"patient-service\"}",
           "legendFormat": "patient-service",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"appointment-service.*\"}",
+          "expr": "process_cpu_usage{job=\"appointment-service\"}",
           "legendFormat": "appointment-service",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"schedule-service.*\"}",
+          "expr": "process_cpu_usage{job=\"schedule-service\"}",
           "legendFormat": "schedule-service",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"payment-service.*\"}",
+          "expr": "process_cpu_usage{job=\"payment-service\"}",
           "legendFormat": "payment-service",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_cpu_usage{instance=~\"notification-service.*\"}",
+          "expr": "process_cpu_usage{job=\"notification-service\"}",
           "legendFormat": "notification-service",
           "refId": "E"
         }
@@ -1240,31 +1240,31 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_uptime_seconds{instance=~\"patient-service.*\"}",
+          "expr": "process_uptime_seconds{job=\"patient-service\"}",
           "legendFormat": "patient-service",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_uptime_seconds{instance=~\"appointment-service.*\"}",
+          "expr": "process_uptime_seconds{job=\"appointment-service\"}",
           "legendFormat": "appointment-service",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_uptime_seconds{instance=~\"schedule-service.*\"}",
+          "expr": "process_uptime_seconds{job=\"schedule-service\"}",
           "legendFormat": "schedule-service",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_uptime_seconds{instance=~\"payment-service.*\"}",
+          "expr": "process_uptime_seconds{job=\"payment-service\"}",
           "legendFormat": "payment-service",
           "refId": "D"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "process_uptime_seconds{instance=~\"notification-service.*\"}",
+          "expr": "process_uptime_seconds{job=\"notification-service\"}",
           "legendFormat": "notification-service",
           "refId": "E"
         }
@@ -1279,8 +1279,8 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "MediQueue — Rendimiento BD y JVM",
-  "uid": "mediqueue-bd-jvm-v1",
+  "title": "MediQueue — Análisis de Escalabilidad y Capacidad",
+  "uid": "mediqueue-capacity-planning",
   "version": 1,
   "weekStart": ""
 }

@@ -455,7 +455,7 @@
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "MediQueue — Resiliencia y Estabilidad",
-  "uid": "mediqueue-resil-v1",
-  "version": 3
+  "title": "MediQueue — Resiliencia y Pruebas de Caos",
+  "uid": "mediqueue-resilience-chaos",
+  "version": 1
 }

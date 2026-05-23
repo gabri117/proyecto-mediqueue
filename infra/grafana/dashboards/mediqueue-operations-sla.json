@@ -11,7 +11,7 @@
     { "type": "panel", "id": "bargauge",   "name": "Bar gauge",   "version": "" }
   ],
   "annotations": { "list": [] },
-  "description": "Vista ejecutiva de MediQueue: estado de servicios, métricas clave, tráfico, errores y recursos del sistema",
+  "description": "Centro de Operaciones y SLA de MediQueue: estado de servicios, métricas clave, tráfico, errores y cumplimiento de disponibilidad",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -552,7 +552,7 @@
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "MediQueue — Vista Ejecutiva",
-  "uid": "mediqueue-exec-v1",
-  "version": 3
+  "title": "MediQueue — Centro de Operaciones y SLA",
+  "uid": "mediqueue-operations-sla",
+  "version": 1
 }
